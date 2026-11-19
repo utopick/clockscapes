@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Clockscapes</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#05060f" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <style>
       /* "SoftClock" is Nunito ExtraLight 3.602, variable weight (github.com/googlefonts/nunito),
          Copyright 2014 The Nunito Project Authors, SIL Open Font License 1.1. Embedded so the page works offline. */
@@ -3906,6 +3910,9 @@
         await refreshAllWeather(false);
         setInterval(() => refreshAllWeather(true), 10 * 60 * 1000);
       })();
+      // Installable and offline when served over http(s); opening the file directly skips it.
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
+        addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(console.warn));
     </script>
   </body>
 </html>

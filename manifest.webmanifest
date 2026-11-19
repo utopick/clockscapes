@@ -1,0 +1,15 @@
+{
+  "id": "/clockscapes/",
+  "name": "Clockscapes",
+  "short_name": "Clockscapes",
+  "description": "Clocks in several timezones over pixel-art cities lit by the real sun and weather",
+  "start_url": "/clockscapes/",
+  "scope": "/clockscapes/",
+  "display": "fullscreen",
+  "background_color": "#05060f",
+  "theme_color": "#05060f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

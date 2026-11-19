@@ -12,6 +12,8 @@ Simple, monolithic and useful. Enjoy.
 
 Or download `index.html` and open it in a browser. That's all: one file, no install, no build.
 
+From the live page you can also install it as an app (Add to Home screen on a phone, or the install button in the address bar on a computer), and then it opens full screen and works offline, apart from the weather.
+
 - Up to 4 cities, each with a pixel-art scene lit by the real sun position (day, dusk, night, moon phase) and the live weather there (rain, snow, fog, storms).
 - **S** settings (pick cities from about 390 capitals and big cities, or type coordinates), **F** fullscreen, **Esc** close.
 - Settings stay in this browser only (IndexedDB). The only network requests go to [Open-Meteo](https://open-meteo.com/), for the weather and for the FIND button; switch the weather off in settings and nothing leaves the page.

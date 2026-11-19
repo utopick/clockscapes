@@ -8,7 +8,9 @@ This is something I asked an LLM to code because I had a simple need: I wanted t
 Simple, monolithic and useful. Enjoy.
 
 ## Use it
-Open `clockscapes.html` in a browser. That's all: one file, no install, no build.
+**Live: https://utopick.github.io/clockscapes/**
+
+Or download `index.html` and open it in a browser. That's all: one file, no install, no build.
 
 - Up to 4 cities, each with a pixel-art scene lit by the real sun position (day, dusk, night, moon phase) and the live weather there (rain, snow, fog, storms).
 - **S** settings (pick cities from about 390 capitals and big cities, or type coordinates), **F** fullscreen, **Esc** close.

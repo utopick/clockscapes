@@ -15,7 +15,7 @@ Or download `index.html` and open it in a browser. That's all: one file, no inst
 From the live page you can also install it as an app (Add to Home screen on a phone, or the install button in the address bar on a computer), and then it opens full screen and works offline, apart from the weather.
 
 - Up to 4 cities, each with a pixel-art scene lit by the real sun position (day, dusk, night, moon phase) and the live weather there (rain, snow, fog, storms).
-- Lo-fi music, made live in the page with no audio files. Each song comes from one of your clocks, so its city and hour choose the song and its sun sets the mood, and when it rains there you hear the rain. Songs last two to three minutes and fade into the next one. The MUSIC tab in settings has the volume, a variation number for a new set of songs, and NEXT SONG.
+- Lo-fi music, made live in the page with no audio files. Each song comes from one of your clocks, so its city and hour choose the song and its sun sets the mood, and when it rains there you hear the rain. Songs last two to three minutes and fade into the next one. Touch the screen (or move the mouse) to show the buttons, where MUSIC plays or pauses and NEXT skips to the next song. The MUSIC tab in settings has the volume, a variation number for a new set of songs, and NEXT SONG.
 - **S** settings (pick cities from about 390 capitals and big cities, or type coordinates), **F** fullscreen, **M** music, **N** next song, **Esc** close.
 - Settings stay in this browser only (IndexedDB). The only network requests go to [Open-Meteo](https://open-meteo.com/), for the weather and for the FIND button; switch the weather off in settings and nothing leaves the page.
 

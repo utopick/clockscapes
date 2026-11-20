@@ -448,11 +448,12 @@
                   maxlength="36"
                   placeholder="Up to 36 characters"
                   spellcheck="false"
-                  title="Plays like an alarm when you press A three times or swipe right three times"
+                  title="Plays like an alarm when you press A three times or swipe down, up and down on the clocks"
               /></label>
             </div>
             <p class="hint" style="margin: 0 0 10px">
-              To try it, save, then press <b>A</b> three times or swipe right across the clocks three times.
+              To try it, save, then press <b>A</b> three times, or swipe down, up and down again on the clocks
+              in one stroke.
             </p>
           </fieldset>
         </div>
@@ -940,8 +941,8 @@
        *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
        *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes,
        *   ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
-       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, A A A (or three swipes
-       *       to the right) plays the test alarm message from the alarms tab, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
+       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, A A A (or a down-up-down
+       *       zigzag stroke on the clocks) plays the test alarm message from the alarms tab, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
        *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
@@ -1504,7 +1505,7 @@
         hour12: false,
         layout: "auto",
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
-        alarmTest: "", // the message A A A or three right swipes play, to try an alarm
+        alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
         music: { on: false, volume: 60, variation: 1 }, // volume 0..100, variation 1..9999 (part of each song's seed)
         zones: [
           { label: "Barcelona", tz: "Europe/Madrid", lat: 41.388, lon: 2.17, scene: "barcelona-es" },
@@ -6933,8 +6934,7 @@
         if (e.key.toLowerCase() === "k" && !e.repeat && modal.classList.contains("hidden"))
           triggerEncounter();
         if ((e.key === "m" || e.key === "M") && !e.repeat) toggleMusic();
-        if ((e.key === "a" || e.key === "A") && !e.repeat && modal.classList.contains("hidden"))
-          testGesture(keyPresses);
+        if ((e.key === "a" || e.key === "A") && !e.repeat && modal.classList.contains("hidden")) testKey();
         if ((e.key === "n" || e.key === "N") && !e.repeat && musicOn()) nextSong(3);
         if (e.key === "f" || e.key === "F") {
           e.preventDefault();
@@ -6963,29 +6963,46 @@
         }
       });
 
-      // ---- test alarm: A three times, or three swipes to the right, within a few seconds ----
-      const keyPresses = { list: [], window: 2000 },
-        swipes = { list: [], window: 5000 };
-      function testGesture(kind) {
-        const now = Date.now();
-        kind.list = kind.list.filter((t) => now - t < kind.window);
-        kind.list.push(now);
-        if (kind.list.length < 3) return;
-        kind.list = [];
+      // ---- test alarm: A three times within 2 s, or one down-up-down zigzag stroke on the clocks ----
+      // (a vertical zigzag, because sideways swipes from the screen edge are the phone's back gesture)
+      function playTestAlarm() {
         fireAlarm({ text: CONFIG.alarmTest || "Test alarm", sound: true });
         toast("Test alarm");
       }
-      let swipeFrom = null;
+      let keyPresses = [];
+      function testKey() {
+        const now = Date.now();
+        keyPresses = keyPresses.filter((t) => now - t < 2000).concat(now);
+        if (keyPresses.length < 3) return;
+        keyPresses = [];
+        playTestAlarm();
+      }
+      const ZIG_LEG = 40, // CSS pixels each stroke of the zigzag must cover
+        ZIG_TURN = 15; // moving back this far ends a stroke
+      let zig = null;
       $("#cols").addEventListener("pointerdown", (ev) => {
-        swipeFrom = ev.isPrimary ? { x: ev.clientX, y: ev.clientY, t: Date.now() } : null;
+        zig = ev.isPrimary ? { dir: 1, from: ev.clientY, ext: ev.clientY, legs: 0, t: Date.now() } : null;
       });
-      $("#cols").addEventListener("pointerup", (ev) => {
-        if (!swipeFrom || !modal.classList.contains("hidden")) return;
-        const dx = ev.clientX - swipeFrom.x,
-          dy = ev.clientY - swipeFrom.y;
-        if (dx > 50 && Math.abs(dy) < dx / 2 && Date.now() - swipeFrom.t < 1000) testGesture(swipes);
-        swipeFrom = null;
+      $("#cols").addEventListener("pointermove", (ev) => {
+        if (!zig || !ev.isPrimary) return;
+        const y = ev.clientY;
+        if ((y - zig.ext) * zig.dir > 0) zig.ext = y;
+        else if (Math.abs(y - zig.ext) > ZIG_TURN) {
+          // a stroke too short, or one that starts upwards, cancels the gesture
+          if ((zig.ext - zig.from) * zig.dir < ZIG_LEG) return void (zig = null);
+          zig.legs++;
+          zig.from = zig.ext;
+          zig.ext = y;
+          zig.dir = -zig.dir;
+        }
       });
+      $("#cols").addEventListener("pointerup", () => {
+        if (zig && (zig.ext - zig.from) * zig.dir >= ZIG_LEG) zig.legs++;
+        if (zig?.legs >= 3 && zig.dir > 0 && Date.now() - zig.t < 2500 && modal.classList.contains("hidden"))
+          playTestAlarm();
+        zig = null;
+      });
+      $("#cols").addEventListener("pointercancel", () => (zig = null));
 
       // ---- boot ----
       (async function boot() {

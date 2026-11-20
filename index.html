@@ -47,15 +47,11 @@
         color: #ffe0a8;
       }
       .country {
-        margin-left: 0.4em;
+        display: block;
         font-size: 0.62em;
         font-weight: 480;
         color: #eef1ff;
         opacity: 0.78;
-      }
-      .country.below {
-        display: block;
-        margin-left: 0;
         overflow: hidden;
         text-overflow: ellipsis;
       }
@@ -6459,7 +6455,6 @@
             this.countryEl = document.createElement("span");
             this.countryEl.className = "country";
             this.countryEl.textContent = country;
-            this.cityText.appendChild(this.countryEl);
           }
           // "local" tag after the city name when this zone is the browser's own time zone
           this.localTag = document.createElement("span");
@@ -6467,6 +6462,7 @@
           this.localTag.textContent = "local";
           this.localTag.hidden = true;
           this.cityText.appendChild(this.localTag);
+          if (this.countryEl) this.cityText.appendChild(this.countryEl); // on its own line under the city
           this.cityText.title = country ? zone.label + ", " + country : zone.label;
           this.g = this.cv.getContext("2d");
           this.seed = hashStr(zone.label + "|" + zone.tz + "|" + zone.scene);
@@ -6573,12 +6569,12 @@
             });
           }
           this.weatherText.style.webkitLineClamp = compact ? "1" : "2";
-          // Phones (the clock beside its labels): the country gets its own line under the city, after the
-          // "local" tag, and the date moves down to make room. Elsewhere it follows the city on one line.
+          // the country line under the city pushes the lines below it down (on phones the weather sits
+          // under the clock instead, so only the date moves)
           if (this.countryEl) {
-            this.cityText.insertBefore(this.countryEl, compact ? null : this.localTag);
-            this.countryEl.classList.toggle("below", compact);
-            if (compact) this.dateText.style.top = this.yInfo * P + Math.ceil(citySize * 0.62 * 1.16) + "px";
+            const extra = Math.ceil(citySize * 0.62 * 1.16);
+            this.dateText.style.top = this.yInfo * P + extra + "px";
+            if (!compact) this.weatherText.style.top = this.yWx * P + extra + "px";
           }
         }
         paintWindow(w, lit) {

@@ -4720,6 +4720,18 @@
 
       // ==== Scene life: planes, birds, boats, trains, cars, bikes and people ====
       // Keep movement on the scene's surfaces, with positions derived from elapsed time.
+      // Seaside cities whose scene is not drawn with the sea in front (a ridge, an old town...): their
+      // skies still get gulls.
+      // prettier-ignore
+      const SEASIDE = new Set(("adelaide-au anchorage-us athens-gr banjul-gm barcelona-es beirut-lb bilbao-es bissau-gw " +
+        "buenos-aires-ar cape-town-za christchurch-nz conakry-gn dili-tl diego-garcia-io djibouti-dj douala-cm douglas-im " +
+        "dubai-ae edinburgh-gb freetown-sl georgetown-gy gibraltar-gi glasgow-gb jakarta-id jamestown-sh king-edward-point-gs " +
+        "kingstown-vc libreville-ga lome-tg longyearbyen-sj los-angeles-us luanda-ao male-mv manama-bh maputo-mz " +
+        "mariehamn-ax melbourne-au mogadishu-so monaco-mc monrovia-lr montevideo-uy moroni-km muscat-om nagoya-jp naples-it " +
+        "new-orleans-us nouakchott-mr nuuk-gl osaka-jp oslo-no port-aux-francais-tf port-louis-mu porto-novo-bj praia-cv " +
+        "reykjavik-is rio-de-janeiro-br saint-helier-je saint-peter-port-gg saint-pierre-pm sao-tome-st shenzhen-cn " +
+        "sri-jayawardenepura-kotte-lk stanley-fk tallinn-ee the-hague-nl tijuana-mx tokyo-jp torshavn-fo tripoli-ly " +
+        "valletta-mt vancouver-ca victoria-sc").split(" "));
       function makeSceneLife(e, seed) {
         const rng = rngFrom(seed ^ 0xb12d);
         const night = e.alt < -5;
@@ -4776,8 +4788,9 @@
           phase: rng(),
           skyId: (seed >>> 0) % 9973, // each city rolls its own aircraft
           flockSize: e.W > 180 ? 5 : 3,
-          coastal: Boolean(e.water),
-          tropical: e.flora === "tropical",
+          coastal: Boolean(e.water) || SEASIDE.has(e.scene),
+          // parrots: the tropics, and Australia's lorikeets and cockatoos
+          tropical: e.flora === "tropical" || CITY_ATLAS[e.scene]?.country === "AU",
           flightDirection: rng() < 0.5 ? 1 : -1,
           cargo: paint([218, 215, 203]),
           trainStripe: paint([198, 81, 66]),
@@ -6651,6 +6664,7 @@
           const city = CITY_ATLAS[z.scene];
           const legacyFlora = { madrid: "mediterranean", london: "temperate", austin: "liveOak" };
           e.flora = city ? cityFlora(city) : legacyFlora[z.scene];
+          e.scene = z.scene;
           e.month = MONTHS.indexOf(tp.month);
           e.day = +tp.day;
           e.latitude = +z.lat;

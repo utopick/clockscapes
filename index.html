@@ -46,6 +46,13 @@
         font-weight: 580;
         color: #ffe0a8;
       }
+      .country {
+        margin-left: 0.4em;
+        font-size: 0.62em;
+        font-weight: 480;
+        color: #eef1ff;
+        opacity: 0.78;
+      }
       .local-tag {
         display: inline-block;
         margin-left: 0.5em;
@@ -6018,13 +6025,21 @@
             return el;
           });
           this.cityText.textContent = zone.label;
+          // the country, smaller, after the city name (zones picked from the city list only)
+          const country = CITY_ATLAS[zone.scene] && countryName(CITY_ATLAS[zone.scene].country);
+          if (country) {
+            const el = document.createElement("span");
+            el.className = "country";
+            el.textContent = country;
+            this.cityText.appendChild(el);
+          }
           // "local" tag after the city name when this zone is the browser's own time zone
           this.localTag = document.createElement("span");
           this.localTag.className = "local-tag";
           this.localTag.textContent = "local";
           this.localTag.hidden = true;
           this.cityText.appendChild(this.localTag);
-          this.cityText.title = zone.label;
+          this.cityText.title = country ? zone.label + ", " + country : zone.label;
           this.g = this.cv.getContext("2d");
           this.seed = hashStr(zone.label + "|" + zone.tz + "|" + zone.scene);
           this.key = "";
@@ -6643,8 +6658,8 @@
         );
       }
       const REGIONS = Intl.DisplayNames ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
-      const cityOption = (c) =>
-        `${c.label}, ${c.country === "KO" ? "Kosovo" : REGIONS?.of(c.country) || c.country}`;
+      const countryName = (code) => (code === "KO" ? "Kosovo" : REGIONS?.of(code) || code);
+      const cityOption = (c) => `${c.label}, ${countryName(c.country)}`;
       const cityByOption = new Map();
       for (const city of Object.values(CITY_ATLAS).sort((a, b) => a.label.localeCompare(b.label))) {
         const value = cityOption(city);

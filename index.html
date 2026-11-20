@@ -143,6 +143,26 @@
       #controls button:focus-visible {
         opacity: 1;
       }
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 70px;
+        transform: translateX(-50%);
+        z-index: 6;
+        background: #0b0e22ee;
+        color: #ffd27a;
+        border: 2px solid #ffd27a;
+        font: 560 15px/1.3 var(--soft-type);
+        padding: 10px 14px;
+        max-width: 86vw;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      #toast.show {
+        opacity: 1;
+      }
       #modal {
         position: fixed;
         inset: 0;
@@ -295,7 +315,9 @@
         FULLSCREEN
       </button>
       <button id="gear" type="button" title="Settings (S)">⚙ SETTINGS</button>
+      <button id="exit" type="button" title="Close the app" hidden>✕ EXIT</button>
     </div>
+    <div id="toast" role="status" aria-live="polite"></div>
 
     <div id="modal" class="hidden">
       <form id="cfg" autocomplete="off">
@@ -397,7 +419,8 @@
        *
        * Debug URL parameters: ?alt=-10 (fake sun altitude in degrees), ?wx=rain (fake weather:
        *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns.
-       * Keys: S settings, F fullscreen, Esc close, K play a monster/UFO "encounter" now
+       * Keys: S settings, F fullscreen, Esc close, K (or 20 taps/clicks within a minute) plays a monster/UFO "encounter" now;
+       *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
        *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
        *   saved settings are lost), store "kv": "config" and the weather cache "wx:open-meteo:...".
@@ -3042,21 +3065,62 @@
         const start = Math.floor(now / 60000) * 60000;
         return { start, ...selectEncounter(rngFrom(hashStr(seed + "|" + start))) };
       }
+      // Kaiju timeline (fractions of ENCOUNTER_DURATION): walk in, stop, spines charge, breath beam, walk off.
+      const ROAR_START = 0.42,
+        BEAM_START = 0.5,
+        ROAR_END = 0.62,
+        STEP_MS = 380;
+      // Which sprite pixels belong to a limb, so the gait can lift/swing them. [row, col] in sprite space.
+      const GAIT = {
+        0: {
+          legA: (r, c) => r >= 12 && c <= 13, // back leg
+          legB: (r, c) => r >= 12 && c >= 14, // front leg
+          tail: (r, c) => r >= 9 && r <= 11 && c <= 7,
+          mouth: [3, 25],
+        },
+        1: {
+          legA: (r, c) => r >= 12 && c <= 9,
+          legB: (r, c) => r >= 12 && c >= 10,
+          armA: (r, c) => r >= 5 && r <= 11 && c <= 5,
+          armB: (r, c) => r >= 5 && r <= 11 && c >= 16,
+        },
+      };
+      // Returns true on the frame a ground monster's foot lands (the column shakes a little).
       function drawEncounter(g, e, encounter, now, reducedMotion) {
-        if (!encounter) return;
+        if (!encounter) return false;
         const elapsed = now - encounter.start;
-        if (elapsed < 0 || elapsed >= ENCOUNTER_DURATION) return;
+        if (elapsed < 0 || elapsed >= ENCOUNTER_DURATION) return false;
         const { kind, direction } = encounter;
         const { w, h, sprites } = ENCOUNTERS[kind];
-        const unit = Math.max(1, Math.floor(Math.min((e.W * 0.53) / w, (e.G * 0.52) / h)));
+        const air = kind >= 2;
+        const animate = !reducedMotion;
+        // Ground monsters are sized to the skyline (≈ as tall as its tallest landmarks) so they tower over
+        // the city from behind it; flyers keep their sky-relative size.
+        const unit = Math.max(
+          1,
+          Math.floor(
+            air ? Math.min((e.W * 0.53) / w, (e.G * 0.52) / h) : Math.min((e.W * 0.7) / w, (e.A * 0.9) / h),
+          ),
+        );
         const width = w * unit;
         const fraction = elapsed / ENCOUNTER_DURATION;
-        const travel = direction > 0 ? fraction : 1 - fraction;
+        // The kaiju stands still while it roars; it makes up the distance by walking a bit faster.
+        const roaring = kind === 0 && animate && fraction >= ROAR_START && fraction < ROAR_END;
+        let walk = fraction;
+        if (kind === 0) {
+          const pause = ROAR_END - ROAR_START;
+          walk =
+            (fraction < ROAR_START ? fraction : fraction < ROAR_END ? ROAR_START : fraction - pause) /
+            (1 - pause);
+        }
+        const travel = direction > 0 ? walk : 1 - walk;
         const x = Math.round(reducedMotion ? (e.W - width) / 2 : travel * (e.W + width + 4) - width - 2);
         const height = h * unit;
-        const air = kind >= 2;
-        const baseline = Math.floor(e.G * (air ? 0.55 : 0.82));
-        const top = Math.max(1, Math.min(baseline - height, Math.floor(e.G - e.A * 0.79)));
+        // Ground monsters stand on the skyline's ground line and are drawn behind the buildings,
+        // so they wade through the city instead of hovering; flyers cruise in the open sky.
+        const top = air
+          ? Math.max(1, Math.min(Math.floor(e.G * 0.55) - height, Math.floor(e.G - e.A * 0.79)))
+          : Math.max(1, e.G - Math.round(e.A * 0.18) - height); // feet stay behind the front row
         const colors = {
           d: [34, 42, 63],
           g: [67, 129, 100],
@@ -3074,26 +3138,73 @@
             css(mixc(e.hz(color, 0.16), color, ["c", "e", "w"].includes(key) ? 0.45 : 0.17)),
           ]),
         );
+        // Gait: two-beat walk. stepPhase 0 lifts leg A, 1 lifts leg B; a foot lands when the phase flips.
+        const walking = animate && !air && !roaring;
+        const stepIdx = Math.floor(elapsed / STEP_MS);
+        const stepPhase = stepIdx % 2;
+        const landed = walking && elapsed % STEP_MS < 1000 / 15 && stepIdx > 0;
+        const blink = animate && elapsed % 2600 < 160;
+        const charge = roaring && fraction >= ROAR_START + 0.03; // spines glow before the beam
+        const flicker = Math.floor(elapsed / 70) % 2;
+        const gait = GAIT[kind];
+        const px = (offset) => x + (direction > 0 ? offset : w - 1 - offset) * unit;
         for (const [sprite, dx, dy] of sprites) {
-          const bob = reducedMotion
+          const bob = !animate
             ? 0
-            : Math.round(Math.sin(elapsed * (air ? 0.005 : 0.014) + dx) * unit * 0.65);
+            : roaring
+              ? Math.round(Math.sin(elapsed * 0.05) * unit * 0.3) // trembling roar
+              : Math.round(
+                  Math.sin(elapsed * (air ? 0.005 : (Math.PI * 2) / (STEP_MS * 2)) + dx) * unit * 0.6,
+                );
           for (let row = 0; row < sprite.length; row++) {
             const pixels = sprite[row];
             for (let col = 0; col < pixels.length; col++) {
-              const shade = ink[pixels[col]];
-              if (!shade) continue;
-              const offset = dx + col;
-              g.fillStyle = shade;
-              g.fillRect(
-                x + (direction > 0 ? offset : w - 1 - offset) * unit,
-                top + dy * unit + row * unit + bob,
-                unit,
-                unit,
-              );
+              let key = pixels[col];
+              if (!ink[key]) continue;
+              let lift = 0;
+              if (gait && walking) {
+                if ((stepPhase === 0 && gait.legA(row, col)) || (stepPhase === 1 && gait.legB(row, col)))
+                  lift = -1;
+                // arms swing opposite to the legs
+                if (
+                  gait.armA &&
+                  ((stepPhase === 1 && gait.armA(row, col)) || (stepPhase === 0 && gait.armB(row, col)))
+                )
+                  lift = -1;
+              }
+              if (gait?.tail && animate && gait.tail(row, col))
+                lift += Math.round(Math.sin(elapsed * 0.009 - col * 0.5) * (roaring ? 1.4 : 0.9));
+              if (key === "e" && blink) key = kind === 0 ? "g" : key;
+              if (kind === 1 && key === "c" && animate) key = blink || flicker ? "w" : "c"; // robot eyes pulse
+              if (kind === 1 && key === "w" && row === 0 && animate) key = flicker ? "r" : "w"; // antenna
+              if (kind === 0 && key === "h" && charge) key = flicker ? "c" : "w"; // atomic spines
+              if (kind === 2 && key === "w" && animate)
+                key = ["w", "e", "r"][(col + Math.floor(elapsed / 150)) % 3];
+              g.fillStyle = ink[key];
+              g.fillRect(px(dx + col), top + dy * unit + (row + lift) * unit + bob, unit, unit);
             }
           }
         }
+        // Breath beam from the kaiju's mouth to the edge of the column.
+        if (kind === 0 && roaring && fraction >= BEAM_START) {
+          const [mr, mc] = gait.mouth;
+          const y = top + mr * unit;
+          const x0 = direction > 0 ? px(mc - 1) + unit : 0;
+          const x1 = direction > 0 ? e.W : px(mc - 1);
+          const grow = Math.min(1, (fraction - BEAM_START) / 0.03);
+          const len = Math.round((x1 - x0) * grow);
+          const bx = direction > 0 ? x0 : x1 - len;
+          g.fillStyle = css(colors.c, 0.35);
+          g.fillRect(bx, y - unit, len, unit * 3);
+          g.fillStyle = css(flicker ? colors.c : colors.w);
+          g.fillRect(bx, y, len, unit);
+          g.fillStyle = css(colors.w, 0.9);
+          for (let i = 0; i < 6; i++) {
+            const sx = bx + ((i * 37 + Math.floor(elapsed / 40) * 13) % Math.max(1, len));
+            g.fillRect(sx, y + (i % 2 ? -unit : unit), unit, unit);
+          }
+        }
+        return landed;
       }
 
       // Hand-drawn scenes: [draw once per minute, optional animation per frame]. Other cities use drawAtlasCity.
@@ -3197,7 +3308,9 @@
           this.clockStr = "";
           const ground = this.zone.scene === "field" ? 12 : Math.min(35, Math.max(18, Math.round(H * 0.39)));
           this.G = H - Math.max(ground, Math.round(H * 0.17));
-          this.A = Math.max(24, this.G - this.T);
+          // Height budget for landmarks: never taller than ~0.6× the column width, so tall desktop
+          // columns keep the same proportions as phone bands (the extra height becomes sky).
+          this.A = Math.max(24, Math.min(this.G - this.T, Math.round(W * 0.6)));
           this.key = "";
           this.parts = [];
           this.pkey = "";
@@ -3459,7 +3572,9 @@
           if (this.manualEncounter && now - this.manualEncounter.start >= ENCOUNTER_DURATION)
             this.manualEncounter = null;
           const encounter = this.manualEncounter || scheduledEncounter(now, tp, this.seed);
-          drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
+          const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
+          // a footstep jolts the column by one pixel
+          this.cv.style.transform = stomp ? `translateY(${this.P}px)` : "";
           g.drawImage(this.fg, 0, 0);
           // water shimmer
           if (e.water) {
@@ -3840,6 +3955,46 @@
         fullscreenButton.setAttribute("aria-pressed", String(active));
       }
       fullscreenButton.hidden = !enterFullscreen || !exitFullscreen;
+
+      // ---- toast ----
+      let toastT;
+      function toast(text, ms = 3500) {
+        const el = $("#toast");
+        el.textContent = text;
+        el.classList.add("show");
+        clearTimeout(toastT);
+        toastT = setTimeout(() => el.classList.remove("show"), ms);
+      }
+
+      // ---- exit (installed app) ----
+      // Browsers only let a page close itself in some cases, so this tries the gentlest exits in order:
+      // leave fullscreen, close the app window, step back out of the app's history, then explain.
+      const APP_MODE =
+        ["fullscreen", "standalone", "minimal-ui", "window-controls-overlay"].some(
+          (m) => window.matchMedia(`(display-mode: ${m})`).matches,
+        ) || navigator.standalone === true;
+      const exitButton = $("#exit");
+      exitButton.hidden = !(APP_MODE || PARAMS.has("exit"));
+      async function exitApp() {
+        try {
+          if (isFullscreen()) await exitFullscreen?.call(document);
+        } catch (e) {}
+        try {
+          window.close();
+        } catch (e) {}
+        setTimeout(() => {
+          if (document.hidden) return;
+          if (history.length > 1) history.back();
+          setTimeout(() => {
+            if (!document.hidden)
+              toast(
+                "Your device keeps this app open — swipe it away (or press ⌘W / Alt+F4) to close it.",
+                6000,
+              );
+          }, 500);
+        }, 300);
+      }
+      exitButton.onclick = exitApp;
       fullscreenButton.onclick = toggleFullscreen;
       document.addEventListener("fullscreenchange", updateFullscreenButton);
       document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
@@ -3884,13 +4039,30 @@
           e.preventDefault();
           modal.classList.contains("hidden") ? openSettings() : closeSettings();
         }
-        if (e.key.toLowerCase() === "k" && !e.repeat && modal.classList.contains("hidden")) {
-          const start = Date.now();
-          for (const column of COLS) column.manualEncounter = { start, ...selectEncounter(Math.random) };
-        }
+        if (e.key.toLowerCase() === "k" && !e.repeat && modal.classList.contains("hidden"))
+          triggerEncounter();
         if (e.key === "f" || e.key === "F") {
           e.preventDefault();
           if (!e.repeat) toggleFullscreen();
+        }
+      });
+
+      // ---- easter eggs: K on keyboards, or 20 taps/clicks within a minute (for phones) ----
+      function triggerEncounter() {
+        const start = Date.now();
+        for (const column of COLS) column.manualEncounter = { start, ...selectEncounter(Math.random) };
+      }
+      const TAP_GOAL = 20,
+        TAP_WINDOW = 60000;
+      let taps = [];
+      $("#cols").addEventListener("pointerdown", (ev) => {
+        if (!ev.isPrimary || !modal.classList.contains("hidden")) return;
+        const now = Date.now();
+        taps = taps.filter((t) => now - t < TAP_WINDOW);
+        taps.push(now);
+        if (taps.length >= TAP_GOAL) {
+          taps = [];
+          triggerEncounter();
         }
       });
 

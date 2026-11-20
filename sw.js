@@ -15,8 +15,8 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin || !PATHS.has(url.pathname)) return;
-  // Network first: new deployments appear without waiting for a service-worker version bump.
-  event.respondWith(fetch(event.request).then((response) => {
+  // Network first, revalidated (no-cache) so the 10-minute Pages HTTP cache never serves an old deploy.
+  event.respondWith(fetch(event.request, { cache: "no-cache" }).then((response) => {
     if (response.ok) {
       const copy = response.clone();
       event.waitUntil(caches.open(CACHE).then((cache) => cache.put(event.request, copy)));

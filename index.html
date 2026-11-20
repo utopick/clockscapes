@@ -3827,7 +3827,10 @@
         const travel = direction > 0 ? walk : 1 - walk;
         const x = Math.round(reducedMotion ? (e.W - art.w) / 2 : travel * (e.W + art.w + 4) - art.w - 2);
         const shake = roaring ? Math.round(Math.sin(elapsed * 0.05) * 0.6) : 0;
-        const top = Math.max(1, e.G - Math.round(e.A * 0.18) - art.h) + shake;
+        // Feet rest exactly on the ground line (the soles sit at ~97% of the kaiju's art, ~98.5% of the robot's),
+        // so wherever the skyline has gaps the monster still stands on the street instead of floating.
+        const sole = Math.round(art.h * (kind === 0 ? 0.97 : 0.985));
+        const top = Math.max(1, e.G + 1 - sole) + shake;
         blitMonster(g, painted, x, top);
 
         // breath beam from the kaiju's mouth to the edge of the column

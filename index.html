@@ -435,8 +435,9 @@
        *   Colours are [r, g, b] arrays; css(c, alpha) turns one into a CSS string.
        *
        * Debug URL parameters: ?alt=-10 (fake sun altitude in degrees), ?wx=rain (fake weather:
-       *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns.
-       * Keys: S settings, F fullscreen, Esc close, K (or 20 taps/clicks within a minute) plays a monster/UFO "encounter" now;
+       *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
+       *   ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
+       * Keys: S settings, F fullscreen, Esc close, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
        *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
@@ -3000,11 +3001,12 @@
       // rasterised at the scene's own pixel size, so one art pixel is one scene pixel on every screen.
       // The raster is then shaded the way pixel art is drawn by hand: a dark outline, a bevel lit from the
       // upper left, darker seams where one body part passes behind another, and material textures
-      // (scales, belly plates, hull rings). Scene lighting (dusk tint, night darkness) is applied last, and
-      // eyes / spines / lamps glow at night.
+      // (scales, belly plates, armour panels and rivets). Scene lighting (dusk tint, night darkness) is applied last, and
+      // eyes / spines / lamps / jets glow at night.
       const ENCOUNTER_DURATION = 10000;
-      const ENCOUNTER_KINDS = 4; // 0 kaiju, 1 giant robot, 2 flying saucers, 3 flying heroes
-      // Kaiju timeline (fractions of ENCOUNTER_DURATION): walk in, stop, spines charge, breath beam, walk off.
+      const ENCOUNTER_KINDS = 4; // 0 kaiju, 1 mecha kaiju, 2 spinning turtle (flies), 3 pterosaur (flies)
+      // Ground timeline (fractions of ENCOUNTER_DURATION): walk in, stop, charge (spines / chest lamp),
+      // fire (breath beam / finger missiles), walk off.
       const ROAR_START = 0.42,
         BEAM_START = 0.5,
         ROAR_END = 0.62,
@@ -3099,32 +3101,25 @@
           ],
           glow: true,
         },
-        armor: {
+        chrome: {
           ramp: [
-            [30, 34, 48],
-            [148, 154, 170],
-            [204, 208, 220],
-            [230, 232, 240],
-            [252, 252, 255],
+            [22, 26, 36],
+            [92, 102, 120],
+            [146, 156, 172],
+            [196, 204, 216],
+            [244, 248, 255],
           ],
+          tex: "panels",
         },
-        blue: {
+        steel: {
           ramp: [
-            [16, 22, 58],
-            [42, 64, 148],
-            [62, 94, 194],
-            [94, 130, 222],
-            [148, 178, 244],
+            [14, 16, 24],
+            [46, 52, 66],
+            [72, 80, 98],
+            [104, 114, 134],
+            [150, 160, 180],
           ],
-        },
-        red: {
-          ramp: [
-            [48, 12, 18],
-            [148, 34, 46],
-            [198, 54, 64],
-            [224, 94, 94],
-            [246, 148, 138],
-          ],
+          tex: "panels",
         },
         gold: {
           ramp: [
@@ -3144,16 +3139,6 @@
             [118, 126, 148],
           ],
         },
-        visor: {
-          ramp: [
-            [8, 38, 48],
-            [40, 198, 208],
-            [95, 239, 229],
-            [170, 250, 245],
-            [230, 255, 255],
-          ],
-          glow: true,
-        },
         core: {
           ramp: [
             [8, 38, 48],
@@ -3164,91 +3149,6 @@
           ],
           glow: true,
         },
-        hull: {
-          ramp: [
-            [24, 28, 38],
-            [102, 112, 132],
-            [148, 158, 178],
-            [188, 196, 212],
-            [234, 238, 246],
-          ],
-          tex: "rings",
-        },
-        glass: {
-          ramp: [
-            [28, 58, 68],
-            [88, 168, 178],
-            [128, 208, 214],
-            [178, 234, 236],
-            [238, 255, 255],
-          ],
-        },
-        alien: {
-          ramp: [
-            [18, 48, 18],
-            [58, 148, 68],
-            [88, 198, 88],
-            [128, 228, 118],
-            [188, 250, 168],
-          ],
-        },
-        lamp0: {
-          ramp: [
-            [58, 48, 8],
-            [255, 198, 58],
-            [255, 220, 100],
-            [255, 236, 160],
-            [255, 250, 220],
-          ],
-          glow: true,
-        },
-        lamp1: {
-          ramp: [
-            [58, 8, 18],
-            [238, 78, 98],
-            [255, 118, 128],
-            [255, 168, 168],
-            [255, 220, 220],
-          ],
-          glow: true,
-        },
-        lamp2: {
-          ramp: [
-            [8, 38, 48],
-            [58, 218, 218],
-            [95, 239, 229],
-            [170, 250, 245],
-            [230, 255, 255],
-          ],
-          glow: true,
-        },
-        suit: {
-          ramp: [
-            [10, 40, 44],
-            [26, 112, 116],
-            [40, 152, 150],
-            [80, 192, 182],
-            [150, 228, 214],
-          ],
-        },
-        cape: {
-          ramp: [
-            [64, 24, 6],
-            [186, 84, 22],
-            [232, 124, 40],
-            [248, 162, 74],
-            [255, 204, 130],
-          ],
-        },
-        face: {
-          ramp: [
-            [68, 38, 28],
-            [198, 138, 98],
-            [234, 178, 134],
-            [246, 204, 164],
-            [255, 228, 198],
-          ],
-        },
         hair: {
           ramp: [
             [8, 8, 14],
@@ -3256,6 +3156,82 @@
             [44, 44, 58],
             [68, 68, 88],
             [98, 98, 118],
+          ],
+        },
+        shell: {
+          ramp: [
+            [18, 24, 14],
+            [52, 62, 32],
+            [78, 90, 46],
+            [108, 120, 62],
+            [150, 160, 92],
+          ],
+          tex: "scales",
+        },
+        rim: {
+          ramp: [
+            [40, 30, 14],
+            [130, 104, 52],
+            [176, 146, 80],
+            [208, 182, 112],
+            [236, 216, 156],
+          ],
+        },
+        flame: {
+          ramp: [
+            [120, 30, 8],
+            [236, 92, 24],
+            [255, 150, 40],
+            [255, 200, 80],
+            [255, 236, 150],
+          ],
+          glow: true,
+        },
+        flameCore: {
+          ramp: [
+            [200, 120, 40],
+            [255, 220, 120],
+            [255, 244, 190],
+            [255, 252, 230],
+            [255, 255, 255],
+          ],
+          glow: true,
+        },
+        ptero: {
+          ramp: [
+            [36, 14, 10],
+            [100, 42, 28],
+            [144, 66, 40],
+            [180, 98, 60],
+            [216, 144, 96],
+          ],
+          tex: "scales",
+        },
+        membrane: {
+          ramp: [
+            [40, 14, 14],
+            [110, 44, 36],
+            [150, 70, 52],
+            [184, 102, 74],
+            [214, 140, 104],
+          ],
+        },
+        membraneFar: {
+          ramp: [
+            [30, 10, 12],
+            [80, 30, 30],
+            [108, 46, 40],
+            [134, 66, 54],
+            [160, 92, 76],
+          ],
+        },
+        crest: {
+          ramp: [
+            [64, 24, 6],
+            [186, 84, 22],
+            [232, 124, 40],
+            [248, 162, 74],
+            [255, 204, 130],
           ],
         },
       };
@@ -3349,6 +3325,7 @@
         const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? -1 : part[y * w + x]);
         const tone = new Int8Array(w * h);
         const bevel = Math.max(1, Math.round(H / 40)); // highlight band grows a little on big monsters
+        const panel = Math.max(5, Math.round(H / 10)); // armour panel size, so plates stay plates at any scale
         for (let y = 0; y < h; y++)
           for (let x = 0; x < w; x++) {
             const i = y * w + x,
@@ -3370,7 +3347,10 @@
             const tex = MAT[mat[i]].tex;
             if (tex === "scales" && t >= 2 && (x + 2 * y) % 5 === 0 && y % 2 === 0) t--;
             else if (tex === "plates" && t >= 2 && y % 3 === 0) t--;
-            else if (tex === "rings" && t >= 2 && y % 3 === 1) t--;
+            else if (tex === "panels" && t >= 2) {
+              if (y % panel === 0) t = 1;
+              else if (y % panel === 2 && x % panel === 2) t = 4; // rivet
+            }
             tone[i] = t;
           }
         const toPx = ([x, y]) => [Math.floor(x * s), Math.floor(y * s)];
@@ -3405,18 +3385,19 @@
       }
 
       // ---- the monsters ----
+      // Hip, knee and ankle of a walking leg; lift bends the knee to raise the foot.
+      function legPose(hip, a, lift) {
+        const bend = 0.32 + lift * 0.75,
+          knee = [hip[0] + Math.sin(a) * 17, hip[1] + Math.cos(a) * 17],
+          b = a - bend * 1.6,
+          ankle = [knee[0] + Math.sin(b) * 17, knee[1] + Math.cos(b) * 17];
+        return { hip, knee, ankle };
+      }
       function kaijuArt(phase, roar) {
         const d = sketch(152, 100);
         const sw = Math.sin(phase * TAU),
           cw = Math.cos(phase * TAU);
         // legs first, to find how far the body must drop for the planted foot to touch the ground (y≈97)
-        const legPose = (hip, a, lift) => {
-          const bend = 0.32 + lift * 0.75,
-            knee = [hip[0] + Math.sin(a) * 17, hip[1] + Math.cos(a) * 17],
-            b = a - bend * 1.6,
-            ankle = [knee[0] + Math.sin(b) * 17, knee[1] + Math.cos(b) * 17];
-          return { hip, knee, ankle };
-        };
         const backLeg = legPose([84, 62], 0.4 * sw, Math.max(0, cw));
         const frontLeg = legPose([96, 64], -0.4 * sw, Math.max(0, -cw));
         const dy = 96 - Math.max(backLeg.ankle[1], frontLeg.ankle[1]) - 3.5;
@@ -3518,172 +3499,221 @@
         return d;
       }
 
-      function robotArt(phase) {
-        const d = sketch(100, 100);
+      // The kaiju's skeleton and gait rebuilt from hard parts: plated limbs, a tail of separate armour rings,
+      // flat fin blades, a visor for eyes and a chest lamp. aim (0..1) raises the near arm to fire.
+      function mechaArt(phase, aim) {
+        const d = sketch(152, 100);
         const sw = Math.sin(phase * TAU),
           cw = Math.cos(phase * TAU);
-        const liftL = Math.max(0, cw) * 7,
-          liftR = Math.max(0, -cw) * 7,
-          sx = sw * 1.6,
-          bob = -Math.abs(sw) * 1.4;
-        const B = ([x, y]) => [x + sx, y + bob]; // upper body sways and bobs
-        const leg = (cx, lift, sgn) => {
-          const hip = B([cx, 60]),
-            knee = [cx + sx * 0.5, 76 - lift * 0.55],
-            ankle = [cx, 90 - lift];
-          d.add("frame", capsule(hip, knee, 6), "thigh" + sgn);
-          d.add("armor", capsule(knee, ankle, 7.5, 6.5), "shin" + sgn);
-          d.add("blue", ellipse([knee[0], knee[1] + 1], 4.5, 4), "knee" + sgn);
-          d.line("frame", 1, [ankle[0] - 4, ankle[1] - 6], [ankle[0] + 4, ankle[1] - 6]);
+        const backLeg = legPose([84, 62], 0.4 * sw, Math.max(0, cw));
+        const frontLeg = legPose([96, 64], -0.4 * sw, Math.max(0, -cw));
+        const dy = 96 - Math.max(backLeg.ankle[1], frontLeg.ankle[1]) - 3.5;
+        const Y = ([x, y]) => [x, y + dy];
+        const drawLeg = (L, side) => {
+          const [ax, ay] = L.ankle;
+          d.add("steel", capsule(Y(L.hip), Y(L.knee), 9.5, 7), "thigh" + side);
+          d.add("chrome", capsule(Y(L.knee), Y(L.ankle), 6.5, 5), "shin" + side);
+          d.add("gold", ellipse(Y(L.knee), 3.4), "knee" + side);
           d.add(
-            "armor",
+            "chrome",
             polygon([
-              [cx - 10, 91 - lift],
-              [cx + 10, 91 - lift],
-              [cx + 12, 98 - lift],
-              [cx - 12, 98 - lift],
+              Y([ax - 6, ay - 3]),
+              Y([ax + 4, ay - 3]),
+              Y([ax + 11, ay + 4.2]),
+              Y([ax - 6, ay + 4.2]),
             ]),
-            "foot" + sgn,
+            "foot" + side,
           );
+          for (const k of [-1, 0, 1])
+            d.add(
+              "steel",
+              capsule(Y([ax + 10, ay + 2.4 + k * 0.9]), Y([ax + 13.5, ay + 3.6 + k * 0.6]), 1.1, 0.6),
+              "claw",
+            );
+        };
+        const tail = [[70, 60]];
+        let ang = Math.PI - 0.35;
+        for (let i = 0; i < 8; i++) {
+          ang += 0.1 + 0.16 * Math.sin(phase * TAU - i * 0.8) * 0.6;
+          const [px, py] = tail[i];
+          tail.push([px + Math.cos(ang) * 8.5, py + Math.sin(ang) * 8.5 * 0.55 + 1.8]);
+        }
+        const radius = (i) => 11.5 - i * 1.25;
+        const fin = (x, y, k) =>
           d.add(
-            "red",
+            "steel",
             polygon([
-              [cx - 12, 96 - lift],
-              [cx + 12, 96 - lift],
-              [cx + 12, 98.5 - lift],
-              [cx - 12, 98.5 - lift],
+              Y([x - k * 0.6, y + k * 0.4]),
+              Y([x - k * 0.45, y - k * 1.05]),
+              Y([x + k * 0.25, y - k * 1.05]),
+              Y([x + k * 0.6, y + k * 0.4]),
             ]),
-            "toe" + sgn,
+            "fin",
           );
-        };
-        leg(39, liftL, "L");
-        leg(61, liftR, "R");
-        d.add("frame", polygon([B([36, 52]), B([64, 52]), B([62, 62]), B([38, 62])]), "waist");
-        d.add("blue", polygon([B([44, 56]), B([56, 56]), B([54, 66]), B([46, 66])]), "crotch");
-        d.add("red", polygon([B([35, 52]), B([65, 52]), B([65, 56]), B([35, 56])]), "belt");
-        d.add("gold", ellipse(B([50, 54]), 3, 2), "buckle");
-        // arms swing opposite to the legs
-        const arm = (cx, swing, sgn) => {
-          const shoulder = B([cx, 34]),
-            elbow = B([cx - sgn * 3, 50]),
-            hand = B([cx - sgn * 2, 64 - swing]);
-          d.add("frame", capsule(shoulder, elbow, 5), "upper" + sgn);
-          d.add("frame", ellipse(elbow, 4.2), "elbow" + sgn);
-          d.add("armor", capsule(elbow, hand, 6.8, 6), "fore" + sgn);
-          d.line("frame", 1, [elbow[0] - 4, elbow[1] + 7], [elbow[0] + 4, elbow[1] + 7]);
-          d.add("blue", ellipse([hand[0], hand[1] + 4], 5.5, 5), "fist" + sgn);
-          d.add("armor", ellipse(B([cx + sgn * 1, 30]), 12, 9.5), "pauldron" + sgn);
-          d.add("red", capsule(B([cx - 7, 27]), B([cx + 7, 25]), 1.5), "stripe" + sgn);
-        };
-        d.add("frame", polygon([B([37, 44]), B([63, 44]), B([61, 53]), B([39, 53])]), "abs");
-        for (const y of [47, 50]) d.line("frame", 0, B([40, y]), B([60, y]));
-        d.add("blue", polygon([B([28, 27]), B([72, 27]), B([67, 46]), B([33, 46])]), "chest");
-        d.add("gold", polygon([B([32, 30]), B([43, 30]), B([43, 39]), B([35, 39])]), "ventL");
-        d.add("gold", polygon([B([57, 30]), B([68, 30]), B([65, 39]), B([57, 39])]), "ventR");
-        for (const y of [32, 34.5, 37])
-          (d.line("frame", 1, B([34, y]), B([42, y])), d.line("frame", 1, B([58, y]), B([66, y])));
-        d.add("gold", ellipse(B([50, 37]), 6), "ring");
-        d.add("core", ellipse(B([50, 37]), 4), "core");
-        arm(19, sw * 4, 1);
-        arm(81, -sw * 4, -1);
-        // head
-        d.add("frame", capsule(B([50, 26]), B([50, 20]), 4.5), "neck");
+        for (let i = 1; i < 6; i++) fin(tail[i][0], tail[i][1] - radius(i) * 0.8, 6 - i);
+        [
+          [74, 43, 7],
+          [82, 36, 9],
+          [91, 31, 11],
+          [100, 28, 11],
+          [108, 27, 9],
+          [115, 24, 6],
+        ].forEach(([x, y, k]) => fin(x, y, k));
+        drawLeg(backLeg, "F");
+        d.add("steel", capsule(Y([108, 52]), Y([114, 60]), 3.6, 3), "armF");
+        // tip first, so each ring overlaps the next one like armour plates
+        for (let i = 7; i >= 0; i--)
+          d.add(
+            i % 2 ? "steel" : "chrome",
+            capsule(Y(tail[i]), Y(tail[i + 1]), radius(i), radius(i + 1)),
+            "tail" + i,
+          );
+        d.add("chrome", ellipse(Y([90, 50]), 26, 21, -0.38), "body");
+        d.add("chrome", capsule(Y([104, 44]), Y([116, 31]), 12, 9), "body");
         d.add(
-          "armor",
-          polygon([B([41, 9]), B([59, 9]), B([62, 21]), B([57, 26]), B([43, 26]), B([38, 21])]),
-          "helmet",
+          "steel",
+          clipTo(ellipse(Y([103, 57]), 12, 17, -0.45), (x, y) => y > 46 + dy),
+          "belly",
         );
-        d.add("frame", polygon([B([44, 17]), B([56, 17]), B([55, 24]), B([45, 24])]), "face");
-        d.add("visor", capsule(B([43.5, 15]), B([56.5, 15]), 1.9), "visor");
-        d.add("red", polygon([B([47, 23.5]), B([53, 23.5]), B([52, 27]), B([48, 27])]), "chin");
-        d.add("gold", capsule(B([50, 10]), B([36, 1.5]), 1.8, 0.9), "fin");
-        d.add("gold", capsule(B([50, 10]), B([64, 1.5]), 1.8, 0.9), "fin");
-        d.add("red", ellipse(B([50, 10]), 2.4, 2.2), "crest");
+        d.add("gold", ellipse(Y([108, 42]), 4.4), "lampRing");
+        d.add("core", ellipse(Y([108, 42]), 3), "lamp");
+        drawLeg(frontLeg, "N");
+        // angular head: skull, jaw with a slit mouth, slanted visor, ear fin
+        d.add("steel", polygon([Y([117, 19]), Y([106, 10]), Y([121, 15])]), "ear");
+        d.add(
+          "chrome",
+          polygon([Y([115, 17]), Y([129, 13]), Y([146, 21]), Y([148, 28]), Y([127, 30]), Y([114, 30])]),
+          "head",
+        );
+        d.add("steel", polygon([Y([122, 29]), Y([146, 28]), Y([144, 34]), Y([124, 35])]), "jaw");
+        d.line("frame", 0, Y([126, 29.6]), Y([145, 28.6]));
+        d.add("steel", capsule(Y([120, 18]), Y([136, 19.5]), 2, 1.4), "brow");
+        d.add("eye", polygon([Y([124, 20.5]), Y([136, 21]), Y([134, 23.5]), Y([125, 23.5])]), "eye");
+        // near arm; when aiming the forearm points straight ahead
+        const sh = [110, 52],
+          r = 0.2 * sw - aim,
+          el = rotP([119, 62], sh, r),
+          w0 = rotP([127, 58], sh, r),
+          wr = [lerp(w0[0], el[0] + 9, aim), lerp(w0[1], el[1] - 1, aim)];
+        d.add("steel", capsule(Y(sh), Y(el), 5, 4), "armN");
+        d.add("chrome", capsule(Y(el), Y(wr), 4, 3.4), "foreN");
+        d.add("gold", ellipse(Y(el), 2.6), "elbow");
+        for (const k of [-1, 0, 1])
+          d.add("steel", capsule(Y(wr), Y([wr[0] + 5, wr[1] + k * 1.8 + 1]), 1.2, 0.8), "fingers");
+        d.add("steel", ellipse(Y([109, 50]), 6.5, 5.5, -0.3), "pad");
+        d.anchors.fingers = Y([wr[0] + 6, wr[1] + 1]);
         return d;
       }
 
-      function saucerArt(k) {
-        const d = sketch(64, 28);
-        d.add("frame", ellipse([32, 19.5], 16, 4.5), "under");
-        d.add("hull", ellipse([32, 16], 30.5, 7), "hull");
-        for (let i = 0; i < 9; i++) {
-          const t = 0.25 + (i / 8) * (Math.PI - 0.5);
+      // An edge-on shell spinning like a disc, jets burning out of its four leg holes. The holes repeat every
+      // quarter turn, so 8 frames of a quarter turn loop seamlessly.
+      function turtleArt(f) {
+        const d = sketch(110, 44);
+        const cx = 55,
+          cy = 22,
+          R = 30,
+          top = 14;
+        const spin = (f / 8) * (TAU / 4);
+        const jet = (a, i) => {
+          const c = Math.cos(a),
+            s = Math.sin(a),
+            L = 16 + ((f + i) % 2) * 4,
+            hole = [cx + c * R * 0.95, cy + 1 + s * 2.5],
+            tip = [hole[0] + c * L, hole[1] + 2 + L * 0.3 + s * 3];
+          d.add("flame", capsule(hole, tip, 3.4, 1), "jet" + i);
           d.add(
-            "lamp" + ((i + k) % 3),
-            ellipse([32 - Math.cos(t) * 25, 17.5 + Math.sin(t) * 3.4], 1.7, 1.4),
-            "lamp" + i,
+            "flameCore",
+            capsule(hole, [lerp(hole[0], tip[0], 0.45), lerp(hole[1], tip[1], 0.45)], 1.8, 0.8),
+            "jet" + i,
           );
-        }
+        };
+        const holes = [0, 1, 2, 3].map((i) => spin + TAU / 8 + (i * TAU) / 4);
+        holes.forEach((a, i) => Math.sin(a) < 0 && jet(a, i));
         d.add(
-          "glass",
-          clipTo(ellipse([32, 12], 12.5, 9.5), (x, y) => y <= 12.6),
-          "dome",
+          "rim",
+          clipTo(ellipse([cx, cy], R, 7), (x, y) => y >= cy),
+          "belly",
         );
-        d.add("alien", ellipse([33.5, 8.5], 3.2, 3.6), "alien");
-        d.dot("hair", 0, [32.4, 8.2]).dot("hair", 0, [34.8, 8.2]);
-        d.add("alien", capsule([33.5, 6], [36, 2.8], 0.6), "antenna");
+        d.add(
+          "shell",
+          clipTo(ellipse([cx, cy], R, top), (x, y) => y <= cy + 0.5),
+          "shell",
+        );
+        // scute seams on the near half travel across the dome as it turns
+        for (let j = 0; j < 8; j++) {
+          const a = spin + (j * TAU) / 8,
+            c = Math.cos(a);
+          if (Math.sin(a) < 0.1) continue;
+          d.line("shell", 0, [cx + c * R * 0.97, cy - 1], [cx + c * R * 0.8, cy - top * 0.55]);
+          d.line("shell", 0, [cx + c * R * 0.8, cy - top * 0.55], [cx + c * R * 0.42, cy - top * 0.9]);
+        }
+        d.line("shell", 0, [cx - R * 0.82, cy - top * 0.55], [cx + R * 0.82, cy - top * 0.55]);
+        d.add("rim", capsule([cx - R + 1.5, cy], [cx + R - 1.5, cy], 2.2), "rimBand");
+        for (let j = 0; j < 16; j++) {
+          const a = spin + (j * TAU) / 16;
+          if (Math.sin(a) > 0.2) d.dot("rim", 0, [cx + Math.cos(a) * (R - 1.5), cy]);
+        }
+        holes.forEach((a, i) => Math.sin(a) >= 0 && jet(a, i));
         return d;
       }
 
-      function heroArt(k) {
-        const d = sketch(70, 30);
-        // cape streams up and back from the shoulders, rippling
-        const top = [],
-          bottom = [];
-        for (let x = 40; x >= 2; x -= 3) {
-          const back = (40 - x) / 38,
-            wv = Math.sin(k * TAU + x * 0.3) * back * 3;
-          top.push([x, 9 - back * 7 + wv]);
-          bottom.unshift([x, 13 - back * 2 + wv * 1.2]);
-        }
-        d.add("cape", polygon([[44, 10], ...top, ...bottom, [42, 15]]), "cape");
-        d.add("suit", capsule([41, 17], [34, 21], 2.6), "armB");
-        d.add("suit", capsule([9, 15], [28, 15.5], 3.6), "legT");
-        d.add("suit", capsule([11, 20], [28, 18.5], 3.6), "legB");
-        d.add("red", capsule([2.5, 14.5], [10.5, 15], 3.7, 3.2), "bootT");
-        d.add("red", capsule([4.5, 20.5], [12.5, 20.2], 3.7, 3.2), "bootB");
-        const torso = capsule([26, 16.5], [45, 14.5], 6.8, 6.4);
-        d.add("suit", torso, "torso");
+      // Side view with a little of the back showing, so both wings read on every frame: the near wing hangs
+      // lower, the far wing higher, and the flap swings both up and down.
+      function pteroArt(k) {
+        const d = sketch(120, 102);
+        const f = Math.cos(k * TAU); // 1 = wings up
+        const toward = (p, q, t) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t)];
+        const wing = (sh, spread, grp, mat) => {
+          const wrist = [sh[0] + 8, sh[1] - 26 * f + spread * 0.3],
+            tip = [sh[0] - 50, sh[1] - 34 * f + spread],
+            hip = [sh[0] - 13, sh[1] + 3],
+            // the trailing edge bows in towards the body, like a stretched membrane
+            p1 = toward(toward(tip, hip, 0.35), sh, 0.22),
+            p2 = toward(toward(tip, hip, 0.7), sh, 0.15);
+          d.add(mat, polygon([sh, wrist, tip, p1, p2, hip]), grp);
+          d.add("ptero", capsule(sh, wrist, 2.8, 2), grp);
+          d.add("ptero", capsule(wrist, tip, 1.8, 0.5), grp);
+          d.line(mat, 1, wrist, p1);
+          d.line(mat, 1, wrist, p2);
+          d.add("claw", capsule(wrist, [wrist[0] + 3, wrist[1] + 1.5], 1, 0.5), grp + "claw");
+        };
+        wing([64, 50], -22, "wingF", "membraneFar");
+        d.add("ptero", capsule([52, 56], [37, 60], 2, 1.3), "legs");
+        d.add("ptero", capsule([53, 57], [39, 63], 2, 1.3), "legs");
+        d.add("ptero", capsule([52, 54], [33, 53], 2.8, 0.6), "body");
+        d.add("ptero", ellipse([61, 54], 13, 6.5, -0.12), "body");
+        wing([62, 52], 14, "wingN", "membrane");
+        d.add("ptero", capsule([68, 52], [80, 43], 4.8, 3.4), "neck");
         d.add(
-          "gold",
-          clipTo(
-            polygon([
-              [26, 7],
-              [29.5, 7],
-              [29.5, 26],
-              [26, 26],
-            ]),
-            (x, y) => torso.inside(x, y),
-          ),
-          "belt",
-        );
-        d.add("frame", ellipse([39, 14.6], 3.2, 3), "badge");
-        d.add(
-          "gold",
+          "crest",
           polygon([
-            [39, 12.2],
-            [39.9, 14],
-            [41.6, 14.2],
-            [40.3, 15.3],
-            [40.7, 17],
-            [39, 16.1],
-            [37.3, 17],
-            [37.7, 15.3],
-            [36.4, 14.2],
-            [38.1, 14],
+            [81, 39],
+            [56, 25],
+            [61, 32],
+            [78, 44],
           ]),
-          "star",
+          "crest",
         );
-        d.add("face", ellipse([51.5, 8.2], 5.6, 5.8), "head");
+        d.add("ptero", ellipse([83, 41.5], 6.2, 4.8, 0.1), "head");
         d.add(
-          "hair",
-          clipTo(ellipse([50, 6.1], 6.3, 4.6), (x, y) => x < 54.5 && y < 7.6),
-          "hair",
+          "rim",
+          polygon([
+            [86, 38.5],
+            [115, 45],
+            [86, 44.5],
+          ]),
+          "beak",
         );
-        d.dot("hair", 0, [54.8, 7.8]);
-        d.dot("red", 1, [54.2, 11]);
-        d.add("suit", capsule([44, 17], [61, 17.5], 3, 2.6), "armF");
-        d.add("face", ellipse([63.8, 17.6], 3.2, 3), "fist");
+        d.add(
+          "rim",
+          polygon([
+            [85, 44.5],
+            [110, 46.2],
+            [85, 47],
+          ]),
+          "jaw",
+        );
+        d.add("eye", ellipse([85.5, 40.6], 1.5, 1.3), "eye");
         return d;
       }
 
@@ -3698,10 +3728,10 @@
             kind === 0
               ? kaijuArt(f / 8, extra || 0)
               : kind === 1
-                ? robotArt(f / 8)
+                ? mechaArt(f / 8, extra || 0)
                 : kind === 2
-                  ? saucerArt(f)
-                  : heroArt(f / 4);
+                  ? turtleArt(f)
+                  : pteroArt(f / 6);
           art = rasterize(def, H);
           ART_CACHE.set(key, art);
         }
@@ -3779,57 +3809,42 @@
           air = kind >= 2,
           flip = direction < 0;
         const fraction = elapsed / ENCOUNTER_DURATION;
-        const roaring = kind === 0 && animate && fraction >= ROAR_START && fraction < ROAR_END;
+        const roaring = !air && animate && fraction >= ROAR_START && fraction < ROAR_END;
         const flicker = Math.floor(elapsed / 70) % 2;
 
         if (air) {
-          // a small flight of saucers or heroes crossing the sky in formation
-          const H = Math.round(clamp(e.W * (kind === 2 ? 0.095 : 0.13), 11, 44));
-          const frame = animate ? Math.floor(elapsed / (kind === 2 ? 150 : 110)) % (kind === 2 ? 3 : 4) : 0;
+          // one big flyer crossing the sky above the skyline
+          const turtle = kind === 2;
+          const H = Math.round(clamp(Math.min(e.W * (turtle ? 0.17 : 0.3), e.A * 0.75), 14, 80));
+          const frame = animate ? Math.floor(elapsed / (turtle ? 66 : 120)) % (turtle ? 8 : 6) : 0;
           const art = monsterRaster(kind, H, frame);
           const painted = paintRaster(art, e, null, flip);
-          const slots =
-            kind === 2
-              ? [
-                  [0, 0.75],
-                  [1.05, 0],
-                  [2.15, 0.55],
-                ]
-              : [
-                  [0, 1.1],
-                  [1.1, 0],
-                  [2.2, 0.7],
-                ];
-          const groupW = Math.round(art.w * 3.2),
-            groupH = Math.round(art.h * 2.2);
           const travel = direction > 0 ? fraction : 1 - fraction;
-          const x0 = Math.round(
-            reducedMotion ? (e.W - groupW) / 2 : travel * (e.W + groupW + 4) - groupW - 2,
-          );
-          const top = Math.max(1, Math.min(Math.floor(e.G * 0.55) - groupH, Math.floor(e.G - e.A * 0.79)));
-          slots.forEach(([sx, sy], i) => {
-            const bob = animate ? Math.round(Math.sin(elapsed * 0.005 + i * 1.7) * art.h * 0.18) : 0;
-            const ox = Math.round((flip ? 2.2 - sx : sx) * art.w);
-            blitMonster(g, painted, x0 + ox, top + Math.round(sy * art.h) + bob);
-          });
+          const x = Math.round(reducedMotion ? (e.W - art.w) / 2 : travel * (e.W + art.w + 4) - art.w - 2);
+          // the pterosaur rises on each downstroke; the turtle wobbles slowly
+          const bob = !animate
+            ? 0
+            : turtle
+              ? Math.sin(elapsed * 0.003) * art.h * 0.15
+              : Math.sin(elapsed * 0.0015) * art.h * 0.12 - Math.sin((frame / 6) * TAU) * art.h * 0.04;
+          // high in the sky, but below the clock and labels where the column has room for it
+          const sky = Math.min(Math.floor(e.G * 0.55) - art.h, Math.floor(e.G - e.A * 0.79));
+          const top = Math.max(1, sky, Math.min(e.T, e.G - art.h - 2));
+          blitMonster(g, painted, x, top + Math.round(bob));
           return false;
         }
 
         // Ground monsters tower over the skyline from behind it; feet stay hidden behind the front row.
-        const aspect = kind === 0 ? 152 / 100 : 1;
-        const H = Math.max(24, Math.round(Math.min(e.A * 0.9, (e.W * 0.72) / aspect)));
-        let walk = fraction;
-        if (kind === 0) {
-          const pause = ROAR_END - ROAR_START;
-          walk =
-            (fraction < ROAR_START ? fraction : fraction < ROAR_END ? ROAR_START : fraction - pause) /
-            (1 - pause);
-        }
+        const H = Math.max(24, Math.round(Math.min(e.A * 0.9, (e.W * 0.72 * 100) / 152)));
+        const pause = ROAR_END - ROAR_START;
+        const walk =
+          (fraction < ROAR_START ? fraction : fraction < ROAR_END ? ROAR_START : fraction - pause) /
+          (1 - pause);
         const tick = Math.floor(elapsed / (STEP_MS / 4));
         const walking = animate && !roaring;
         const frame = walking ? tick % 8 : 0;
         const roarLevel = roaring ? Math.min(1, Math.round(((fraction - ROAR_START) / 0.06) * 4) / 4) : 0;
-        const art = monsterRaster(kind, H, kind === 0 ? frame + ":" + roarLevel : frame);
+        const art = monsterRaster(kind, H, frame + ":" + roarLevel);
         const charge = roaring && fraction >= ROAR_START + 0.03;
         const blink = animate && elapsed % 2600 < 160;
         const swap =
@@ -3839,14 +3854,16 @@
               : blink
                 ? { eye: "skin" }
                 : null
-            : null;
+            : charge
+              ? { core: flicker ? "flameCore" : "core" }
+              : null;
         const painted = paintRaster(art, e, swap, flip);
         const travel = direction > 0 ? walk : 1 - walk;
         const x = Math.round(reducedMotion ? (e.W - art.w) / 2 : travel * (e.W + art.w + 4) - art.w - 2);
         const shake = roaring ? Math.round(Math.sin(elapsed * 0.05) * 0.6) : 0;
-        // Feet rest exactly on the ground line (the soles sit at ~97% of the kaiju's art, ~98.5% of the robot's),
-        // so wherever the skyline has gaps the monster still stands on the street instead of floating.
-        const sole = Math.round(art.h * (kind === 0 ? 0.97 : 0.985));
+        // Feet rest exactly on the ground line (the soles sit at ~97% of the art), so wherever the skyline
+        // has gaps the monster still stands on the street instead of floating.
+        const sole = Math.round(art.h * 0.97);
         const top = Math.max(1, e.G + 1 - sole) + shake;
         blitMonster(g, painted, x, top);
 
@@ -3872,6 +3889,31 @@
           for (let i = 0; i < 8; i++) {
             const sx = bx + ((i * 37 + Math.floor(elapsed / 40) * 13) % Math.max(1, len));
             g.fillRect(sx, y + (i % 2 ? -th * 2 : th * 2), th, th);
+          }
+        }
+
+        // finger missiles: one every 0.2 s from the raised hand, each with a launch flash and a smoke trail
+        if (kind === 1 && roaring && fraction >= BEAM_START) {
+          const [ax, ay] = art.anchors.fingers;
+          const fx = flip ? x + art.w - 1 - ax : x + ax,
+            fy = top + ay;
+          const th = Math.max(1, Math.round(art.h / 40));
+          const since = elapsed - BEAM_START * ENCOUNTER_DURATION;
+          for (let i = 0; i < 6; i++) {
+            const t = since - i * 200;
+            if (t < 0) break;
+            if (t < 90) {
+              g.fillStyle = css([255, 236, 150], 0.9);
+              g.fillRect(fx - th * 2, fy - th * 2, th * 5, th * 5);
+            }
+            const dist = (t * e.W) / 700,
+              mx = Math.round(fx + direction * dist),
+              my = Math.round(fy - dist * 0.05 * (i % 3)),
+              trail = Math.round(Math.min(dist, th * 12));
+            g.fillStyle = css([210, 210, 204], 0.55);
+            g.fillRect(direction > 0 ? mx - trail : mx, my, trail, th);
+            g.fillStyle = css(flicker ? [255, 200, 80] : [255, 250, 220]);
+            g.fillRect(mx - th, my - (th > 1 ? 1 : 0), th * 3, th + (th > 1 ? 2 : 0));
           }
         }
         return walking && tick % 4 === 0 && elapsed - tick * (STEP_MS / 4) < 1000 / 15;
@@ -4738,8 +4780,10 @@
 
       // ---- easter eggs: K on keyboards, or 20 taps/clicks within a minute (for phones) ----
       function triggerEncounter() {
-        const start = Date.now();
-        for (const column of COLS) column.manualEncounter = { start, ...selectEncounter(Math.random) };
+        const start = Date.now(),
+          forced = PARAMS.has("enc") ? { kind: clamp(+PARAMS.get("enc") | 0, 0, ENCOUNTER_KINDS - 1) } : {};
+        for (const column of COLS)
+          column.manualEncounter = { start, ...selectEncounter(Math.random), ...forced };
       }
       const TAP_GOAL = 20,
         TAP_WINDOW = 60000;
@@ -4766,6 +4810,7 @@
           if (Object.hasOwn(saved, "apiKey")) await store.set("config", CONFIG);
         }
         buildColumns();
+        if (PARAMS.has("enc")) triggerEncounter();
         requestAnimationFrame(loop);
         keepAwake();
         await refreshAllWeather(false);

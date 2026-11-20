@@ -122,6 +122,7 @@
         display: flex;
         width: 100vw;
         height: 100vh;
+        touch-action: none; /* swipes reach the page (test alarm) instead of panning it */
       }
       .col {
         flex: 1 1 0;
@@ -439,6 +440,20 @@
             </p>
             <div id="alarms"></div>
             <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
+            <div class="alarm">
+              <label class="text"
+                >Test message
+                <input
+                  name="alarmTest"
+                  maxlength="36"
+                  placeholder="Up to 36 characters"
+                  spellcheck="false"
+                  title="Plays like an alarm when you press A three times or swipe right three times"
+              /></label>
+            </div>
+            <p class="hint" style="margin: 0 0 10px">
+              To try it, save, then press <b>A</b> three times or swipe right across the clocks three times.
+            </p>
           </fieldset>
         </div>
         <div data-panel="clocks">
@@ -925,7 +940,8 @@
        *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
        *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes,
        *   ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
-       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
+       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, A A A (or three swipes
+       *       to the right) plays the test alarm message from the alarms tab, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
        *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
@@ -1488,6 +1504,7 @@
         hour12: false,
         layout: "auto",
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
+        alarmTest: "", // the message A A A or three right swipes play, to try an alarm
         music: { on: false, volume: 60, variation: 1 }, // volume 0..100, variation 1..9999 (part of each song's seed)
         zones: [
           { label: "Barcelona", tz: "Europe/Madrid", lat: 41.388, lon: 2.17, scene: "barcelona-es" },
@@ -6676,6 +6693,7 @@
         form.layout.value = CONFIG.layout || "auto";
         renderZones(CONFIG.zones);
         renderAlarms(CONFIG.alarms || []);
+        form.alarmTest.value = CONFIG.alarmTest || "";
         form.musicOn.value = CONFIG.music.on ? "1" : "0";
         form.musicVol.value = CONFIG.music.volume;
         form.musicVar.value = CONFIG.music.variation;
@@ -6887,6 +6905,7 @@
           hour12: form.hour12.value === "1",
           layout: form.layout.value,
           alarms,
+          alarmTest: form.alarmTest.value.trim().slice(0, 36),
           zones: zs.slice(0, 4),
           music: vetMusic({
             on: form.musicOn.value === "1",
@@ -6914,6 +6933,8 @@
         if (e.key.toLowerCase() === "k" && !e.repeat && modal.classList.contains("hidden"))
           triggerEncounter();
         if ((e.key === "m" || e.key === "M") && !e.repeat) toggleMusic();
+        if ((e.key === "a" || e.key === "A") && !e.repeat && modal.classList.contains("hidden"))
+          testGesture(keyPresses);
         if ((e.key === "n" || e.key === "N") && !e.repeat && musicOn()) nextSong(3);
         if (e.key === "f" || e.key === "F") {
           e.preventDefault();
@@ -6940,6 +6961,30 @@
           taps = [];
           triggerEncounter();
         }
+      });
+
+      // ---- test alarm: A three times, or three swipes to the right, within a few seconds ----
+      const keyPresses = { list: [], window: 2000 },
+        swipes = { list: [], window: 5000 };
+      function testGesture(kind) {
+        const now = Date.now();
+        kind.list = kind.list.filter((t) => now - t < kind.window);
+        kind.list.push(now);
+        if (kind.list.length < 3) return;
+        kind.list = [];
+        fireAlarm({ text: CONFIG.alarmTest || "Test alarm", sound: true });
+        toast("Test alarm");
+      }
+      let swipeFrom = null;
+      $("#cols").addEventListener("pointerdown", (ev) => {
+        swipeFrom = ev.isPrimary ? { x: ev.clientX, y: ev.clientY, t: Date.now() } : null;
+      });
+      $("#cols").addEventListener("pointerup", (ev) => {
+        if (!swipeFrom || !modal.classList.contains("hidden")) return;
+        const dx = ev.clientX - swipeFrom.x,
+          dy = ev.clientY - swipeFrom.y;
+        if (dx > 50 && Math.abs(dy) < dx / 2 && Date.now() - swipeFrom.t < 1000) testGesture(swipes);
+        swipeFrom = null;
       });
 
       // ---- boot ----

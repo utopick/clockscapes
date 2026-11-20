@@ -374,7 +374,9 @@
   <body>
     <div id="cols"></div>
     <div id="controls">
-      <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">▶︎ MUSIC</button>
+      <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">
+        ▶︎ MUSIC
+      </button>
       <button id="next" type="button" title="Next song (N)" hidden>NEXT »</button>
       <button id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-pressed="false">
         FULLSCREEN
@@ -402,11 +404,11 @@
           <fieldset>
             <legend>Music</legend>
             <p class="hint atlasHint">
-              Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of your
-              clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the night is
-              slower and darker than the day. When it rains there, you hear the rain. After two or three
-              minutes a song fades into the next clock's song. The same variation number at the same hour
-              plays the same songs again, and a new number gives you new ones.
+              Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of
+              your clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the
+              night is slower and darker than the day. When it rains there, you hear the rain. After two or
+              three minutes a song fades into the next clock's song. The same variation number at the same
+              hour plays the same songs again, and a new number gives you new ones.
             </p>
             <label
               >Music
@@ -499,7 +501,8 @@
         <p class="hint">
           1–4 zones. “Find” looks up coordinates and time zone for the label using Open-Meteo. Weather
           refreshes every 10 minutes; everything is stored only in this browser (IndexedDB).<br />
-          Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>M</b> music · <b>N</b> next song · <b>Esc</b> close.
+          Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>M</b> music · <b>N</b> next song ·
+          <b>Esc</b> close.
         </p>
       </form>
     </div>
@@ -558,15 +561,57 @@
         };
         // melody rhythms for one bar: [step, length in steps]
         const CELLS = [
-          [[0, 3], [4, 2], [6, 8]],
-          [[2, 2], [4, 2], [6, 6], [12, 2]],
-          [[0, 6], [8, 2], [10, 6]],
-          [[0, 2], [2, 2], [4, 4], [10, 4]],
-          [[4, 4], [8, 8]],
-          [[0, 1], [2, 1], [4, 2], [8, 3], [12, 4]],
-          [[3, 1], [4, 4], [10, 2], [12, 4]],
+          [
+            [0, 3],
+            [4, 2],
+            [6, 8],
+          ],
+          [
+            [2, 2],
+            [4, 2],
+            [6, 6],
+            [12, 2],
+          ],
+          [
+            [0, 6],
+            [8, 2],
+            [10, 6],
+          ],
+          [
+            [0, 2],
+            [2, 2],
+            [4, 4],
+            [10, 4],
+          ],
+          [
+            [4, 4],
+            [8, 8],
+          ],
+          [
+            [0, 1],
+            [2, 1],
+            [4, 2],
+            [8, 3],
+            [12, 4],
+          ],
+          [
+            [3, 1],
+            [4, 4],
+            [10, 2],
+            [12, 4],
+          ],
         ];
-        const ENDS = [[[0, 12]], [[0, 6], [8, 8]], [[0, 4], [4, 12]]];
+        const ENDS = [
+          [[0, 12]],
+          [
+            [0, 6],
+            [8, 8],
+          ],
+          [
+            [0, 4],
+            [4, 12],
+          ],
+        ];
         const SECTIONS = {
           intro: "keys",
           groove: "keys drums bass",
@@ -671,7 +716,8 @@
             vd = vinyl.getChannelData(0);
           for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
           for (let i = 0; i < vd.length; i++)
-            vd[i] = (Math.random() * 2 - 1) * 0.012 + (Math.random() < 0.0004 ? (Math.random() - 0.5) * 0.7 : 0);
+            vd[i] =
+              (Math.random() * 2 - 1) * 0.012 + (Math.random() < 0.0004 ? (Math.random() - 0.5) * 0.7 : 0);
           for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(1.6 * (i / 511.5 - 1)) / Math.tanh(1.6);
           shared.set(ctx, (k = { noise, vinyl, curve }));
           return k;
@@ -757,7 +803,9 @@
               chord = s.chords[bar % 4],
               human = () => 0.85 + Math.random() * 0.3;
             if (has("keys") && CHORD_HITS.includes(i))
-              chord.keys.forEach((n, j) => this.keys(n, t + j * 0.012, sd * (i ? 6 : 7), (i ? 0.07 : 0.1) * human()));
+              chord.keys.forEach((n, j) =>
+                this.keys(n, t + j * 0.012, sd * (i ? 6 : 7), (i ? 0.07 : 0.1) * human()),
+              );
             if (has("bass") && L.bass[i] !== ".") this.bass(chord.root + +L.bass[i], t, sd * 3);
             if (has("drums")) {
               if (L.kick[i] === "x") this.kick(t, human());
@@ -767,7 +815,9 @@
               if (L.open[i] === "x") this.hit(t, 0.22, "highpass", 6000, 0.06);
             }
             const mel = has("melA") ? s.melA : has("melB") ? s.melB : null;
-            if (mel) for (const [ms, n, len] of mel[bar % 4]) if (ms === i) this[s.lead](n, t + 0.01, sd * len, 0.08 * human());
+            if (mel)
+              for (const [ms, n, len] of mel[bar % 4])
+                if (ms === i) this[s.lead](n, t + 0.01, sd * len, 0.08 * human());
           }
           // ---- voices ----
           env(t, peak, attack, decay) {
@@ -816,7 +866,9 @@
             const lp = this.ctx.createBiquadFilter();
             lp.type = "lowpass";
             lp.frequency.value = 380;
-            this.osc("triangle", hz(n), t, t + dur + 0.3).connect(lp).connect(this.env(t, 0.5, 0.01, dur));
+            this.osc("triangle", hz(n), t, t + dur + 0.3)
+              .connect(lp)
+              .connect(this.env(t, 0.5, 0.01, dur));
           }
           kick(t, vel) {
             const o = this.ctx.createOscillator();
@@ -5841,7 +5893,8 @@
       const music = { songs: [], k: 0, timer: 0, bus: null, title: "" };
       const musicOn = () => music.songs.length > 0;
       function vetMusic(m) {
-        const num = (v, lo, hi, def) => (v !== "" && v != null && isFinite(+v) ? clamp(Math.round(+v), lo, hi) : def);
+        const num = (v, lo, hi, def) =>
+          v !== "" && v != null && isFinite(+v) ? clamp(Math.round(+v), lo, hi) : def;
         return {
           on: m?.on === true,
           volume: num(m?.volume, 0, 100, 60),
@@ -5866,7 +5919,9 @@
           p = timeParts(z.tz, Date.now()),
           mood = moodAt(z),
           round = Math.floor(music.k / zs.length);
-        const seed = hashStr([z.label, z.lat, z.lon, p.day, p.month, p.h, CONFIG.music.variation, round].join("|"));
+        const seed = hashStr(
+          [z.label, z.lat, z.lon, p.day, p.month, p.h, CONFIG.music.variation, round].join("|"),
+        );
         music.k++;
         music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
         const when = mood.alt > 6 ? "by day" : mood.alt < -6 ? "at night" : p.h < 12 ? "at dawn" : "at dusk";

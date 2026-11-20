@@ -1995,6 +1995,8 @@
       // ---- Scene: Madrid ----
       function sceneMadrid(g, e) {
         const { W, G, A } = e;
+        // Sierra de Guadarrama, 50 km north, snow-capped in winter
+        drawMountains(g, e, "madrid", [1, 1], A, undefined, 0.2);
         // distant hazy blocks
         filler(g, e, 0, W, 0.12, 0.3, 0.55, [
           [190, 180, 165],
@@ -2885,11 +2887,97 @@
         "cape-town-za": "shrub",
         "san-francisco-us": "mediterranean",
         "los-angeles-us": "mediterranean",
+        // Mediterranean climates the country rules miss (latitude cut, or the country is elsewhere).
+        "marseille-fr": "mediterranean",
+        "monaco-mc": "mediterranean",
+        "florence-it": "mediterranean",
+        "vatican-city-va": "mediterranean",
+        "santiago-cl": "mediterranean",
+        "san-diego-us": "mediterranean",
+        "tijuana-mx": "mediterranean",
+        "amman-jo": "mediterranean",
+        "damascus-sy": "mediterranean",
+        "baku-az": "mediterranean",
+        "ankara-tr": "temperate",
+        // Oceanic Britain, Ireland and Denmark: broadleaf, not spruce, despite the latitude.
+        "edinburgh-gb": "temperate",
+        "glasgow-gb": "temperate",
+        "douglas-im": "temperate",
+        "copenhagen-dk": "temperate",
+        // Conifer country: Pacific Northwest, the Rockies, mountain valleys, Newfoundland's neighbour.
+        "seattle-us": "boreal",
+        "vancouver-ca": "boreal",
+        "calgary-ca": "boreal",
+        "andorra-la-vella-ad": "boreal",
+        "thimphu-bt": "boreal",
+        "ulaanbaatar-mn": "boreal",
+        "saint-pierre-pm": "boreal",
+        // Treeless wind-swept islands.
+        "torshavn-fo": "subarctic",
+        "king-edward-point-gs": "subarctic",
+        "stanley-fk": "subarctic",
+        "port-aux-francais-tf": "subarctic",
+        // Live oaks across the US Gulf states.
+        "dallas-us": "liveOak",
+        "houston-us": "liveOak",
+        "new-orleans-us": "liveOak",
+        // Tropical highlands: eucalyptus, cypress and broadleaf, no palms.
+        "bogota-co": "highland",
+        "guatemala-city-gt": "highland",
+        "tegucigalpa-hn": "highland",
+        "san-jose-cr": "highland",
+        "nairobi-ke": "highland",
+        "asmara-er": "highland",
+        "gitega-bi": "highland",
+        "antananarivo-mg": "highland",
+        "mbabane-sz": "highland",
+        "lobamba-sz": "highland",
+        "abuja-ng": "warm",
+        "pune-in": "warm",
+        // Coconut-palm coasts and lowlands.
+        "lagos-ng": "tropical",
+        "douala-cm": "tropical",
+        "dar-es-salaam-tz": "tropical",
+        "mogadishu-so": "tropical",
+        "mumbai-in": "tropical",
+        "chennai-in": "tropical",
+        "kolkata-in": "tropical",
+        "kaohsiung-tw": "tropical",
+        "maracaibo-ve": "tropical",
+        "guayaquil-ec": "tropical",
+        "cali-co": "tropical",
+        "santa-cruz-de-la-sierra-bo": "tropical",
+        "durban-za": "tropical",
+        "maputo-mz": "tropical",
+        "hamilton-bm": "tropical",
+        "kingston-nf": "tropical",
+        "diego-garcia-io": "tropical",
+        // Subtropical plains (no winter leaf fall) and semi-arid places.
+        "new-delhi-in": "warm",
+        "agra-in": "warm",
+        "ahmedabad-in": "warm",
+        "jaipur-in": "warm",
+        "lahore-pk": "warm",
+        "guangzhou-cn": "warm",
+        "monterrey-mx": "warm",
+        "asuncion-py": "warm",
+        "brasilia-br": "warm",
+        "gaborone-bw": "warm",
+        "windhoek-na": "dry",
+        "hargeisa-so": "dry",
+        "sanaa-ye": "dry",
+        "karachi-pk": "datePalm",
+        "kano-ng": "datePalm",
+        "khartoum-sd": "datePalm",
+        "marrakesh-ma": "datePalm",
+        "el-aaiun-eh": "datePalm",
       };
-      const DRY_COUNTRIES = new Set("BH DJ EG IQ JO KW LY MR OM QA SA TD TM AE YE".split(" "));
-      const MEDITERRANEAN_COUNTRIES = new Set("CY ES GR HR IL IT LB MA MT PS PT TN TR".split(" "));
+      const DRY_COUNTRIES = new Set("BH DJ EG IQ JO KW LY MR OM QA SA TD AE YE".split(" "));
+      const MEDITERRANEAN_COUNTRIES = new Set(
+        "AL CY DZ ES GI GR HR IL IT LB MA ME MT PS PT TN TR".split(" "),
+      );
       const TROPICAL_COUNTRIES = new Set(
-        "AG BB BD BN BR BS CR CU DO FJ GD GH GP GU GY HN HT ID JM KH KN LC LK MV MY NI PA PH PR SG SR SV TH TT VC VN WS".split(
+        "AG BB BD BJ BN BR BS BZ CI CR CU DO FJ GA GD GH GM GN GP GQ GU GW GY HN HT ID JM KH KM KN LA LC LK LR MM MU MV MY NI PA PH PR SC SG SL SR ST SV TG TH TL TT VC VN WS".split(
           " ",
         ),
       );
@@ -2930,7 +3018,8 @@
         if (profile === "boreal")
           return variant % 3 ? "spruce" : season >= 10 || season <= 2 ? "bare" : "deciduous";
         if (profile === "tropical") return variant % 3 ? "palm" : "broadleaf";
-        if (profile === "warm" || profile === "highland") return variant % 3 ? "broadleaf" : "shrub";
+        if (profile === "highland") return ["broadleaf", "eucalypt", "cypress"][variant % 3];
+        if (profile === "warm") return variant % 3 ? "broadleaf" : "shrub";
         if (profile === "datePalm") return variant % 3 ? "datePalm" : "shrub";
         if (profile === "dry" || profile === "subarctic") return "shrub";
         if (profile === "sonoran") return variant % 2 ? "cactus" : "shrub";
@@ -4347,6 +4436,71 @@
         return s;
       }
 
+      // ==== Mountains on the horizon ====
+      // Only cities with hills or mountains really visible from the streets. [size, snow]:
+      // size 1 low hills, 2 mountains, 3 a high range; snow 0 never, 1 in the local winter (Nov to Apr), 2 all year;
+      // an optional third value puts a lone volcano at that fraction of the width (Ararat, Vesuvius...).
+      // Cape Town's Table Mountain is its own art; Tokyo is left out (Fuji shows only on rare clear days).
+      // prettier-ignore
+      const MOUNTAINS = {
+        "addis-ababa-et":[2,0],"abuja-ng":[2,0],"adelaide-au":[1,0],"almaty-kz":[3,2],"amman-jo":[1,0],"anchorage-us":[3,2],
+        "andorra-la-vella-ad":[3,1],"ankara-tr":[1,0],"antananarivo-mg":[1,0],"apia-ws":[2,0],"ashgabat-tm":[2,1],"asmara-er":[1,0],
+        "athens-gr":[2,0],"auckland-nz":[1,0],"avarua-ck":[2,0],"bandung-id":[2,0],"barcelona-es":[1,0],"basseterre-kn":[2,0],
+        "beirut-lb":[2,1],"belo-horizonte-br":[1,0],"bern-ch":[3,2],"bilbao-es":[2,0],"bishkek-kg":[3,2],"bogota-co":[2,0],
+        "bratislava-sk":[1,0],"budapest-hu":[1,0],"busan-kr":[2,0],"cali-co":[2,0],"calgary-ca":[3,2],"canberra-au":[1,0],
+        "caracas-ve":[2,0],"castries-lc":[2,0],"cebu-city-ph":[1,0],"chiang-mai-th":[2,0],"christchurch-nz":[2,2],
+        "chongqing-cn":[1,0],"damascus-sy":[2,0],"davao-ph":[2,0],"denver-us":[3,2],"dublin-ie":[1,0],"dushanbe-tj":[3,2],
+        "east-jerusalem-ps":[1,0],"edinburgh-gb":[1,0],"florence-it":[1,0],"freetown-sl":[2,0],"geneva-ch":[2,2],
+        "gibraltar-gi":[2,0],"guatemala-city-gt":[3,0,0.3],"hong-kong-hk":[2,0],"honolulu-us":[2,0],"islamabad-pk":[2,0],
+        "jerusalem-il":[1,0],"kabul-af":[3,2],"kathmandu-np":[3,2],"kigali-rw":[1,0],"kingston-jm":[2,0],"kingstown-vc":[2,0],
+        "king-edward-point-gs":[3,2],"kyoto-jp":[1,0],"la-paz-bo":[3,2],"las-vegas-us":[2,1],"lima-pe":[1,0],"ljubljana-si":[2,2],
+        "lobamba-sz":[2,0],"longyearbyen-sj":[2,2],"los-angeles-us":[2,1],"marrakesh-ma":[3,1],"marseille-fr":[2,0],
+        "maseru-ls":[2,1],"mbabane-sz":[2,0],"mecca-sa":[1,0],"medellin-co":[2,0],"mexico-city-mx":[3,2],"milan-it":[3,2],
+        "monaco-mc":[2,0],"monterrey-mx":[3,0],"moroni-km":[2,0,0.5],"muscat-om":[2,0],"nairobi-ke":[1,0],"naples-it":[2,0,0.62],
+        "nicosia-cy":[2,0],"north-nicosia-cy":[2,0],"nuuk-gl":[2,2],"oslo-no":[1,0],"palikir-fm":[2,0],"papeete-pf":[2,0],
+        "pago-pago-as":[2,0],"panama-city-pa":[1,0],"phoenix-us":[2,0],"plymouth-ms":[2,0],"podgorica-me":[2,1],
+        "port-au-prince-ht":[2,0],"port-aux-francais-tf":[2,2],"port-louis-mu":[2,0],"port-of-spain-tt":[2,0],
+        "pretoria-za":[1,0],"quito-ec":[3,2],"ramallah-ps":[1,0],"reykjavik-is":[2,1],"rio-de-janeiro-br":[2,0],
+        "roseau-dm":[2,0],"saint-george-s-gd":[2,0],"san-francisco-us":[1,0],"san-jose-cr":[2,0],"san-salvador-sv":[2,0,0.25],
+        "sanaa-ye":[2,0],"santiago-cl":[3,2],"sarajevo-ba":[2,1],"seattle-us":[3,2],"seoul-kr":[2,0],"skopje-mk":[2,1],
+        "sofia-bg":[2,1],"sucre-bo":[2,0],"taipei-tw":[2,0],"tbilisi-ge":[2,0],"tegucigalpa-hn":[2,0],"tehran-ir":[3,2],
+        "thimphu-bt":[3,1],"tijuana-mx":[1,0],"tirana-al":[2,1],"torshavn-fo":[2,0],"tunis-tn":[1,0],"ulaanbaatar-mn":[2,1],
+        "urumqi-cn":[3,2],"vaduz-li":[3,2],"vancouver-ca":[2,2],"victoria-sc":[2,0],"vienna-at":[1,0],"wellington-nz":[1,0],
+        "yaounde-cm":[1,0],"yerevan-am":[3,2,0.68],"zagreb-hr":[1,0],"zurich-ch":[2,2],
+      };
+      // Three ridge layers, far to near, in 2-px strips to keep every edge on the pixel grid. The far layer
+      // rises above the back row of buildings (about 0.6 of `room`) so the range shows. `far` adds haze.
+      // Uses its own rng so building layouts never shift.
+      function drawMountains(g, e, id, [size, snow, cone], room, rock, far = 0) {
+        const rng = rngFrom(hashStr(id + "/mountains"));
+        const peak = room * [0.55, 0.74, 0.92][size - 1];
+        const season = (e.latitude ?? 0) < 0 ? (e.month + 6) % 12 : e.month;
+        const caps = e.snow || snow === 2 || (snow === 1 && e.month >= 0 && (season >= 10 || season <= 3));
+        const snowline = size === 3 ? 0.8 : 0.9;
+        for (let layer = 0; layer < 3; layer++) {
+          const tilt = rng() * 6;
+          const top = peak * [1, 0.78, 0.58][layer];
+          const color = rock
+            ? mulc(rock, 1 - layer * 0.08)
+            : [96 - layer * 10, 127 - layer * 5, 147 - layer * 5];
+          for (let x = 0; x < e.W; x += 2) {
+            const f = x / e.W;
+            const ridge =
+              layer === 0 && cone != null
+                ? Math.max(0.12, Math.min(0.93, 1.05 - Math.abs(f - cone) * 3.2))
+                : 0.5 + 0.35 * Math.sin(f * 6 + tilt) + 0.15 * Math.sin(f * 20 + tilt);
+            const rel = 0.3 + 0.7 * ridge;
+            const height = Math.max(3, Math.floor((top * rel) / 2) * 2);
+            g.fillStyle = css(e.hz(color, Math.min(0.9, 0.57 - layer * 0.13 + far)));
+            g.fillRect(x, e.G - height, 2, height);
+            if (layer === 0 && caps && rel > snowline) {
+              g.fillStyle = css(e.hz([224, 231, 233], Math.min(0.9, 0.36 + far)));
+              g.fillRect(x, e.G - height, 2, Math.max(1, Math.round((rel - snowline) * top * 0.7)));
+            }
+          }
+        }
+      }
+
       // ==== Atlas city scene: hills, two rows of buildings, landmark, street or quay, trees ====
       function drawAtlasCity(g, e, city) {
         const { W, H, G, T } = e;
@@ -4355,6 +4509,7 @@
         const colors = CITY_PALETTES[city.style];
         const coastal = city.style === "harbor" || city.style === "island";
         const hilly = ["ridge", "desert", "lush", "island"].includes(city.style);
+        const arid = city.style === "desert" || ["dry", "datePalm", "sonoran"].includes(e.flora);
         const old = city.style === "old" || city.style === "island";
         const available = Math.max(12, G - Math.min(T, G * 0.52));
         const unit = Math.max(1, Math.min(5, Math.floor(Math.min(W / 62, available / 56))));
@@ -4366,26 +4521,10 @@
           g.fillRect(x, y, w, h);
         };
 
-        // Distant terraces and mountains are drawn in strips to keep every edge on the pixel grid.
-        if (hilly) {
-          for (let layer = 0; layer < 3; layer++) {
-            const tilt = rng() * 6;
-            const range = available * (0.19 + layer * 0.08);
-            const rock =
-              city.style === "desert" ? [174, 119, 106] : [96 - layer * 10, 127 - layer * 5, 147 - layer * 5];
-            for (let x = 0; x < W; x += 2) {
-              const slope = Math.abs(Math.sin((x / W) * 6 + tilt));
-              const ridge = 0.26 + 0.57 * slope + 0.17 * Math.sin((x / W) * 20 + tilt);
-              const height =
-                Math.max(3, Math.floor((range * ridge) / 2) * 2) +
-                Math.floor(available * (0.29 - layer * 0.1));
-              fill(x, G - height, 2, height, rock, 0.57 - layer * 0.13);
-              if (layer === 0 && (Math.abs(city.lat) > 39 || e.snow) && slope > 0.88) {
-                fill(x, G - height, 2, Math.max(1, Math.floor((slope - 0.86) * 16)), [224, 231, 233], 0.36);
-              }
-            }
-          }
-        }
+        // The old style-based hills drew from rng; burn the same calls so street layouts stay as they were.
+        if (hilly) (rng(), rng(), rng());
+        if (MOUNTAINS[city.id])
+          drawMountains(g, e, city.id, MOUNTAINS[city.id], available, arid ? [174, 119, 106] : undefined);
 
         if (city.art === "table") {
           for (let x = 0; x < W; x++) {

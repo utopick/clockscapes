@@ -4780,6 +4780,8 @@
           phase: rng(),
           skyId: (seed >>> 0) % 9973, // each city rolls its own aircraft
           flockSize: e.W > 180 ? 5 : 3,
+          coastal: Boolean(e.water),
+          tropical: e.flora === "tropical",
           flightDirection: rng() < 0.5 ? 1 : -1,
           cargo: paint([218, 215, 203]),
           trainStripe: paint([198, 81, 66]),
@@ -4857,22 +4859,69 @@
         }
         if (e.alt < -3 || ["thunder", "fog", "rain", "snow"].includes(weather)) return;
 
-        const direction = life.flightDirection;
-        const flockDistance = W + 60;
-        const flock = ((seconds + life.phase * 3) * 16 + flockDistance * 0.22) % (flockDistance + 16 * 16);
+        // Every pass is a new flock for this city: small birds, ducks or geese in a V, a loose cluster of
+        // pigeons, gulls by the water, parrots in the tropics.
+        const flockDistance = W + 70,
+          flockCycle = flockDistance + 16 * 16;
+        const flockRun = (seconds + life.phase * 3) * 16 + flockDistance * 0.22;
+        const flock = flockRun % flockCycle;
         if (flock >= flockDistance) return;
-        g.fillStyle = css(mixc(e.top, [36, 38, 56], 0.78));
-        for (let i = 0; i < life.flockSize; i++) {
-          const x = Math.round(direction > 0 ? flock - 7 - i * 6 : W + 7 - flock + i * 6);
+        let roll =
+          (Math.imul(life.skyId + 3, 2246822519) ^
+            Math.imul(Math.floor(flockRun / flockCycle) + 11, 3266489917)) >>>
+          0;
+        roll = (roll ^ (roll >>> 16)) >>> 0;
+        const kinds = ["small", "small", "ducks", "geese", "pigeons"];
+        if (life.coastal) kinds.push("gulls", "gulls");
+        if (life.tropical) kinds.push("parrots", "parrots");
+        const kind = kinds[roll % kinds.length];
+        const direction = roll & 32 ? 1 : -1;
+        const n = { small: life.flockSize, ducks: 5, geese: 7, pigeons: 7, gulls: 3, parrots: 4 }[kind];
+        const dark = css(mixc(e.top, [36, 38, 56], 0.78));
+        const base = top + Math.max(5, Math.round((G - top) * 0.19)) + ((roll >>> 8) % 5);
+        const lead = direction > 0 ? flock - 7 : W + 7 - flock;
+        const flap = { geese: 7, ducks: 13, pigeons: 16, parrots: 14 }[kind] || 15;
+        for (let i = 0; i < n; i++) {
+          // V formations trail back from the leader on two arms; the others follow in a loose line or cloud
+          const v = kind === "ducks" || kind === "geese";
+          const arm = (i + 1) >> 1,
+            side = i % 2 ? 1 : -1;
+          const back = v ? arm * 5 : kind === "pigeons" ? i * 3 + ((i * 7) % 5) : i * 6;
+          const x = Math.round(lead - direction * back);
           const y =
-            top +
-            Math.max(5, Math.round((G - top) * 0.19)) +
-            Math.round(Math.sin(seconds * 2 + i) * 2) +
-            (i % 3);
-          const wing = Math.round(Math.sin(seconds * 15 + i * 1.4));
-          g.fillRect(x, y, 1, 1);
-          g.fillRect(x - 1, y - wing, 1, 1);
-          g.fillRect(x + 1, y - wing, 1, 1);
+            base +
+            (v ? arm * 2 * side : kind === "pigeons" ? ((i * 5) % 7) - 3 : i % 3) +
+            Math.round(Math.sin(seconds * (v ? 1.2 : 2) + i) * (v ? 1 : 2));
+          const wing = Math.round(Math.sin(seconds * flap + i * 1.4));
+          if (kind === "ducks" || kind === "geese") {
+            const geese = kind === "geese";
+            g.fillStyle = css(e.sh(geese ? [112, 100, 86] : [104, 84, 64]));
+            g.fillRect(x - direction * (geese ? 2 : 1), y, geese ? 3 : 2, 1);
+            g.fillRect(x - direction, y - wing, 1, 1);
+            if (geese) g.fillRect(x - direction * 2, y - wing, 1, 1);
+            g.fillStyle = css(e.sh(geese ? [30, 30, 34] : [40, 110, 70]));
+            g.fillRect(x + direction, y, 1, 1);
+            if (geese) g.fillRect(x + direction * 2, y, 1, 1);
+          } else {
+            const color =
+              kind === "gulls"
+                ? [236, 238, 240]
+                : kind === "pigeons"
+                  ? [128, 132, 146]
+                  : kind === "parrots"
+                    ? i % 2
+                      ? [60, 170, 80]
+                      : [220, 60, 50]
+                    : null;
+            g.fillStyle = color ? css(e.sh(color)) : dark;
+            g.fillRect(x, y, 1, 1);
+            g.fillRect(x - 1, y - wing, 1, 1);
+            g.fillRect(x + 1, y - wing, 1, 1);
+            if (kind === "gulls") {
+              g.fillRect(x - 2, y - wing + (wing ? 0 : 1), 1, 1);
+              g.fillRect(x + 2, y - wing + (wing ? 0 : 1), 1, 1);
+            }
+          }
         }
       }
 

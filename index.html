@@ -379,10 +379,12 @@
           <fieldset>
             <legend>Alarms (this device’s time)</legend>
             <p class="hint atlasHint">
-              Each alarm goes off every day at this device’s time. For a minute its message crosses the clock
-              of your own time zone, or a random clock if none is yours: neon trucks or a march with glowing
-              signs at night, and a march or banner planes by day. Tap that clock to stop it. The sound can
-              only play once you have tapped or clicked the page since opening it.
+              Each alarm goes off every day at this device’s time, and for a minute its message crosses your
+              clocks, one word per truck or sign: neon trucks where it is night and a march where it is day.
+              With the clocks side by side it drives from one clock into the next along the same road, and
+              stacked in bands every clock shows it (by day a band may get banner planes instead). Tap any
+              clock to stop it. The sound can only play once you have tapped or clicked the page since opening
+              it.
             </p>
             <div id="alarms"></div>
             <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
@@ -1372,6 +1374,9 @@
         } else g.fillStyle = css(e.sh([200, 200, 190]));
         g.fillRect(x - 1, top + 1, 3, 1);
       }
+      // Every scene has a road lane exactly SYNC_LANE pixels below its ground line, with traffic going
+      // right to left, so an alarm procession drives from one clock straight into the next one.
+      const SYNC_LANE = 7;
       function street(g, e, bottom = e.H) {
         const { W, G } = e;
         const deep = bottom - G >= 27;
@@ -1410,14 +1415,12 @@
           dashes(G + 25);
           e.bike = G + 25;
           e.walk = { lanes: [G + 2, G + 15, bottom - 2] };
-          e.road = { lanes: [G + 7, G + 20] };
+          e.road = { lanes: [G + SYNC_LANE, G + 20] };
         } else {
-          const center = G + 4 + Math.floor((bottom - G - 4) / 2);
-          dashes(center);
+          const two = bottom - G >= 13;
+          if (two) dashes(G + SYNC_LANE + 2);
           e.walk = { lanes: [G + 2] };
-          e.road = {
-            lanes: bottom - G >= 12 ? [center - 2, Math.min(bottom - 2, center + 2)] : [bottom - 2],
-          };
+          e.road = { lanes: two ? [G + SYNC_LANE, bottom - 2] : [G + SYNC_LANE] };
         }
         for (let x = 8; x < W; x += 25) lamp(g, { ...e, G: G + 3 }, x, 8);
       }
@@ -1447,7 +1450,7 @@
         for (let x = 4; x < W; x += 12) paint(stone, x, deck - 1, 1, 2);
         for (let x = 9; x < W; x += 25) lamp(g, { ...e, G: deck + 3 }, x, 7);
         e.walk = { lanes: [deck + 3] };
-        e.road = { lanes: [deck + (wide ? 7 : 6)] };
+        e.road = { lanes: [e.G + SYNC_LANE] };
         if (wide) e.bike = deck + 11;
         e.water.y0 = slab + 3;
         return slab + 3;
@@ -1900,6 +1903,11 @@
         g.fillStyle = css(e.sh([120, 90, 60]));
         for (let x = 1; x < W; x += 5) g.fillRect(x, G + 1, 1, 3);
         g.fillRect(0, G + 2, W, 1);
+        g.fillStyle = css(e.sh(e.snow ? [214, 218, 226] : [150, 128, 96]));
+        g.fillRect(0, G + 4, W, SYNC_LANE + 1);
+        g.fillStyle = css(e.sh(e.snow ? [190, 196, 206] : [124, 104, 78]));
+        for (let x = 3; x < W; x += 9) g.fillRect(x, G + SYNC_LANE - 1, 3, 1);
+        e.road = { lanes: [G + SYNC_LANE] };
       }
       function animField(g, e, t) {
         const m = e.mill;
@@ -3979,10 +3987,9 @@
           }
         }
         const quay = coastal && H - G >= 28;
-        const waterline = quay ? G + 13 : G + 3;
+        const waterline = quay ? G + 13 : G + SYNC_LANE + 2;
         if (coastal) {
-          if (quay) street(g, e, waterline);
-          else e.walk = { lanes: [G + 2] };
+          street(g, e, waterline);
           water(g, e, waterline);
         } else street(g, e);
         const sidewalk = 3;
@@ -4051,7 +4058,7 @@
         const traffic = movers(e.road, Math.min(8, Math.max(5, Math.round(e.W / 38))), 18, 18);
         traffic.forEach((vehicle, i) => {
           vehicle.kind = vehicleKinds[i % vehicleKinds.length];
-          if (e.road.lanes.length === 1) vehicle.direction = 1;
+          vehicle.direction = vehicle.y === e.G + SYNC_LANE ? -1 : 1;
         });
         const cyclists = e.bike == null ? [] : movers({ lanes: [e.bike] }, 2, 10, 12);
         const walkers = movers(e.walk, Math.min(night ? 5 : 10, Math.max(4, Math.round(e.W / 22))), 4, 7);
@@ -4160,7 +4167,7 @@
           }
         }
         for (const vehicle of life.traffic) {
-          if (!inPlane(vehicle.y)) continue;
+          if (!inPlane(vehicle.y) || vehicle.y === life.quietLane) continue;
           const { direction, y, kind } = vehicle;
           const x = lifePosition(vehicle, seconds, 20);
           const half = { car: 3, van: 4, truck: 5, semi: 8, bus: 7 }[kind];
@@ -5176,11 +5183,14 @@
         "&": "25253", "+": "02720", "#": "57575", "♥": "57720", "❤": "57720",
       };
       // Each style: speed in art pixels per second, gap between units, and a unit's width beyond its word.
+      // Trucks and marchers share one layout (the word 11 pixels into its unit, its top SIGN_TOP above
+      // the lane), so a truck leaving one clock comes out of the next one as a sign at the same place.
       const ALARM_STYLES = {
-        trucks: { speed: 22, gap: 6, extra: 14 },
-        march: { speed: 12, gap: 5, extra: 4 },
+        trucks: { speed: 14, gap: 6, extra: 14 },
+        march: { speed: 14, gap: 6, extra: 14 },
         planes: { speed: 20, gap: 10, extra: 17 },
       };
+      const signTop = (y, s) => y - 7 - 5 * s;
       const NEON = [
         [255, 92, 200],
         [90, 236, 255],
@@ -5197,10 +5207,12 @@
         });
       }
       const wordWidth = (word, s) => ([...word].length * 4 - 1) * s;
-      // Returns false once the message is over.
-      function drawAlarm(g, e, alarm, now, animate) {
-        const { W } = e;
-        const s = W >= 240 ? 2 : 1;
+      // Returns false once the message is over. With a `span` (clocks side by side) the procession moves
+      // in screen coordinates: it enters on the right of the last clock and leaves on the left of the
+      // first; ox is this clock's left edge in art pixels.
+      function drawAlarm(g, e, alarm, now, animate, ox = 0, span = e.W) {
+        const W = span;
+        const s = e.W >= 240 ? 2 : 1;
         const { speed, gap, extra } = ALARM_STYLES[alarm.style];
         const widths = alarm.words.map((word) => wordWidth(word, s) + extra);
         const length = widths.reduce((a, b) => a + b + gap, -gap);
@@ -5214,7 +5226,7 @@
         for (let k = 0; k < (animate ? laps : 1); k++) {
           const d = travelled - k * lap;
           if (animate && (d < 0 || d > run)) continue;
-          let x = animate ? W + 2 - Math.round(d) : Math.round((W - length) / 2);
+          let x = animate ? W + 2 - Math.round(d) - ox : Math.round((e.W - length) / 2);
           alarm.words.forEach((word, i) => {
             ALARM_DRAW[alarm.style](g, e, word, x, s, i, elapsed, animate);
             x += widths[i] + gap;
@@ -5230,9 +5242,9 @@
       const ALARM_DRAW = {
         // Night: a semi truck whose dark trailer carries the word in neon, cab in front (facing left).
         trucks(g, e, word, x, s, i, elapsed) {
-          const y = e.road?.lanes.at(-1) ?? e.walk?.lanes.at(-1) ?? e.G + 2;
+          const y = e.G + SYNC_LANE;
           const tw = wordWidth(word, s),
-            th = 5 * s + 4,
+            th = y - 1 - (signTop(y, s) - 2),
             tx = x + 8,
             neon = NEON[i % NEON.length];
           const cab = 4 + 3 * s;
@@ -5244,7 +5256,7 @@
           g.fillRect(tx, y - 1 - th, tw + 6, 1);
           g.fillRect(tx, y - 2, tw + 6, 1);
           // a neon sign flickers now and then
-          if ((elapsed * 7 + i * 3) % 23 > 0.6) glowWord(g, word, tx + 3, y - th + 1, s, neon);
+          if ((elapsed * 7 + i * 3) % 23 > 0.6) glowWord(g, word, tx + 3, signTop(y, s), s, neon);
           g.fillStyle = css(e.sh(mulc(NEON[(i + 2) % NEON.length], 0.75)));
           g.fillRect(x, y - 1 - cab, 6, cab);
           g.fillRect(x + 6, y - 3, 2, 1);
@@ -5259,11 +5271,12 @@
         },
         // A march: each sign is held up by two people; glowing at night, painted card by day.
         march(g, e, word, x, s, i, elapsed, animate) {
-          const y = e.walk?.lanes[0] ?? e.G + 2; // the front sidewalk, so the marchers stay in view
+          const y = e.G + SYNC_LANE;
           const night = e.alt < -4,
             bw = wordWidth(word, s) + 4,
             bh = 5 * s + 4,
-            top = y - 5 - bh;
+            top = signTop(y, s) - 2;
+          x += 9;
           const neon = NEON[i % NEON.length];
           if (night) {
             g.fillStyle = css(neon, 0.22);
@@ -5274,9 +5287,9 @@
           if (night) glowWord(g, word, x + 2, top + 2, s, neon);
           else drawWord(g, word, x + 2, top + 2, s, css(e.sh([196, 52, 52])));
           const skin = css(e.sh([247, 194, 150]));
-          for (const [n, px] of [x + 1, x + bw - 2].entries()) {
+          for (const [n, px] of [x - 7, x - 4, x + 1, x + bw - 2].entries()) {
             g.fillStyle = css(e.sh([150, 110, 70]));
-            g.fillRect(px, top + bh, 1, 2);
+            if (n > 1) g.fillRect(px, top + bh, 1, 2);
             const step = animate ? Math.floor(elapsed * 5 + n + i) % 2 : 0;
             g.fillStyle = skin;
             g.fillRect(px, y - 3, 1, 1);
@@ -5311,25 +5324,34 @@
         },
       };
       function fireAlarm({ time, text, sound }, style) {
-        const locals = COLS.filter((c) => isLocalZone(c.zone.tz));
-        const pool = locals.length ? locals : COLS;
-        const column = pool[Math.floor(Math.random() * pool.length)];
-        if (!column) return;
-        const z = column.zone;
-        const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
-        const styles = alt < -4 ? ["trucks", "march"] : ["march", "planes"];
+        if (!COLS.length) return;
         // Accents are dropped (Ñ -> N) so every letter has a glyph.
         const clean = String(text || "")
           .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .toUpperCase()
           .slice(0, 36);
         const words = clean.split(/\s+/).filter(Boolean);
-        column.alarm = {
-          start: Date.now(),
-          words: words.length ? words : [time || "ALARM"],
-          style: ALARM_STYLES[style] ? style : styles[Math.floor(Math.random() * styles.length)],
-        };
+        // Side by side, one procession drives through every clock (trucks where it is night, a march
+        // where it is day); stacked in bands, every clock shows the whole message at once.
+        const sync = COLS.length > 1 && !document.body.classList.contains("rows");
+        const start = Date.now();
+        for (const column of COLS) {
+          const z = column.zone;
+          const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(start, +z.lat, +z.lon).alt;
+          const night = alt < -4;
+          const styles = sync
+            ? [night ? "trucks" : "march"]
+            : night
+              ? ["trucks", "march"]
+              : ["march", "planes"];
+          column.alarm = {
+            start,
+            sync,
+            words: words.length ? words : [time || "ALARM"],
+            style: ALARM_STYLES[style] ? style : styles[Math.floor(Math.random() * styles.length)],
+          };
+        }
         if (sound) alarmSound(true);
       }
       let alarmMinute = "";
@@ -5463,11 +5485,12 @@
           this.ckey = "";
           this.manualEncounter = null;
           this.alarm = null;
-          // Tapping the clock that shows an alarm ends it (and is not counted as an easter-egg tap).
+          // Tapping a clock that shows an alarm ends it everywhere (and is not counted as an easter-egg tap).
           this.el.addEventListener("pointerdown", (ev) => {
             if (!this.alarm) return;
             ev.stopPropagation();
-            this.stopAlarm();
+            for (const c of COLS) c.alarm = null;
+            alarmSound(false);
             toast("Alarm stopped");
           });
           this.flash = 0;
@@ -5482,6 +5505,7 @@
             ? Math.max(2, Math.round(r.height / 174), Math.ceil(r.width / 780))
             : Math.max(2, Math.round(Math.min(r.width, r.height) / 145));
           this.P = P;
+          this.ox = Math.round(r.left / P); // where this clock starts, for alarms that cross every clock
           this.W = Math.ceil(r.width / P);
           this.H = Math.ceil(r.height / P);
           this.cv.width = this.W;
@@ -5528,7 +5552,7 @@
             });
           }
           this.clockStr = "";
-          const ground = this.zone.scene === "field" ? 12 : Math.min(35, Math.max(18, Math.round(H * 0.39)));
+          const ground = Math.min(35, Math.max(18, Math.round(H * 0.39)));
           this.G = H - Math.max(ground, Math.round(H * 0.17));
           // Height budget for landmarks: never taller than ~0.6× the column width, so tall desktop
           // columns keep the same proportions as phone bands (the extra height becomes sky).
@@ -5820,8 +5844,15 @@
             }
           }
           if (this.anim) this.anim(g, e, t);
+          this.life.quietLane = this.alarm ? e.G + SYNC_LANE : null; // the procession has the lane to itself
           drawStreetPlanes(g, e, this.life, seconds, !REDUCED_MOTION.matches);
-          if (this.alarm && !drawAlarm(g, e, this.alarm, now, !REDUCED_MOTION.matches)) this.stopAlarm();
+          if (this.alarm) {
+            const span = this.alarm.sync ? Math.max(...COLS.map((c) => c.ox + c.W)) : this.W;
+            if (
+              !drawAlarm(g, e, this.alarm, now, !REDUCED_MOTION.matches, this.alarm.sync ? this.ox : 0, span)
+            )
+              this.stopAlarm();
+          }
           // precipitation
           this.ensureParticles(wx);
           if (wx.cat === "rain" || wx.cat === "thunder") {

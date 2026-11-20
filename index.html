@@ -1814,8 +1814,11 @@
             for (let xx = x + 1; xx < x + w - 1; xx += wx) {
               const lit = e.rng() < e.pal.lit * (o.litMul ?? 1);
               const lampColor = LITC[(e.rng() * LITC.length) | 0];
-              g.fillStyle = lit ? css(mixc(lampColor, e.bot, d * 0.6)) : css(e.hz(glass, d));
+              const on = mixc(lampColor, e.bot, d * 0.6),
+                off = e.hz(glass, d);
+              g.fillStyle = css(lit ? on : off);
               g.fillRect(xx, y, 1, 1);
+              e.windows?.push({ x: xx, y, w: 1, h: 1, on, off, lit });
             }
         }
         if (e.snow && o.roof !== false) {
@@ -1826,6 +1829,7 @@
       }
       function lamp(g, e, x, h) {
         const top = e.G - h;
+        e.lamps?.push({ x, y: top + 1, len: h + 9 }); // the cone reaches over the road below
         g.fillStyle = css(e.sh([40, 42, 50]));
         g.fillRect(x, top, 1, h);
         g.fillRect(x - 1, top, 3, 1);
@@ -1835,6 +1839,20 @@
           g.fillStyle = css([255, 232, 170]);
         } else g.fillStyle = css(e.sh([200, 200, 190]));
         g.fillRect(x - 1, top + 1, 3, 1);
+      }
+      // At night each street lamp throws a warm cone onto the pavement and the road. It is added on top
+      // of the traffic ("lighter"), so cars brighten as they pass under it.
+      function drawLampLight(g, e) {
+        if (!e.lamps?.length || e.pal.lit <= 0.2) return;
+        const strength = Math.min(1, e.pal.lit / 0.6);
+        g.globalCompositeOperation = "lighter";
+        for (const { x, y, len } of e.lamps)
+          for (let dy = 1; dy <= len; dy++) {
+            const half = Math.round(dy * 0.45);
+            g.fillStyle = `rgba(255,186,104,${(0.11 * strength * (1 - dy / (len + 1))).toFixed(3)})`;
+            g.fillRect(x - half, y + dy, half * 2 + 1, 1);
+          }
+        g.globalCompositeOperation = "source-over";
       }
       // Every scene has a road lane exactly SYNC_LANE pixels below its ground line, with traffic going
       // right to left, so an alarm procession drives from one clock straight into the next one.
@@ -4414,9 +4432,11 @@
             for (let yy = top + 3; yy < G - 2; yy += wy) {
               for (let xx = x + 2; xx < x + w - 1; xx += wx) {
                 const lit = rng() < e.pal.lit * 0.75;
-                if (lit) g.fillStyle = css(mixc([255, 207, 116], e.bot, haze * 0.68));
-                else set([52, 77, 101], haze);
+                const on = mixc([255, 207, 116], e.bot, haze * 0.68),
+                  off = e.hz([52, 77, 101], haze);
+                g.fillStyle = css(lit ? on : off);
                 g.fillRect(xx, yy, Math.max(1, unit - 1), unit);
+                e.windows?.push({ x: xx, y: yy, w: Math.max(1, unit - 1), h: unit, on, off, lit });
               }
             }
             if (layer && w >= 7 && rng() < 0.6) {
@@ -6065,6 +6085,8 @@
           this.clouds = [];
           this.ckey = "";
           this.manualEncounter = null;
+          this.flips = new Map(); // windows switched since the scene was laid out: "x,y" -> lit
+          this.nextFlip = 0;
           this.alarm = null;
           // Tapping a clock that shows an alarm ends it everywhere (and is not counted as an easter-egg tap).
           this.el.addEventListener("pointerdown", (ev) => {
@@ -6143,6 +6165,7 @@
           this.pkey = "";
           this.clouds = [];
           this.ckey = "";
+          this.flips = new Map(); // window positions change with the size
           const citySize = Math.min(26, Math.max(13, this.ls * 8 * P), r.width * 0.13);
           const infoSize = Math.min(17, Math.max(11, 7 * P), r.width * 0.105);
           for (const [el, y, size] of [
@@ -6159,6 +6182,25 @@
             });
           }
           this.weatherText.style.webkitLineClamp = compact ? "1" : "2";
+        }
+        paintWindow(w, lit) {
+          const fg = this.fg.getContext("2d");
+          w.lit = lit;
+          fg.fillStyle = css(lit ? w.on : w.off);
+          fg.fillRect(w.x, w.y, w.w, w.h);
+          this.flips.set(w.x + "," + w.y, lit);
+        }
+        // After dark, one window now and then switches on or off, keeping the share of lit windows
+        // near what the hour calls for.
+        flipWindow(e) {
+          const list = e.windows;
+          if (!list?.length || e.pal.lit < 0.05) return;
+          const share = list.reduce((n, w) => n + w.lit, 0) / list.length;
+          const turnOn = share < e.pal.lit * 0.75;
+          for (let tries = 0; tries < 12; tries++) {
+            const w = list[Math.floor(Math.random() * list.length)];
+            if (w.lit !== turnOn) return this.paintWindow(w, turnOn);
+          }
         }
         stopAlarm() {
           this.alarm = null;
@@ -6291,11 +6333,26 @@
           const fg = this.fg.getContext("2d");
           const scene = SCENE_FN[city?.art || z.scene];
           e.cityId = city?.id || z.label;
+          e.windows = []; // filled by the scene, for windows that switch on and off at night
+          e.lamps = [];
           if (scene) scene[0](fg, e);
           else if (city) drawAtlasCity(fg, e, city);
           else sceneCity(fg, e);
           if (z.scene !== "field") addStreetDetail(fg, e);
           this.anim = scene?.[1];
+          // Keep only the windows still visible (not covered by a front building, a landmark or a tree):
+          // one read of the finished scene, so switching a window never paints over something else.
+          const px = fg.getImageData(0, 0, W, H).data;
+          const shows = (w) => {
+            const i = (w.y * W + w.x) * 4,
+              c = w.lit ? w.on : w.off;
+            return [0, 1, 2].every((k) => Math.abs(px[i + k] - (c[k] | 0)) <= 1);
+          };
+          e.windows = e.windows.filter((w) => w.x >= 0 && w.y >= 0 && w.x < W && w.y < H && shows(w));
+          for (const w of e.windows) {
+            const lit = this.flips.get(w.x + "," + w.y);
+            if (lit !== undefined && lit !== w.lit) this.paintWindow(w, lit);
+          }
           this.life = makeSceneLife(e, this.seed);
           // --- clouds ---
           const count = { clear: 1, partly: 3, cloudy: 6, fog: 3, rain: 7, thunder: 8, snow: 6 }[wx.cat] ?? 2;
@@ -6474,6 +6531,10 @@
           const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
           // a footstep jolts the column by one pixel
           this.cv.style.transform = stomp ? `translateY(${this.P}px)` : "";
+          if (t > this.nextFlip && !REDUCED_MOTION.matches) {
+            this.nextFlip = t + 3000 + Math.random() * 6000;
+            this.flipWindow(e);
+          }
           g.drawImage(this.fg, 0, 0);
           // water shimmer
           if (e.water) {
@@ -6495,6 +6556,7 @@
           if (this.anim) this.anim(g, e, t);
           this.life.quietLane = this.alarm ? e.G + SYNC_LANE : null; // the procession has the lane to itself
           drawStreetPlanes(g, e, this.life, seconds, !REDUCED_MOTION.matches);
+          drawLampLight(g, e);
           if (this.alarm) {
             const span = this.alarm.sync ? Math.max(...COLS.map((c) => c.ox + c.W)) : this.W;
             if (

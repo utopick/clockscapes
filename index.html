@@ -46,6 +46,23 @@
         font-weight: 580;
         color: #ffe0a8;
       }
+      .local-tag {
+        display: inline-block;
+        margin-left: 0.5em;
+        padding: 0.14em 0.5em 0.18em;
+        border-radius: 0.6em;
+        background: rgba(255, 224, 168, 0.92);
+        color: #141831;
+        font-size: 0.48em;
+        font-weight: 720;
+        letter-spacing: 0.06em;
+        line-height: 1;
+        vertical-align: 0.28em;
+        text-shadow: none;
+      }
+      .local-tag[hidden] {
+        display: none;
+      }
       .scene-weather {
         white-space: normal;
         overflow-wrap: anywhere;
@@ -3892,6 +3909,12 @@
             return el;
           });
           this.cityText.textContent = zone.label;
+          // "local" tag after the city name when this zone is the browser's own time zone
+          this.localTag = document.createElement("span");
+          this.localTag.className = "local-tag";
+          this.localTag.textContent = "local";
+          this.localTag.hidden = true;
+          this.cityText.appendChild(this.localTag);
           this.cityText.title = zone.label;
           this.g = this.cv.getContext("2d");
           this.seed = hashStr(zone.label + "|" + zone.tz + "|" + zone.scene);
@@ -4328,6 +4351,7 @@
             q(".h").textContent = hs;
             q(".m").textContent = ms;
             q(".ap").textContent = ampm;
+            this.localTag.hidden = !isLocalZone(this.zone.tz); // rechecked each minute (e.g. after travelling)
             if (this.compact) {
               const cw = this.clockEl.getBoundingClientRect().width;
               const tx = Math.ceil(this.x0 * this.P + cw + 5 * this.P);
@@ -4351,6 +4375,18 @@
       }
 
       // ==== App ====
+      // Canonical IANA name (resolves aliases such as Europe/Kiev → Europe/Kyiv); null if unknown.
+      function canonicalZone(tz) {
+        try {
+          return new Intl.DateTimeFormat("en", { timeZone: tz }).resolvedOptions().timeZone;
+        } catch (e) {
+          return null;
+        }
+      }
+      function isLocalZone(tz) {
+        const here = canonicalZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+        return Boolean(here) && canonicalZone(tz) === here;
+      }
       let COLS = [];
       function applyLayout() {
         const mode = PARAMS.get("layout") || CONFIG.layout || "auto";

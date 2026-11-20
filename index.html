@@ -140,11 +140,18 @@
       }
       #controls {
         position: fixed;
+        left: 14px;
         right: 14px;
         bottom: 14px;
         z-index: 5;
         display: flex;
+        flex-wrap: wrap; /* a second row on narrow phones */
+        justify-content: flex-end;
         gap: 8px;
+        pointer-events: none; /* taps between the buttons reach the clocks */
+      }
+      #controls button {
+        pointer-events: auto;
       }
       #controls button {
         background: #0b0e22cc;
@@ -159,6 +166,10 @@
       body:not(.idle) #controls button,
       #controls button:focus-visible {
         opacity: 1;
+      }
+      /* hidden buttons ignore taps, so the tap that shows them on a touch screen cannot press one */
+      body.idle #controls button:not(:focus-visible) {
+        pointer-events: none;
       }
       #toast {
         position: fixed;
@@ -179,6 +190,11 @@
       }
       #toast.show {
         opacity: 1;
+      }
+      @media (max-width: 520px) {
+        #toast {
+          bottom: 116px; /* above the two rows of buttons */
+        }
       }
       #modal {
         position: fixed;
@@ -358,7 +374,8 @@
   <body>
     <div id="cols"></div>
     <div id="controls">
-      <button id="music" type="button" title="Music on or off (M)" aria-pressed="false">♪ MUSIC</button>
+      <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">▶︎ MUSIC</button>
+      <button id="next" type="button" title="Next song (N)" hidden>NEXT »</button>
       <button id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-pressed="false">
         FULLSCREEN
       </button>
@@ -4673,7 +4690,7 @@
             for (const song of old) song.dispose();
             if (!arp && !musicOn()) audioCtx.suspend();
           }, 2000);
-          $("#music").setAttribute("aria-pressed", "false");
+          showMusicState(false);
           $("#nowPlaying").textContent = "";
           return;
         }
@@ -4687,7 +4704,13 @@
         music.bus.gain.value = (CONFIG.music.volume / 100) ** 2;
         nextSong(3);
         music.timer = setInterval(musicTick, 50);
-        $("#music").setAttribute("aria-pressed", "true");
+        showMusicState(true);
+      }
+      function showMusicState(on) {
+        const b = $("#music");
+        b.setAttribute("aria-pressed", String(on));
+        b.textContent = on ? "❚❚ MUSIC" : "▶︎ MUSIC";
+        $("#next").hidden = !on;
       }
       function toggleMusic() {
         CONFIG.music.on = !musicOn();
@@ -5407,6 +5430,7 @@
       };
       $("#nextSong").onclick = () => (musicOn() ? nextSong(3) : toast("The music is off"));
       $("#music").onclick = toggleMusic;
+      $("#next").onclick = () => musicOn() && nextSong(3);
       zonesEl.addEventListener("change", (ev) => {
         if (!ev.target.matches("[data-atlas]")) return;
         const value = ev.target.value.trim().toLowerCase();

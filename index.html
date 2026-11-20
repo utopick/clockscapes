@@ -315,8 +315,36 @@
         margin: 12px 0 0;
       }
       #addZone,
-      #randomize {
+      #randomize,
+      #addAlarm {
         margin-bottom: 8px;
+      }
+      .tabs {
+        display: flex;
+        gap: 6px;
+        margin: 0 0 12px;
+      }
+      #cfg .tabs button[aria-selected="true"] {
+        border-color: #ffd27a;
+        color: #ffd27a;
+      }
+      .alarm {
+        border: 2px dashed #2b3270;
+        padding: 10px 10px 0;
+        margin-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      #cfg .alarm .text {
+        flex: 1 1 180px;
+      }
+      .alarm .text input {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .alarm button {
+        margin: 0 0 10px;
       }
       #msg {
         color: #ff9a7a;
@@ -339,55 +367,78 @@
     <div id="modal" class="hidden">
       <form id="cfg" autocomplete="off">
         <h2>▚ CLOCKSCAPES</h2>
-        <fieldset>
-          <legend>Display</legend>
-          <label
-            >Layout
-            <select name="layout">
-              <option value="auto">Auto (horizontal on phones)</option>
-              <option value="columns">Vertical: side-by-side columns</option>
-              <option value="rows">Horizontal: stacked bands</option>
-            </select></label
-          >
-          <label
-            >Clock
-            <select name="hour12">
-              <option value="0">24 h</option>
-              <option value="1">12 h</option>
-            </select></label
-          >
-        </fieldset>
-        <fieldset>
-          <legend>Weather</legend>
-          <label
-            >Live weather
-            <select name="weather">
-              <option value="1">On</option>
-              <option value="0">Off</option>
-            </select></label
-          >
-          <label
-            >Units
-            <select name="units">
-              <option value="metric">°C</option>
-              <option value="imperial">°F</option>
-            </select></label
-          >
-          <p class="hint" style="margin: 0 0 10px">
-            Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No API
-            key required. With weather off, scenes still follow the local day/night cycle.
-          </p>
-        </fieldset>
-        <fieldset>
-          <legend>Zones (1–4)</legend>
-          <p class="hint atlasHint">
-            Choose a city to set its coordinates, time zone and artwork. Cities without a named landmark use a
-            regional streetscape.
-          </p>
-          <div id="zones"></div>
-          <button type="button" id="addZone">+ ADD ZONE</button>
-          <button type="button" id="randomize">RANDOMIZE 3 CITIES</button>
-        </fieldset>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" data-tab="clocks" aria-selected="true" title="Clocks and cities">
+            CLOCKS
+          </button>
+          <button type="button" role="tab" data-tab="alarms" aria-selected="false" title="Daily alarms">
+            ALARMS
+          </button>
+        </div>
+        <div data-panel="alarms" hidden>
+          <fieldset>
+            <legend>Alarms (this device’s time)</legend>
+            <p class="hint atlasHint">
+              Each alarm goes off every day at this device’s time. For a minute its message crosses the clock
+              of your own time zone, or a random clock if none is yours: neon trucks or a march with glowing
+              signs at night, and a march or banner planes by day. Tap that clock to stop it. The sound can
+              only play once you have tapped or clicked the page since opening it.
+            </p>
+            <div id="alarms"></div>
+            <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
+          </fieldset>
+        </div>
+        <div data-panel="clocks">
+          <fieldset>
+            <legend>Display</legend>
+            <label
+              >Layout
+              <select name="layout">
+                <option value="auto">Auto (horizontal on phones)</option>
+                <option value="columns">Vertical: side-by-side columns</option>
+                <option value="rows">Horizontal: stacked bands</option>
+              </select></label
+            >
+            <label
+              >Clock
+              <select name="hour12">
+                <option value="0">24 h</option>
+                <option value="1">12 h</option>
+              </select></label
+            >
+          </fieldset>
+          <fieldset>
+            <legend>Weather</legend>
+            <label
+              >Live weather
+              <select name="weather">
+                <option value="1">On</option>
+                <option value="0">Off</option>
+              </select></label
+            >
+            <label
+              >Units
+              <select name="units">
+                <option value="metric">°C</option>
+                <option value="imperial">°F</option>
+              </select></label
+            >
+            <p class="hint" style="margin: 0 0 10px">
+              Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No API
+              key required. With weather off, scenes still follow the local day/night cycle.
+            </p>
+          </fieldset>
+          <fieldset>
+            <legend>Zones (1–4)</legend>
+            <p class="hint atlasHint">
+              Choose a city to set its coordinates, time zone and artwork. Cities without a named landmark use
+              a regional streetscape.
+            </p>
+            <div id="zones"></div>
+            <button type="button" id="addZone">+ ADD ZONE</button>
+            <button type="button" id="randomize">RANDOMIZE 3 CITIES</button>
+          </fieldset>
+        </div>
         <div id="msg" role="status"></div>
         <div class="actions">
           <button type="button" id="reset">DEFAULTS</button>
@@ -435,12 +486,13 @@
        *   Colours are [r, g, b] arrays; css(c, alpha) turns one into a CSS string.
        *
        * Debug URL parameters: ?alt=-10 (fake sun altitude in degrees), ?wx=rain (fake weather:
-       *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns.
+       *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
+       *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes.
        * Keys: S settings, F fullscreen, Esc close, K (or 20 taps/clicks within a minute) plays a monster/UFO "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
        *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
-       *   saved settings are lost), store "kv": "config" and the weather cache "wx:open-meteo:...".
+       *   saved settings are lost), store "kv": "config" (zones, display, alarms) and the weather cache "wx:open-meteo:...".
        * Network: only Open-Meteo (weather every 10 minutes, and the FIND button's place lookup).
        */
       // ==== Utilities ====
@@ -996,6 +1048,7 @@
         units: "metric",
         hour12: false,
         layout: "auto",
+        alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         zones: [
           { label: "Barcelona", tz: "Europe/Madrid", lat: 41.388, lon: 2.17, scene: "barcelona-es" },
           { label: "New York", tz: "America/New_York", lat: 40.713, lon: -74.006, scene: "new-york-us" },
@@ -3886,6 +3939,268 @@
         field: [sceneField, animField],
       };
 
+      // ==== Alarms: a message carried across a clock, one word per truck, sign or banner ====
+      const ALARM_MS = 60000; // new laps start for a minute; the last one still finishes crossing
+      // 3x5 pixel font: five octal digits per glyph, one per row, 4 = left pixel, 1 = right pixel.
+      // prettier-ignore
+      const GLYPHS = {
+        A: "25755", B: "65656", C: "34443", D: "65556", E: "74647", F: "74644", G: "34553", H: "55755",
+        I: "72227", J: "11152", K: "55655", L: "44447", M: "57755", N: "65555", O: "25552", P: "65644",
+        Q: "25573", R: "65655", S: "34216", T: "72222", U: "55557", V: "55552", W: "55775", X: "55255",
+        Y: "55222", Z: "71247", 0: "75557", 1: "26227", 2: "61247", 3: "61216", 4: "55711", 5: "74616",
+        6: "34757", 7: "71222", 8: "75757", 9: "75711", "!": "22202", "?": "61202", "¡": "20222",
+        "¿": "20243", ".": "00002", ",": "00024", "'": "22000", "-": "00700", ":": "02020", "/": "11244",
+        "&": "25253", "+": "02720", "#": "57575", "♥": "57720", "❤": "57720",
+      };
+      // Each style: speed in art pixels per second, gap between units, and a unit's width beyond its word.
+      const ALARM_STYLES = {
+        trucks: { speed: 22, gap: 6, extra: 14 },
+        march: { speed: 12, gap: 5, extra: 4 },
+        planes: { speed: 20, gap: 10, extra: 17 },
+      };
+      const NEON = [
+        [255, 92, 200],
+        [90, 236, 255],
+        [255, 226, 92],
+        [124, 255, 150],
+      ];
+      function drawWord(g, word, x, y, s, color) {
+        g.fillStyle = color;
+        [...word].forEach((ch, i) => {
+          const rows = GLYPHS[ch] || GLYPHS["?"];
+          for (let r = 0; r < 5; r++)
+            for (let c = 0; c < 3; c++)
+              if (+rows[r] & (4 >> c)) g.fillRect(x + (i * 4 + c) * s, y + r * s, s, s);
+        });
+      }
+      const wordWidth = (word, s) => ([...word].length * 4 - 1) * s;
+      // Returns false once the message is over.
+      function drawAlarm(g, e, alarm, now, animate) {
+        const { W } = e;
+        const s = W >= 240 ? 2 : 1;
+        const { speed, gap, extra } = ALARM_STYLES[alarm.style];
+        const widths = alarm.words.map((word) => wordWidth(word, s) + extra);
+        const length = widths.reduce((a, b) => a + b + gap, -gap);
+        const lap = length + Math.max(gap * 4, Math.round(W * 0.35));
+        const run = W + length + 4; // from entering on the right to leaving on the left
+        const elapsed = (now - alarm.start) / 1000;
+        const laps = Math.ceil(((ALARM_MS / 1000) * speed) / lap);
+        const travelled = elapsed * speed;
+        if (animate ? travelled > (laps - 1) * lap + run : elapsed * 1000 > ALARM_MS) return false;
+        // Right to left like a news ticker, so the first word leads and the message reads left to right.
+        for (let k = 0; k < (animate ? laps : 1); k++) {
+          const d = travelled - k * lap;
+          if (animate && (d < 0 || d > run)) continue;
+          let x = animate ? W + 2 - Math.round(d) : Math.round((W - length) / 2);
+          alarm.words.forEach((word, i) => {
+            ALARM_DRAW[alarm.style](g, e, word, x, s, i, elapsed, animate);
+            x += widths[i] + gap;
+          });
+        }
+        return true;
+      }
+      const glowWord = (g, word, x, y, s, color) => {
+        g.fillStyle = css(color, 0.22);
+        g.fillRect(x - s, y - s, wordWidth(word, s) + 2 * s, 7 * s);
+        drawWord(g, word, x, y, s, css(color));
+      };
+      const ALARM_DRAW = {
+        // Night: a semi truck whose dark trailer carries the word in neon, cab in front (facing left).
+        trucks(g, e, word, x, s, i, elapsed) {
+          const y = e.road?.lanes.at(-1) ?? e.walk?.lanes.at(-1) ?? e.G + 2;
+          const tw = wordWidth(word, s),
+            th = 5 * s + 4,
+            tx = x + 8,
+            neon = NEON[i % NEON.length];
+          const cab = 4 + 3 * s;
+          g.fillStyle = "rgba(255,214,127,.26)";
+          g.fillRect(x - 8, y - 2, 8, 1);
+          g.fillStyle = css(e.sh([60, 58, 80]));
+          g.fillRect(tx, y - 1 - th, tw + 6, th);
+          g.fillStyle = css(neon, 0.85);
+          g.fillRect(tx, y - 1 - th, tw + 6, 1);
+          g.fillRect(tx, y - 2, tw + 6, 1);
+          // a neon sign flickers now and then
+          if ((elapsed * 7 + i * 3) % 23 > 0.6) glowWord(g, word, tx + 3, y - th + 1, s, neon);
+          g.fillStyle = css(e.sh(mulc(NEON[(i + 2) % NEON.length], 0.75)));
+          g.fillRect(x, y - 1 - cab, 6, cab);
+          g.fillRect(x + 6, y - 3, 2, 1);
+          g.fillStyle = "#ffdda1";
+          g.fillRect(x + 1, y - cab, 2, 2);
+          g.fillStyle = "#fff0be";
+          g.fillRect(x, y - 2, 1, 1);
+          g.fillStyle = "#fd7563";
+          g.fillRect(tx + tw + 5, y - 2, 1, 1);
+          g.fillStyle = "#111018";
+          for (const w of [x + 1, x + 4, tx + 2, tx + tw + 1, tx + tw + 3]) g.fillRect(w, y - 1, 2, 2);
+        },
+        // A march: each sign is held up by two people; glowing at night, painted card by day.
+        march(g, e, word, x, s, i, elapsed, animate) {
+          const y = e.walk?.lanes[0] ?? e.G + 2; // the front sidewalk, so the marchers stay in view
+          const night = e.alt < -4,
+            bw = wordWidth(word, s) + 4,
+            bh = 5 * s + 4,
+            top = y - 5 - bh;
+          const neon = NEON[i % NEON.length];
+          if (night) {
+            g.fillStyle = css(neon, 0.22);
+            g.fillRect(x - 1, top - 1, bw + 2, bh + 2);
+          }
+          g.fillStyle = css(e.sh(night ? [34, 30, 44] : [236, 230, 214]));
+          g.fillRect(x, top, bw, bh);
+          if (night) glowWord(g, word, x + 2, top + 2, s, neon);
+          else drawWord(g, word, x + 2, top + 2, s, css(e.sh([196, 52, 52])));
+          const skin = css(e.sh([247, 194, 150]));
+          for (const [n, px] of [x + 1, x + bw - 2].entries()) {
+            g.fillStyle = css(e.sh([150, 110, 70]));
+            g.fillRect(px, top + bh, 1, 2);
+            const step = animate ? Math.floor(elapsed * 5 + n + i) % 2 : 0;
+            g.fillStyle = skin;
+            g.fillRect(px, y - 3, 1, 1);
+            g.fillStyle = css(e.sh(mulc(NEON[(i + n + 1) % NEON.length], 0.7)));
+            g.fillRect(px, y - 2, 2, 2);
+            g.fillStyle = "#2d2a39";
+            g.fillRect(px + (step ? 1 : 0), y, 1, 1);
+          }
+        },
+        // Day: small propeller planes towing a banner each.
+        planes(g, e, word, x, s, i, elapsed, animate) {
+          const bob = animate ? Math.round(Math.sin(elapsed * 2 + i * 1.7)) : 0;
+          const y = Math.max(e.T + 4, 6) + bob;
+          const bw = wordWidth(word, s) + 4,
+            bh = 5 * s + 3,
+            bx = x + 13;
+          g.fillStyle = css(e.sh([238, 236, 228]));
+          g.fillRect(x + 1, y, 8, 2);
+          g.fillRect(x + 4, y - 1, 2, 4);
+          g.fillRect(x + 7, y - 2, 2, 2);
+          g.fillStyle = css(e.sh([196, 70, 62]));
+          g.fillRect(x + 1, y + 1, 8, 1);
+          g.fillStyle = "#3a3a48";
+          if (Math.floor(elapsed * 12) % 2) g.fillRect(x, y - 1, 1, 4);
+          g.fillStyle = css(e.sh([120, 120, 130]));
+          g.fillRect(x + 9, y + 1, 4, 1);
+          g.fillStyle = css(e.sh([250, 246, 232]));
+          g.fillRect(bx, y - 1, bw, bh);
+          g.fillStyle = css(e.sh([196, 70, 62]));
+          g.fillRect(bx, y - 1, 1, bh);
+          drawWord(g, word, bx + 2, y + 1, s, css(e.sh([200, 48, 48])));
+        },
+      };
+      function fireAlarm({ time, text, sound }, style) {
+        const locals = COLS.filter((c) => isLocalZone(c.zone.tz));
+        const pool = locals.length ? locals : COLS;
+        const column = pool[Math.floor(Math.random() * pool.length)];
+        if (!column) return;
+        const z = column.zone;
+        const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
+        const styles = alt < -4 ? ["trucks", "march"] : ["march", "planes"];
+        // Accents are dropped (Ñ -> N) so every letter has a glyph.
+        const clean = String(text || "")
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .toUpperCase()
+          .slice(0, 36);
+        const words = clean.split(/\s+/).filter(Boolean);
+        column.alarm = {
+          start: Date.now(),
+          words: words.length ? words : [time || "ALARM"],
+          style: ALARM_STYLES[style] ? style : styles[Math.floor(Math.random() * styles.length)],
+        };
+        if (sound) alarmSound(true);
+      }
+      let alarmMinute = "";
+      function checkAlarms() {
+        const d = new Date();
+        const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+        if (hm === alarmMinute) return;
+        alarmMinute = hm;
+        for (const alarm of CONFIG.alarms || []) if (alarm.time === hm) fireAlarm(alarm);
+      }
+
+      // ---- alarm sound: a soft maj7 arpeggio with an echo ----
+      let audioCtx = null,
+        arp = null;
+      // Browsers only allow sound after the page has been touched, so the first tap or key creates the
+      // audio (then suspends it, so it does not hold the sound device while idle).
+      function unlockAudio() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (audioCtx || !AC) return;
+        audioCtx = new AC();
+        if (!arp) audioCtx.suspend();
+      }
+      addEventListener("pointerdown", unlockAudio, true);
+      addEventListener("keydown", unlockAudio, true);
+      const ARP_CHORDS = [
+        [53, 57, 60, 64], // Fmaj7
+        [52, 55, 59, 62], // Em7
+        [50, 53, 57, 60], // Dm7
+        [48, 52, 55, 59], // Cmaj7
+      ];
+      function alarmSound(on) {
+        if (!on) {
+          if (!arp) return;
+          const { out, wet, timer } = arp,
+            ctx = audioCtx;
+          arp = null;
+          clearInterval(timer);
+          out.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+          wet.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
+          setTimeout(() => {
+            out.disconnect();
+            wet.disconnect();
+            if (!arp) ctx.suspend();
+          }, 2500);
+          return;
+        }
+        if (!audioCtx || arp) return;
+        const ctx = audioCtx;
+        ctx.resume().catch(() => {});
+        const out = ctx.createGain(),
+          echo = ctx.createDelay(1),
+          feedback = ctx.createGain(),
+          wet = ctx.createGain();
+        out.gain.value = 0.16;
+        echo.delayTime.value = 0.3;
+        feedback.gain.value = 0.35;
+        wet.gain.value = 0.4;
+        out.connect(ctx.destination);
+        out.connect(echo);
+        echo.connect(feedback);
+        feedback.connect(echo);
+        echo.connect(wet);
+        wet.connect(ctx.destination);
+        const STEP = 0.2,
+          ORDER = [0, 1, 2, 3, 4, 3, 2, 1],
+          began = Date.now();
+        let next = ctx.currentTime + 0.1,
+          step = 0;
+        const tick = () => {
+          // a safety stop in case the page was hidden and never drew the end of the message
+          if (Date.now() - began > ALARM_MS * 3) return alarmSound(false);
+          while (next < ctx.currentTime + 0.5) {
+            const chord = ARP_CHORDS[Math.floor(step / 8) % ARP_CHORDS.length],
+              n = ORDER[step % 8];
+            const midi = (n === 4 ? chord[0] + 12 : chord[n]) + 12;
+            const osc = ctx.createOscillator(),
+              env = ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.value = 440 * 2 ** ((midi - 69) / 12);
+            env.gain.setValueAtTime(0, next);
+            env.gain.linearRampToValueAtTime(1, next + 0.015);
+            env.gain.exponentialRampToValueAtTime(0.001, next + 1.1);
+            osc.connect(env);
+            env.connect(out);
+            osc.start(next);
+            osc.stop(next + 1.2);
+            next += STEP;
+            step++;
+          }
+        };
+        arp = { out, wet, timer: setInterval(tick, 100) };
+        tick();
+      }
+
       // ==== Column renderer ====
       const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
       class Column {
@@ -3924,6 +4239,14 @@
           this.clouds = [];
           this.ckey = "";
           this.manualEncounter = null;
+          this.alarm = null;
+          // Tapping the clock that shows an alarm ends it (and is not counted as an easter-egg tap).
+          this.el.addEventListener("pointerdown", (ev) => {
+            if (!this.alarm) return;
+            ev.stopPropagation();
+            this.stopAlarm();
+            toast("Alarm stopped");
+          });
           this.flash = 0;
           this.nextBolt = 0;
           this.bolt = null;
@@ -4008,6 +4331,10 @@
             });
           }
           this.weatherText.style.webkitLineClamp = compact ? "1" : "2";
+        }
+        stopAlarm() {
+          this.alarm = null;
+          if (!COLS.some((c) => c.alarm)) alarmSound(false);
         }
         weather() {
           const d = debugWx();
@@ -4271,6 +4598,7 @@
           }
           if (this.anim) this.anim(g, e, t);
           drawStreetPlanes(g, e, this.life, seconds, !REDUCED_MOTION.matches);
+          if (this.alarm && !drawAlarm(g, e, this.alarm, now, !REDUCED_MOTION.matches)) this.stopAlarm();
           // precipitation
           this.ensureParticles(wx);
           if (wx.cat === "rain" || wx.cat === "thunder") {
@@ -4450,7 +4778,44 @@
       const modal = $("#modal"),
         form = $("#cfg"),
         zonesEl = $("#zones"),
+        alarmsEl = $("#alarms"),
         msg = $("#msg");
+      function showTab(name) {
+        for (const b of form.querySelectorAll("[data-tab]"))
+          b.setAttribute("aria-selected", String(b.dataset.tab === name));
+        for (const p of form.querySelectorAll("[data-panel]")) p.hidden = p.dataset.panel !== name;
+      }
+      form.querySelector(".tabs").addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-tab]");
+        if (b) showTab(b.dataset.tab);
+      });
+      function alarmRow(a) {
+        const d = document.createElement("div");
+        d.className = "alarm";
+        d.innerHTML = `<label>Time <input type="time" data-a="time" value="${esc(a.time)}"></label>
+    <label class="text">Message <input data-a="text" maxlength="36" value="${esc(a.text)}" placeholder="Up to 36 characters" spellcheck="false"></label>
+    <label>Sound <select data-a="sound"><option value="1">On</option><option value="0">Off</option></select></label>
+    <button type="button" data-act="del" title="Delete this alarm">✕</button>`;
+        d.querySelector('[data-a="sound"]').value = a.sound === false ? "0" : "1";
+        return d;
+      }
+      function renderAlarms(list) {
+        alarmsEl.replaceChildren(...list.map(alarmRow));
+      }
+      function readAlarms() {
+        return [...alarmsEl.querySelectorAll(".alarm")].map((r) => ({
+          time: r.querySelector('[data-a="time"]').value,
+          text: r.querySelector('[data-a="text"]').value.trim().slice(0, 36),
+          sound: r.querySelector('[data-a="sound"]').value === "1",
+        }));
+      }
+      $("#addAlarm").onclick = () => {
+        alarmsEl.appendChild(alarmRow({ time: "", text: "", sound: true }));
+        alarmsEl.lastElementChild.querySelector("input").focus();
+      };
+      alarmsEl.addEventListener("click", (ev) => {
+        if (ev.target.closest('[data-act="del"]')) ev.target.closest(".alarm").remove();
+      });
       (function fillTz() {
         let list = [];
         try {
@@ -4525,6 +4890,8 @@
         form.weather.value = CONFIG.weather === false ? "0" : "1";
         form.layout.value = CONFIG.layout || "auto";
         renderZones(CONFIG.zones);
+        renderAlarms(CONFIG.alarms || []);
+        showTab("clocks");
         msg.textContent = "";
         modal.classList.remove("hidden");
       }
@@ -4692,6 +5059,12 @@
       });
       form.addEventListener("submit", async (ev) => {
         ev.preventDefault();
+        const alarms = readAlarms();
+        if (alarms.some((a) => !/^\d\d:\d\d$/.test(a.time))) {
+          showTab("alarms");
+          msg.textContent = "Set a time for each alarm, or delete it.";
+          return;
+        }
         const zs = readZones();
         for (const z of zs) {
           try {
@@ -4713,6 +5086,7 @@
           units: form.units.value,
           hour12: form.hour12.value === "1",
           layout: form.layout.value,
+          alarms,
           zones: zs.slice(0, 4),
         };
         await store.set("config", CONFIG);
@@ -4767,6 +5141,8 @@
         }
         buildColumns();
         requestAnimationFrame(loop);
+        setInterval(checkAlarms, 1000);
+        if (PARAMS.has("alarm")) fireAlarm({ text: PARAMS.get("alarm"), sound: true }, PARAMS.get("style"));
         keepAwake();
         await refreshAllWeather(false);
         setInterval(() => refreshAllWeather(true), 10 * 60 * 1000);

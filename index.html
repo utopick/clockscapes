@@ -140,11 +140,18 @@
       }
       #controls {
         position: fixed;
+        left: 14px;
         right: 14px;
         bottom: 14px;
         z-index: 5;
         display: flex;
+        flex-wrap: wrap; /* a second row on narrow phones */
+        justify-content: flex-end;
         gap: 8px;
+        pointer-events: none; /* taps between the buttons reach the clocks */
+      }
+      #controls button {
+        pointer-events: auto;
       }
       #controls button {
         background: #0b0e22cc;
@@ -159,6 +166,10 @@
       body:not(.idle) #controls button,
       #controls button:focus-visible {
         opacity: 1;
+      }
+      /* hidden buttons ignore taps, so the tap that shows them on a touch screen cannot press one */
+      body.idle #controls button:not(:focus-visible) {
+        pointer-events: none;
       }
       #toast {
         position: fixed;
@@ -179,6 +190,11 @@
       }
       #toast.show {
         opacity: 1;
+      }
+      @media (max-width: 520px) {
+        #toast {
+          bottom: 116px; /* above the two rows of buttons */
+        }
       }
       #modal {
         position: fixed;
@@ -316,7 +332,9 @@
       }
       #addZone,
       #randomize,
-      #addAlarm {
+      #addAlarm,
+      #newVariation,
+      #nextSong {
         margin-bottom: 8px;
       }
       .tabs {
@@ -356,6 +374,8 @@
   <body>
     <div id="cols"></div>
     <div id="controls">
+      <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">▶︎ MUSIC</button>
+      <button id="next" type="button" title="Next song (N)" hidden>NEXT »</button>
       <button id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-pressed="false">
         FULLSCREEN
       </button>
@@ -374,6 +394,35 @@
           <button type="button" role="tab" data-tab="alarms" aria-selected="false" title="Daily alarms">
             ALARMS
           </button>
+          <button type="button" role="tab" data-tab="music" aria-selected="false" title="Lo-fi music">
+            MUSIC
+          </button>
+        </div>
+        <div data-panel="music" hidden>
+          <fieldset>
+            <legend>Music</legend>
+            <p class="hint atlasHint">
+              Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of your
+              clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the night is
+              slower and darker than the day. When it rains there, you hear the rain. After two or three
+              minutes a song fades into the next clock's song. The same variation number at the same hour
+              plays the same songs again, and a new number gives you new ones.
+            </p>
+            <label
+              >Music
+              <select name="musicOn">
+                <option value="1">On</option>
+                <option value="0">Off</option>
+              </select></label
+            >
+            <label>Volume <input type="range" name="musicVol" min="0" max="100" /></label>
+            <label>Variation <input type="number" name="musicVar" min="1" max="9999" class="short" /></label>
+            <p class="hint" id="nowPlaying" style="margin: 0 0 10px"></p>
+            <button type="button" id="newVariation" title="Pick a new variation and play it now">
+              NEW VARIATION
+            </button>
+            <button type="button" id="nextSong" title="Fade into the next song now (N)">NEXT SONG</button>
+          </fieldset>
         </div>
         <div data-panel="alarms" hidden>
           <fieldset>
@@ -450,13 +499,346 @@
         <p class="hint">
           1–4 zones. “Find” looks up coordinates and time zone for the label using Open-Meteo. Weather
           refreshes every 10 minutes; everything is stored only in this browser (IndexedDB).<br />
-          Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>Esc</b> close.
+          Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>M</b> music · <b>N</b> next song · <b>Esc</b> close.
         </p>
       </form>
     </div>
     <datalist id="tzlist"></datalist>
     <datalist id="citylist"></datalist>
 
+    <script id="lofi">
+      "use strict";
+      /*
+       * Lo-fi music made live, with no audio files (the main script's "Music" section runs it).
+       * LOFI.song(seed, mood) writes a song "sheet" from a number; it is pure and tests/music.test.js checks it.
+       *   mood = { night: 0 (day) to 1 (deep night), rain: 0 to 1 }; night means minor keys, slower, darker.
+       * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
+       *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
+       * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
+       */
+      const LOFI = (() => {
+        // 16 steps per bar. Drums: x = hit. Bass: the interval above the chord root, . = rest.
+        const LOOPS = {
+          lazy: {
+            kick: "x......x..x.....",
+            snare: "....x.......x...",
+            hat: "x.x.x.x.x.x.x.x.",
+            open: "................",
+            bass: "0......7..0.....",
+          },
+          sway: {
+            kick: "x.....x...x.....",
+            snare: "....x.......x...",
+            hat: "x.x.x.x.x.x.x...",
+            open: "..............x.",
+            bass: "0.....0...7.....",
+          },
+        };
+        const CHORD_HITS = [0, 8];
+        const MAJOR = [0, 2, 4, 5, 7, 9, 11],
+          MINOR = [0, 2, 3, 5, 7, 8, 10];
+        // four-bar loops as scale degrees (0 = I)
+        const PROGS = {
+          major: [
+            [1, 4, 0, 0],
+            [1, 4, 0, 5],
+            [0, 5, 1, 4],
+            [3, 2, 1, 0],
+            [3, 4, 2, 5],
+            [0, 3, 2, 5],
+          ],
+          minor: [
+            [0, 3, 6, 2],
+            [0, 5, 3, 4],
+            [5, 6, 0, 0],
+            [0, 6, 5, 4],
+            [3, 4, 0, 5],
+            [0, 3, 0, 6],
+          ],
+        };
+        // melody rhythms for one bar: [step, length in steps]
+        const CELLS = [
+          [[0, 3], [4, 2], [6, 8]],
+          [[2, 2], [4, 2], [6, 6], [12, 2]],
+          [[0, 6], [8, 2], [10, 6]],
+          [[0, 2], [2, 2], [4, 4], [10, 4]],
+          [[4, 4], [8, 8]],
+          [[0, 1], [2, 1], [4, 2], [8, 3], [12, 4]],
+          [[3, 1], [4, 4], [10, 2], [12, 4]],
+        ];
+        const ENDS = [[[0, 12]], [[0, 6], [8, 8]], [[0, 4], [4, 12]]];
+        const SECTIONS = {
+          intro: "keys",
+          groove: "keys drums bass",
+          A: "keys drums bass melA",
+          B: "keys drums bass melB",
+          break: "keys bass melA",
+          outro: "keys",
+        };
+        const MIDDLE = ["A", "B", "groove", "A", "break", "B"];
+        const LEADS = ["keys", "flute", "bell"];
+        const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+        function rngFrom(seed) {
+          let a = seed >>> 0;
+          return () => {
+            a = (a + 0x6d2b79f5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+
+        function song(seed, mood = {}) {
+          const r = rngFrom(seed),
+            pick = (a) => a[Math.floor(r() * a.length)];
+          const night = clamp(+mood.night || 0, 0, 1),
+            rain = clamp(+mood.rain || 0, 0, 1);
+          const minor = r() < 0.25 + 0.5 * night,
+            scale = minor ? MINOR : MAJOR,
+            key = Math.floor(r() * 12);
+          const tone = (k) => key + scale[k % 7] + 12 * Math.floor(k / 7);
+          const bpm = Math.round(82 - 12 * night + r() * 8 - 4);
+          const chords = pick(PROGS[minor ? "minor" : "major"]).map((d) => {
+            // rootless 3-5-7-9 voicings, except where the 9th would clash (a flat 9th): then 1-3-5-7
+            const flat9 = (scale[(d + 1) % 7] - scale[d] + 12) % 12 === 1;
+            const keys = (flat9 ? [0, 2, 4, 6] : [2, 4, 6, 8]).map((k) => 48 + tone(d + k));
+            const lift = 12 * Math.ceil((52 - Math.min(...keys)) / 12); // lowest note in 52..63
+            const pc = tone(d) % 12;
+            return { root: pc < 7 ? 36 + pc : 24 + pc, keys: keys.map((n) => n + lift) };
+          });
+          // melody: a walk on the pentatonic scale that lands on a chord tone at the start of each bar
+          const pent = minor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9],
+            pool = [];
+          for (let n = 67; n <= 86; n++) if (pent.includes((n - key + 120) % 12)) pool.push(n);
+          const nearest = (list, n) => list.reduce((b, p) => (Math.abs(p - n) < Math.abs(b - n) ? p : b));
+          function phrase(from) {
+            let note = from;
+            const c = pick(CELLS);
+            return [c, pick(CELLS), c, pick(ENDS)].map((cell, bar) => {
+              const pcs = chords[bar].keys.concat(chords[bar].root).map((n) => n % 12),
+                landing = [];
+              for (let n = 67; n <= 86; n++) if (pcs.includes(n % 12)) landing.push(n);
+              return cell.map(([step, len], j) => {
+                if (j === 0) note = nearest(landing, note);
+                else {
+                  const i = pool.indexOf(nearest(pool, note)) + pick([-2, -1, -1, 0, 1, 1, 2]);
+                  note = pool[clamp(i, 0, pool.length - 1)];
+                }
+                return [step, note, len];
+              });
+            });
+          }
+          const melA = phrase(72),
+            melB = phrase(81);
+          // two to three minutes of four-bar sections
+          const secLen = (4 * 240) / bpm,
+            target = 120 + r() * 60;
+          const count = clamp(Math.round(target / secLen), Math.ceil(120 / secLen), Math.floor(180 / secLen));
+          const form = ["intro", "groove"];
+          for (let i = 0; form.length < count - 1; i++) form.push(MIDDLE[i % MIDDLE.length]);
+          form.push("outro");
+          return {
+            seed: seed >>> 0,
+            bpm,
+            key,
+            minor,
+            swing: 0.1 + r() * 0.12,
+            loop: pick(Object.keys(LOOPS)),
+            lead: pick(LEADS),
+            chords,
+            melA,
+            melB,
+            form,
+            bars: form.length * 4,
+            seconds: form.length * secLen,
+            cutoff: Math.round((3400 - 1600 * night) * (0.85 + r() * 0.3)),
+            wobble: 5 + r() * 10,
+            crackle: 0.25 + r() * 0.5,
+            rain,
+          };
+        }
+
+        // ---- the synth ----
+        const shared = new WeakMap(); // per AudioContext: noise, vinyl and the tape curve, made once
+        function kit(ctx) {
+          let k = shared.get(ctx);
+          if (k) return k;
+          const sr = ctx.sampleRate,
+            noise = ctx.createBuffer(1, sr * 2, sr),
+            vinyl = ctx.createBuffer(1, sr * 4, sr),
+            curve = new Float32Array(1024);
+          const nd = noise.getChannelData(0),
+            vd = vinyl.getChannelData(0);
+          for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+          for (let i = 0; i < vd.length; i++)
+            vd[i] = (Math.random() * 2 - 1) * 0.012 + (Math.random() < 0.0004 ? (Math.random() - 0.5) * 0.7 : 0);
+          for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(1.6 * (i / 511.5 - 1)) / Math.tanh(1.6);
+          shared.set(ctx, (k = { noise, vinyl, curve }));
+          return k;
+        }
+        const hz = (n) => 440 * 2 ** ((n - 69) / 12);
+
+        class Player {
+          constructor(ctx, dest, sheet, start, fadeIn = 3) {
+            const k = kit(ctx);
+            this.ctx = ctx;
+            this.s = sheet;
+            this.loop = LOOPS[sheet.loop] || LOOPS.lazy;
+            this.sd = 60 / sheet.bpm / 4;
+            this.step = 0;
+            this.start = start;
+            this.end = this.stopAt = start + sheet.bars * 16 * this.sd;
+            this.fader = ctx.createGain();
+            this.fader.gain.setValueAtTime(0, start);
+            this.fader.gain.linearRampToValueAtTime(1, start + fadeIn);
+            this.fader.connect(dest);
+            // tape: soft saturation, then a dark low-pass
+            const sat = ctx.createWaveShaper(),
+              lp = ctx.createBiquadFilter();
+            sat.curve = k.curve;
+            lp.type = "lowpass";
+            lp.frequency.value = sheet.cutoff;
+            lp.Q.value = 0.4;
+            this.bus = ctx.createGain();
+            this.bus.gain.value = 0.8;
+            this.bus.connect(sat).connect(lp).connect(this.fader);
+            // tape wobble: a slow LFO on the pitch of every note
+            this.lfo = ctx.createOscillator();
+            this.lfo.frequency.value = 0.4 + (sheet.seed % 5) / 10;
+            this.wobble = ctx.createGain();
+            this.wobble.gain.value = sheet.wobble;
+            this.lfo.connect(this.wobble);
+            this.lfo.start(start);
+            // vinyl crackle, and rain when it rains at that place
+            this.beds = [this.lfo];
+            const bed = (buffer, type, freq, gain) => {
+              const src = ctx.createBufferSource(),
+                f = ctx.createBiquadFilter(),
+                g = ctx.createGain();
+              src.buffer = buffer;
+              src.loop = true;
+              f.type = type;
+              f.frequency.value = freq;
+              g.gain.value = gain;
+              src.connect(f).connect(g).connect(this.fader);
+              src.start(start, Math.random() * 2);
+              this.beds.push(src);
+            };
+            bed(k.vinyl, "highpass", 900, 0.25 * sheet.crackle);
+            if (sheet.rain > 0) bed(k.noise, "bandpass", 2400, 0.12 * sheet.rain);
+          }
+          fadeOut(at, secs) {
+            const g = this.fader.gain;
+            g.cancelScheduledValues(at);
+            g.setValueAtTime(g.value, at);
+            g.linearRampToValueAtTime(0, at + secs);
+            this.stopAt = Math.min(this.stopAt, at + secs);
+          }
+          dispose() {
+            for (const b of this.beds) b.stop();
+            this.fader.disconnect();
+          }
+          schedule(until) {
+            while (this.step < this.s.bars * 16) {
+              const t = this.start + this.step * this.sd;
+              if (t >= until || t >= this.stopAt) return;
+              this.play(this.step, t + (this.step % 2 ? this.sd * this.s.swing : 0)); // swing: off-steps late
+              this.step++;
+            }
+          }
+          play(step, t) {
+            const s = this.s,
+              L = this.loop,
+              bar = Math.floor(step / 16),
+              i = step % 16,
+              sd = this.sd;
+            const parts = SECTIONS[s.form[Math.floor(bar / 4)]] || "",
+              has = (p) => parts.includes(p),
+              chord = s.chords[bar % 4],
+              human = () => 0.85 + Math.random() * 0.3;
+            if (has("keys") && CHORD_HITS.includes(i))
+              chord.keys.forEach((n, j) => this.keys(n, t + j * 0.012, sd * (i ? 6 : 7), (i ? 0.07 : 0.1) * human()));
+            if (has("bass") && L.bass[i] !== ".") this.bass(chord.root + +L.bass[i], t, sd * 3);
+            if (has("drums")) {
+              if (L.kick[i] === "x") this.kick(t, human());
+              if (L.snare[i] === "x") this.hit(t, 0.18, "bandpass", 1700, 0.32 * human());
+              else if (bar % 4 === 3 && i === 15) this.hit(t, 0.12, "bandpass", 1900, 0.12); // a ghost note into the next section
+              if (L.hat[i] === "x") this.hit(t, 0.04, "highpass", 7000, (i % 4 ? 0.05 : 0.09) * human());
+              if (L.open[i] === "x") this.hit(t, 0.22, "highpass", 6000, 0.06);
+            }
+            const mel = has("melA") ? s.melA : has("melB") ? s.melB : null;
+            if (mel) for (const [ms, n, len] of mel[bar % 4]) if (ms === i) this[s.lead](n, t + 0.01, sd * len, 0.08 * human());
+          }
+          // ---- voices ----
+          env(t, peak, attack, decay) {
+            const g = this.ctx.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(peak, t + attack);
+            g.gain.setTargetAtTime(0, t + attack, decay / 4);
+            g.connect(this.bus);
+            return g;
+          }
+          osc(type, f, t, stop) {
+            const o = this.ctx.createOscillator();
+            o.type = type;
+            o.frequency.value = f;
+            this.wobble.connect(o.detune);
+            o.start(t);
+            o.stop(stop);
+            return o;
+          }
+          fm(n, t, dur, vel, ratio, bright, mellow) {
+            const f = hz(n),
+              end = t + dur + 1.5,
+              car = this.osc("sine", f, t, end),
+              mod = this.osc("sine", f * ratio, t, end),
+              idx = this.ctx.createGain();
+            idx.gain.setValueAtTime(f * bright, t);
+            idx.gain.setTargetAtTime(f * 0.2, t, mellow);
+            mod.connect(idx).connect(car.frequency);
+            car.connect(this.env(t, vel, 0.006, dur + 0.8));
+          }
+          keys(n, t, dur, vel) {
+            this.fm(n, t, dur, vel, 1, 1.8, 0.12); // an electric piano
+          }
+          bell(n, t, dur, vel) {
+            this.fm(n, t, Math.min(dur, 0.6), vel * 0.8, 3.5, 2.5, 0.05);
+          }
+          flute(n, t, dur, vel) {
+            const g = this.ctx.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(vel * 0.8, t + 0.08);
+            g.gain.setTargetAtTime(0, t + dur, 0.08);
+            g.connect(this.bus);
+            this.osc("sine", hz(n), t, t + dur + 0.6).connect(g);
+          }
+          bass(n, t, dur) {
+            const lp = this.ctx.createBiquadFilter();
+            lp.type = "lowpass";
+            lp.frequency.value = 380;
+            this.osc("triangle", hz(n), t, t + dur + 0.3).connect(lp).connect(this.env(t, 0.5, 0.01, dur));
+          }
+          kick(t, vel) {
+            const o = this.ctx.createOscillator();
+            o.frequency.setValueAtTime(110, t);
+            o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+            o.connect(this.env(t, 0.85 * vel, 0.003, 0.35));
+            o.start(t);
+            o.stop(t + 0.5);
+          }
+          hit(t, dur, type, freq, vel) {
+            const src = this.ctx.createBufferSource(),
+              f = this.ctx.createBiquadFilter();
+            src.buffer = kit(this.ctx).noise;
+            f.type = type;
+            f.frequency.value = freq;
+            src.connect(f).connect(this.env(t, vel, 0.002, dur));
+            src.start(t, Math.random() * 1.5, dur + 0.1);
+          }
+        }
+        return { song, Player };
+      })();
+    </script>
     <script>
       "use strict";
       /*
@@ -491,12 +873,14 @@
        *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
        *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes,
        *   ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
-       * Keys: S settings, F fullscreen, Esc close, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
+       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
        *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
-       *   saved settings are lost), store "kv": "config" (zones, display, alarms) and the weather cache "wx:open-meteo:...".
+       *   saved settings are lost), store "kv": "config" (zones, display, alarms, music) and the weather cache "wx:open-meteo:...".
        * Network: only Open-Meteo (weather every 10 minutes, and the FIND button's place lookup).
+       * Music: lo-fi synthesized live by script#lofi (no files); the "Music" section below picks each song's
+       *   seed from a clock's place, local date and hour, and the variation number, and crossfades songs.
        */
       // ==== Utilities ====
       const $ = (s) => document.querySelector(s);
@@ -1052,6 +1436,7 @@
         hour12: false,
         layout: "auto",
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
+        music: { on: false, volume: 60, variation: 1 }, // volume 0..100, variation 1..9999 (part of each song's seed)
         zones: [
           { label: "Barcelona", tz: "Europe/Madrid", lat: 41.388, lon: 2.17, scene: "barcelona-es" },
           { label: "New York", tz: "America/New_York", lat: 40.713, lon: -74.006, scene: "new-york-us" },
@@ -5368,11 +5753,14 @@
         arp = null;
       // Browsers only allow sound after the page has been touched, so the first tap or key creates the
       // audio (then suspends it, so it does not hold the sound device while idle).
-      function unlockAudio() {
+      function unlockAudio(ev) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (audioCtx || !AC) return;
         audioCtx = new AC();
-        if (!arp) audioCtx.suspend();
+        // Music saved as on starts with this first touch, unless this touch is the music button or key itself.
+        const ownControl = ev.target?.closest?.("#music") || /^[mn]$/i.test(ev.key || "");
+        if (CONFIG.music.on && !ownControl) musicPlay(true);
+        else if (!arp) audioCtx.suspend();
       }
       addEventListener("pointerdown", unlockAudio, true);
       addEventListener("keydown", unlockAudio, true);
@@ -5394,7 +5782,7 @@
           setTimeout(() => {
             out.disconnect();
             wet.disconnect();
-            if (!arp) ctx.suspend();
+            if (!arp && !musicOn()) ctx.suspend();
           }, 2500);
           return;
         }
@@ -5444,6 +5832,94 @@
         };
         arp = { out, wet, timer: setInterval(tick, 100) };
         tick();
+      }
+
+      // ==== Music: lo-fi written live from the clocks (the songs themselves are in script#lofi) ====
+      // Songs take turns over the clocks. A song's seed is its clock's place, local date and hour, the
+      // variation number and how many rounds of the clocks have played, so the same hour and variation
+      // replay the same playlist. Each song lasts two to three minutes and crossfades into the next.
+      const music = { songs: [], k: 0, timer: 0, bus: null, title: "" };
+      const musicOn = () => music.songs.length > 0;
+      function vetMusic(m) {
+        const num = (v, lo, hi, def) => (v !== "" && v != null && isFinite(+v) ? clamp(Math.round(+v), lo, hi) : def);
+        return {
+          on: m?.on === true,
+          volume: num(m?.volume, 0, 100, 60),
+          variation: num(m?.variation, 1, 9999, 1),
+        };
+      }
+      function moodAt(z) {
+        const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
+        const wx = CONFIG.weather === false ? null : WX[wxKey(z)];
+        const wet = wx && (wx.cat === "rain" || wx.cat === "thunder");
+        return { alt, night: clamp((6 - alt) / 12, 0, 1), rain: wet ? clamp(wx.inten || 0.5, 0.2, 1) : 0 };
+      }
+      function setMusicVolume(v) {
+        if (music.bus) music.bus.gain.setTargetAtTime((v / 100) ** 2, audioCtx.currentTime, 0.05);
+      }
+      function nextSong(fade) {
+        const ctx = audioCtx,
+          now = ctx.currentTime,
+          zs = CONFIG.zones;
+        for (const old of music.songs) if (old.stopAt > now + fade) old.fadeOut(now, fade);
+        const z = zs[music.k % zs.length],
+          p = timeParts(z.tz, Date.now()),
+          mood = moodAt(z),
+          round = Math.floor(music.k / zs.length);
+        const seed = hashStr([z.label, z.lat, z.lon, p.day, p.month, p.h, CONFIG.music.variation, round].join("|"));
+        music.k++;
+        music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
+        const when = mood.alt > 6 ? "by day" : mood.alt < -6 ? "at night" : p.h < 12 ? "at dawn" : "at dusk";
+        music.title = `${z.label} ${when}${mood.rain ? " in the rain" : ""}, ${p.hour}:${p.minute}, variation ${CONFIG.music.variation}`;
+        $("#nowPlaying").textContent = "Now playing: " + music.title;
+        toast("♪ " + music.title);
+      }
+      function musicTick() {
+        const now = audioCtx.currentTime;
+        // a long lookahead, because timers slow down to once a second when the page is in the background
+        for (const song of music.songs) song.schedule(now + 1.2);
+        if (now > music.songs.at(-1).end - 8) nextSong(8);
+        music.songs = music.songs.filter((song) => now < song.stopAt + 2 || song.dispose());
+      }
+      function musicPlay(on) {
+        if (!on) {
+          if (!musicOn()) return;
+          const old = music.songs,
+            now = audioCtx.currentTime;
+          music.songs = [];
+          clearInterval(music.timer);
+          for (const song of old) song.fadeOut(now, 1.5);
+          setTimeout(() => {
+            for (const song of old) song.dispose();
+            if (!arp && !musicOn()) audioCtx.suspend();
+          }, 2000);
+          showMusicState(false);
+          $("#nowPlaying").textContent = "";
+          return;
+        }
+        if (musicOn()) return;
+        if (!audioCtx) return toast("This browser cannot play sound");
+        audioCtx.resume().catch(() => {});
+        if (!music.bus) {
+          music.bus = audioCtx.createGain();
+          music.bus.connect(audioCtx.destination);
+        }
+        music.bus.gain.value = (CONFIG.music.volume / 100) ** 2;
+        nextSong(3);
+        music.timer = setInterval(musicTick, 50);
+        showMusicState(true);
+      }
+      function showMusicState(on) {
+        const b = $("#music");
+        b.setAttribute("aria-pressed", String(on));
+        b.textContent = on ? "❚❚ MUSIC" : "▶︎ MUSIC";
+        $("#next").hidden = !on;
+      }
+      function toggleMusic() {
+        CONFIG.music.on = !musicOn();
+        musicPlay(CONFIG.music.on);
+        if (!CONFIG.music.on) toast("Music off");
+        store.set("config", CONFIG);
       }
 
       // ==== Column renderer ====
@@ -6145,13 +6621,28 @@
         form.layout.value = CONFIG.layout || "auto";
         renderZones(CONFIG.zones);
         renderAlarms(CONFIG.alarms || []);
+        form.musicOn.value = CONFIG.music.on ? "1" : "0";
+        form.musicVol.value = CONFIG.music.volume;
+        form.musicVar.value = CONFIG.music.variation;
+        $("#nowPlaying").textContent = musicOn() ? "Now playing: " + music.title : "";
         showTab("clocks");
         msg.textContent = "";
         modal.classList.remove("hidden");
       }
       function closeSettings() {
         modal.classList.add("hidden");
+        setMusicVolume(CONFIG.music.volume); // undo a volume tried out and cancelled
       }
+      form.musicVol.addEventListener("input", () => setMusicVolume(+form.musicVol.value));
+      $("#newVariation").onclick = () => {
+        CONFIG.music.variation = music.variation = form.musicVar.value = 1 + Math.floor(Math.random() * 9999);
+        store.set("config", CONFIG);
+        if (musicOn()) nextSong(3);
+        else toast(`Variation ${CONFIG.music.variation}: switch the music on to hear it`);
+      };
+      $("#nextSong").onclick = () => (musicOn() ? nextSong(3) : toast("The music is off"));
+      $("#music").onclick = toggleMusic;
+      $("#next").onclick = () => musicOn() && nextSong(3);
       zonesEl.addEventListener("change", (ev) => {
         if (!ev.target.matches("[data-atlas]")) return;
         const value = ev.target.value.trim().toLowerCase();
@@ -6342,9 +6833,18 @@
           layout: form.layout.value,
           alarms,
           zones: zs.slice(0, 4),
+          music: vetMusic({
+            on: form.musicOn.value === "1",
+            volume: form.musicVol.value,
+            variation: form.musicVar.value,
+          }),
         };
+        const changedVariation = CONFIG.music.variation !== music.variation;
+        music.variation = CONFIG.music.variation;
         await store.set("config", CONFIG);
         closeSettings();
+        if (CONFIG.music.on !== musicOn()) musicPlay(CONFIG.music.on);
+        else if (musicOn() && changedVariation) nextSong(3);
         buildColumns();
         refreshAllWeather(false);
       });
@@ -6358,6 +6858,8 @@
         }
         if (e.key.toLowerCase() === "k" && !e.repeat && modal.classList.contains("hidden"))
           triggerEncounter();
+        if ((e.key === "m" || e.key === "M") && !e.repeat) toggleMusic();
+        if ((e.key === "n" || e.key === "N") && !e.repeat && musicOn()) nextSong(3);
         if (e.key === "f" || e.key === "F") {
           e.preventDefault();
           if (!e.repeat) toggleFullscreen();
@@ -6395,6 +6897,8 @@
           CONFIG = { ...structuredClone(DEFAULT_CONFIG), ...settings };
           if (Object.hasOwn(saved, "apiKey")) await store.set("config", CONFIG);
         }
+        CONFIG.music = vetMusic(CONFIG.music);
+        music.variation = CONFIG.music.variation;
         buildColumns();
         if (PARAMS.has("enc")) triggerEncounter();
         requestAnimationFrame(loop);

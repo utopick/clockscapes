@@ -5052,6 +5052,32 @@
             for (let w = 2; w < 17; w += 4) g.fillRect(x + w, y - 2, 2, 1);
           }
         }
+        // people first: the sidewalk is behind the road, so a tall vehicle passes in front of them
+        for (const person of life.walkers) {
+          if (!inPlane(person.y)) continue;
+          const x = lifePosition(person, seconds, 3),
+            y = person.y;
+          const stride = Math.floor((seconds + person.offset) * 5) % 2;
+          g.fillStyle = life.skin;
+          g.fillRect(x, y - 3, 1, 1);
+          g.fillStyle = person.color;
+          g.fillRect(x, y - 2, 2, 2);
+          g.fillStyle = life.shade;
+          g.fillRect(x - person.direction * stride, y, 1, 1);
+          if (person.dog) {
+            // a small dog trotting a step ahead on a lead: body, head, tail, legs in step
+            const dir = person.direction,
+              dx = x + dir * 4;
+            g.fillStyle = life.shade;
+            g.fillRect(x + (dir > 0 ? 2 : -1), y - 2, 1, 1); // the lead, from the hand
+            g.fillRect(dx + (stride ? -1 : 1), y, 1, 1);
+            g.fillStyle = person.dog;
+            g.fillRect(dx - 1, y - 1, 3, 1);
+            g.fillRect(dx + dir * 2, y - 2, 1, 1);
+            g.fillRect(dx - dir * 2, y - 2 + stride, 1, 1);
+            g.fillRect(dx + (stride ? 1 : -1), y, 1, 1);
+          }
+        }
         for (const vehicle of life.traffic) {
           if (!inPlane(vehicle.y) || vehicle.y === life.quietLane) continue;
           const { direction, y } = vehicle;
@@ -5149,31 +5175,6 @@
           g.fillRect(x, y - 2, 1, 1);
           g.fillStyle = life.skin;
           g.fillRect(x + rider.direction, y - 3, 1, 1);
-        }
-        for (const person of life.walkers) {
-          if (!inPlane(person.y)) continue;
-          const x = lifePosition(person, seconds, 3),
-            y = person.y;
-          const stride = Math.floor((seconds + person.offset) * 5) % 2;
-          g.fillStyle = life.skin;
-          g.fillRect(x, y - 3, 1, 1);
-          g.fillStyle = person.color;
-          g.fillRect(x, y - 2, 2, 2);
-          g.fillStyle = life.shade;
-          g.fillRect(x - person.direction * stride, y, 1, 1);
-          if (person.dog) {
-            // a small dog trotting a step ahead on a lead: body, head, tail, legs in step
-            const dir = person.direction,
-              dx = x + dir * 4;
-            g.fillStyle = life.shade;
-            g.fillRect(x + (dir > 0 ? 2 : -1), y - 2, 1, 1); // the lead, from the hand
-            g.fillRect(dx + (stride ? -1 : 1), y, 1, 1);
-            g.fillStyle = person.dog;
-            g.fillRect(dx - 1, y - 1, 3, 1);
-            g.fillRect(dx + dir * 2, y - 2, 1, 1);
-            g.fillRect(dx - dir * 2, y - 2 + stride, 1, 1);
-            g.fillRect(dx + (stride ? 1 : -1), y, 1, 1);
-          }
         }
       }
 

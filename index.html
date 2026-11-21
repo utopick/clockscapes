@@ -155,8 +155,23 @@
       .fx-lcd .col .screen {
         display: block;
       }
-      /* CRT: scanlines, a faint red-green-blue phosphor mask, darker rounded corners like a tube */
-      .fx-crt .col .screen {
+      /* CRT: scanlines, a faint red-green-blue phosphor mask, darker rounded corners like a tube.
+         Side by side, one tube covers every clock, so the street runs on unbroken from city to city. */
+      body.fx-crt:not(.rows) .col {
+        border-right: 0;
+      }
+      body.fx-crt:not(.rows) .col .screen {
+        display: none;
+      }
+      body.fx-crt:not(.rows) #cols::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 3;
+      }
+      .fx-crt .col .screen,
+      body.fx-crt:not(.rows) #cols::after {
         background:
           repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.26) 0 1px, transparent 1px 3px),
           repeating-linear-gradient(

@@ -89,7 +89,7 @@ You can also open `index.html` straight from the disk, but the offline copy and 
 
 ```sh
 python3 -m http.server 8000                         # run it locally at http://localhost:8000
-node --test tests/music.test.js                     # test the music writer (5 tests, about 1 second)
+node --test tests/music.test.js                     # test the music writer (7 tests, about 1 second)
 npx -y prettier@3 --print-width 110 --write index.html   # format the file the way it is kept
 npx -y prettier@3 --print-width 110 --check index.html   # check the format without changing it
 git push origin main                                # publish: GitHub Pages rebuilds in about a minute
@@ -129,6 +129,8 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Text layout (clock, city, country) | `resize` in `class Column` and the CSS at the top | Check both the phone (390 × 844) and a wide screen |
 | Settings panel | `openSettings` in `App`, and `#modal` in the HTML | Saved settings must keep loading, so give new options a default in `DEFAULT_CONFIG` |
 | Screen filters (CRT, LCD) | The CSS under "Screen filters" at the top, and `applyFilter` | They are CSS overlays on each clock, and the LCD grid uses `--px`, the clock's pixel size |
+| Frame rate, keeping the screen on | `loop` and `keepAwake` in `App`, the `power` and `awake` settings | The loop sleeps between frames on a timer; don't go back to running on every screen refresh, which costs battery |
+| Burn-in protection | `screenCare` and `CARE_SPOTS` in `App`, and the `.sweep` CSS | The shift stays within 2 CSS pixels so nothing gets cut off |
 | Offline copy | `sw.js` | It always asks the network first, so normally nothing needs changing there |
 
 ## 6. FAQ and troubleshooting
@@ -150,6 +152,8 @@ Handy addresses for trying things without waiting for the right time or weather:
 **The traffic looks thin.** It follows the city's local time, so it may be the middle of the night there, or a weekend. See `busyness` to change it.
 
 **Where did the monster come from?** That's an encounter. They appear for 10 seconds at 00:00, 06:00, 12:00 and 18:00, and there are other ways to call them.
+
+**My phone gets hot.** The screen kept on at full brightness, the music and the drawing all add up. In SCREEN, pick Battery saver and let the screen sleep. The CRT filter also costs a little more, since the browser blurs the picture on every frame.
 
 **The format check fails.** Run the Prettier `--write` command from section 4 and commit the result.
 

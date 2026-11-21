@@ -38,7 +38,7 @@ The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 h
 
 ## Music
 
-Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
+Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks a band, such as a felt piano with a long echo, a jazz trio with vibraphone, a nylon guitar, a warm pad or a ticking clock kit, and its tunes change a little when a part comes back. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
 
 ## Alarms
 
@@ -70,6 +70,10 @@ The **SCREEN** tab in settings can lay a filter over the clocks. CRT makes each 
 | CRT television | LCD screen |
 |---|---|
 | ![Mexico City at dusk through the CRT filter, with scanlines and rounded tube corners](img/screen-crt.png) | ![Mexico City at dusk through the LCD filter, with a fine grid between the pixels](img/screen-lcd.png) |
+
+## Battery and screen care
+
+The same SCREEN tab has three settings for leaving the clocks up for hours. **Battery saver** draws 5 frames a second instead of 15, so a phone stays cooler, and turning off **Keep the screen on** lets the screen dim and sleep as usual, which saves the most. **Burn-in protection**, on by default, keeps OLED screens safe: the picture moves by a pixel or two every 2 minutes so no pixel shows the same thing for hours, and a soft line sweeps down the screen every 10 minutes.
 
 ## Keys
 

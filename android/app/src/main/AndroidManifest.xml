@@ -11,16 +11,17 @@
 
     <application
         android:icon="@mipmap/ic_launcher"
-        android:label="Clockscapes"
+        android:label="${appLabel}"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
 
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
-        <!-- MapWithContentTemplate needs car API level 7 -->
+        <!-- MapWithContentTemplate needs car API level 7; the navtest build accepts any level and shows only
+             the music card on older car screens -->
         <meta-data
             android:name="androidx.car.app.minCarApiLevel"
-            android:value="7" />
+            android:value="${minCarApi}" />
 
         <activity
             android:name=".MainActivity"
@@ -35,7 +36,7 @@
         <service
             android:name=".ClockWallpaper"
             android:exported="true"
-            android:label="Clockscapes"
+            android:label="${appLabel}"
             android:permission="android.permission.BIND_WALLPAPER">
             <intent-filter>
                 <action android:name="android.service.wallpaper.WallpaperService" />

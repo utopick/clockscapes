@@ -29,6 +29,25 @@ android {
         versionName = "0.1"
     }
 
+    // Two builds of the same app. "weather" is the real one. "navtest" is a test build with its own name and
+    // id, so both can be installed at once: it also says it is a navigation app and accepts older car
+    // screens, to find out why Android Auto doesn't list the weather build when it's sideloaded.
+    flavorDimensions += "car"
+    productFlavors {
+        create("weather") {
+            dimension = "car"
+            manifestPlaceholders["appLabel"] = "Clockscapes"
+            manifestPlaceholders["minCarApi"] = "7"
+        }
+        create("navtest") {
+            dimension = "car"
+            applicationIdSuffix = ".navtest"
+            versionNameSuffix = "-navtest"
+            manifestPlaceholders["appLabel"] = "Clockscapes Nav test"
+            manifestPlaceholders["minCarApi"] = "1"
+        }
+    }
+
     signingConfigs {
         // A test key kept in the repository, so every build from GitHub Actions can update the last one
         // without uninstalling (which would wipe the settings). It is public: never use it for a release.

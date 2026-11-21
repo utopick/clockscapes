@@ -90,6 +90,8 @@ class ClockScreen(car: CarContext) : Screen(car) {
             .setTitle("Clockscapes")
             .setSingleList(ItemList.Builder().addItem(music).addItem(next).build())
             .build()
+        // older car screens (below API level 7, navtest build only) can't show the scene, only the card
+        if (carContext.carAppApiLevel < 7) return card
         return MapWithContentTemplate.Builder().setContentTemplate(card).build()
     }
 }

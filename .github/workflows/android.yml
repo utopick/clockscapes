@@ -1,4 +1,4 @@
-# Builds the Android test APK (app, live wallpaper and Android Auto) from the android/ folder.
+# Builds the Android test APKs (app, live wallpaper and Android Auto; "weather" is the real one, "navtest" a test build that installs beside it) from the android/ folder.
 # Download it from the run's page on GitHub: Actions -> Android APK -> the run -> Artifacts.
 name: Android APK
 
@@ -24,4 +24,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: clockscapes-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/*/debug/*.apk

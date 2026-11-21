@@ -1942,6 +1942,19 @@
       // Every scene has a road lane exactly SYNC_LANE pixels below its ground line, with traffic going
       // right to left, so an alarm procession drives from one clock straight into the next one.
       const SYNC_LANE = 7;
+      // Trains: speed in pixels a second, cars of 20 pixels, a nose that tapers over that many pixels.
+      const TRAIN_KINDS = {
+        freight: { speed: 39, cars: 4, nose: 0, body: [218, 215, 203], stripe: [198, 81, 66] },
+        shinkansen: { speed: 85, cars: 6, nose: 8, body: [240, 240, 234], stripe: [36, 76, 160] },
+        commuter: { speed: 42, cars: 4, nose: 1, body: [204, 208, 212], stripe: [92, 168, 72] },
+        ave: { speed: 75, cars: 5, nose: 6, body: [236, 236, 238], stripe: [118, 48, 128] },
+        cercanias: { speed: 42, cars: 3, nose: 1, body: [234, 232, 228], stripe: [204, 36, 44] },
+      };
+      // Countries whose cities get an elevated line, and the trains on it (repeats make a kind more common).
+      const TRAIN_LINES = {
+        JP: ["shinkansen", "shinkansen", "commuter"],
+        ES: ["ave", "cercanias", "cercanias"],
+      };
       function street(g, e, bottom = e.H) {
         const { W, G } = e;
         const deep = bottom - G >= 27;
@@ -2044,6 +2057,7 @@
         g.fillRect(0, bottom + 1, W, 1);
         g.fillRect(0, bottom + 5, W, 1);
         e.rail = bottom + 4;
+        e.freight = true;
       }
 
       function water(g, e, y0) {
@@ -4760,6 +4774,14 @@
             left += (m.r - m.l) * u + gap;
           }
         }
+        if (TRAIN_LINES[city.country] && W >= 60) {
+          // an elevated line across the city for its regional and high-speed trains
+          const deck = G - 7;
+          for (let x = 6; x < W; x += 22) fill(x, deck + 3, 2, G - deck - 3, [128, 126, 130], 0.08);
+          fill(0, deck + 1, W, 2, e.snow ? [226, 232, 236] : [160, 158, 160], 0.06);
+          fill(0, deck + 3, W, 1, [104, 102, 108], 0.08);
+          e.rail = deck;
+        }
         const quay = coastal && H - G >= 28;
         const waterline = quay ? G + 13 : G + SYNC_LANE + 2;
         if (coastal) {
@@ -4845,7 +4867,7 @@
           vehicle.id = i + 1 + ((seed >>> 0) % 97);
           vehicle.direction = vehicle.y === e.G + SYNC_LANE ? -1 : 1;
         });
-        const cyclists = e.bike == null ? [] : movers({ lanes: [e.bike] }, 2, 10, 12);
+        const cyclists = e.bike == null ? [] : movers({ lanes: [e.bike - 1, e.bike + 1] }, 2, 10, 12); // one each way, a lane apart
         const walkers = movers(e.walk, Math.min(night ? 5 : 10, Math.max(4, Math.round(e.W / 22))), 4, 7);
         const boats =
           e.water && e.H - e.water.y0 >= 12
@@ -4866,6 +4888,13 @@
           walkers,
           boats,
           rail: e.rail,
+          trains: [...(TRAIN_LINES[CITY_ATLAS[e.scene]?.country] || []), ...(e.freight ? ["freight"] : [])],
+          trainPaint: Object.fromEntries(
+            Object.entries(TRAIN_KINDS).map(([k, t]) => [
+              k,
+              { body: paint(t.body), stripe: paint(t.stripe) },
+            ]),
+          ),
           width: e.W,
           night,
           phase: rng(),
@@ -4876,7 +4905,6 @@
           tropical: e.flora === "tropical" || CITY_ATLAS[e.scene]?.country === "AU",
           flightDirection: rng() < 0.5 ? 1 : -1,
           cargo: paint([218, 215, 203]),
-          trainStripe: paint([198, 81, 66]),
           cream: paint([226, 214, 186]),
           rust: paint([190, 104, 68]),
           police: paint([232, 234, 240]),
@@ -5051,20 +5079,41 @@
           g.fillStyle = life.night ? "#ffdda1" : life.glass;
           g.fillRect(x - 2, y - 3, 4, 2);
         }
-        if (life.rail != null && inPlane(life.rail)) {
-          const span = life.width + 100;
-          const lead = Math.round((seconds * 39 + life.phase * span + span * 0.48) % (span + 39 * 14)) - 90;
-          const y = life.rail;
-          for (let i = 0; i < 4; i++) {
-            const x = lead + i * 20;
+        if (life.rail != null && life.trains.length && inPlane(life.rail)) {
+          // one train per 30-second cycle; each cycle rolls its kind and direction
+          const cycle = 30,
+            clock = seconds + life.phase * cycle,
+            lap = Math.floor(clock / cycle),
+            roll = (Math.imul(lap + life.skyId, 2654435761) ^ (lap >>> 3)) >>> 0;
+          const kind = life.trains[roll % life.trains.length],
+            t = TRAIN_KINDS[kind],
+            look = life.trainPaint[kind];
+          const dir = roll & 64 ? 1 : -1,
+            y = life.rail,
+            L = t.cars * 20,
+            run = (clock % cycle) * t.speed,
+            front = dir > 0 ? run - 20 : life.width + 20 - run;
+          const taper = (d) => (t.nose && d < t.nose ? 1 + Math.ceil((3 * (d + 1)) / (t.nose + 1)) : 4);
+          for (let px = 0; px < L - 1; px++) {
+            const x = Math.round(front - dir * px),
+              within = px % 20;
+            if (x < -1 || x > life.width || within === 19) continue;
+            const tail = L - 2 - px,
+              h = Math.min(taper(px), taper(tail));
             g.fillStyle = life.shade;
-            g.fillRect(x + 1, y + 1, 16, 1);
-            g.fillStyle = life.cargo;
-            g.fillRect(x, y - 3, 19, 4);
-            g.fillStyle = life.trainStripe;
-            g.fillRect(x, y - 1, 19, 1);
-            g.fillStyle = life.night ? "#ffdda1" : "#526984";
-            for (let w = 2; w < 17; w += 4) g.fillRect(x + w, y - 2, 2, 1);
+            g.fillRect(x, y + 1, 1, 1);
+            g.fillStyle = look.body;
+            g.fillRect(x, y - h + 1, 1, h);
+            g.fillStyle = look.stripe;
+            g.fillRect(x, y - 1, 1, 1);
+            const cab = t.nose >= 3 && (px === t.nose || tail === t.nose);
+            if (
+              cab ||
+              (h === 4 && px > t.nose && tail > t.nose && within >= 2 && within <= 16 && within % 4 >= 2)
+            ) {
+              g.fillStyle = cab ? life.ink : life.night ? "#ffdda1" : "#526984";
+              g.fillRect(x, y - 2, 1, 1);
+            }
           }
         }
         // people first: the sidewalk is behind the road, so a tall vehicle passes in front of them

@@ -1999,7 +1999,7 @@
         paint(mulc(stone, 0.68), 0, slab + 2, W, 1);
         for (let x = 4; x < W; x += 12) paint(stone, x, deck - 1, 1, 2);
         for (let x = 9; x < W; x += 25) lamp(g, { ...e, G: deck + 3 }, x, 7);
-        e.walk = { lanes: [deck + 3] };
+        e.walk = { lanes: [deck + 1] }; // the back of the sidewalk, clear of the first car lane
         e.road = { lanes: [e.G + SYNC_LANE] };
         if (wide) e.bike = deck + 11;
         e.water.y0 = slab + 3;

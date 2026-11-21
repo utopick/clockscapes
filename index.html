@@ -619,6 +619,11 @@
               clock to stop it. The sound can only play once you have tapped or clicked the page since opening
               it.
             </p>
+            <!-- only shown inside the Android app -->
+            <p class="hint atlasHint" id="androidAlarmHint" hidden>
+              On the live wallpaper and the lock screen, alarms make no sound, and their message only shows if
+              the screen is on during that minute. For an alarm you can hear, keep this app open.
+            </p>
             <div id="alarms"></div>
             <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
             <div class="alarm">
@@ -9166,6 +9171,7 @@
       // Android app only: the button opens the system's live wallpaper screen
       if (window.ClockscapesAndroid) {
         $("#androidBox").hidden = false;
+        $("#androidAlarmHint").hidden = false;
         $("#setWallpaper").onclick = () => window.ClockscapesAndroid.setWallpaper();
       }
       $("#next").onclick = () => musicOn() && nextSong(3);

@@ -630,6 +630,17 @@
        * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
+       * Each song picks a band from BANDS, which says which Player voice plays the chords, the lead (one of
+       *   its leads, another one plays the solo section) and the bass, which drum kit plays the loop (KITS maps
+       *   each drum row to a voice), and how much echo the chords and leads get. The sheet keeps that choice in
+       *   band, voices, drums, hits and echo, so the Player only follows the sheet.
+       * Melodies: A and B come back as A2 and B2 with their first and third bars kept and a new second bar and
+       *   ending, and every song has a four-bar solo. Some songs add a ticking clock (CLICKS) under the drums.
+       * To add a band, add a row to BANDS and, if it needs a new sound, write that voice as a Player method
+       *   that takes (note, time, duration, velocity), or (time, velocity) for a drum, and plays into this.tone
+       *   (chords and leads, which get the echo) or this.bus (bass and drums). Give it at least two leads. Then
+       *   render a song with it and set its level so it sounds about as loud as the others; the test checks
+       *   that every band turns up and that every voice it names exists.
        * This script stands alone (it uses nothing from the main script), so it can be copied into another
        * page as it is: everything it offers is the LOFI object it defines.
        */
@@ -650,8 +661,89 @@
             open: "..............x.",
             bass: "0.....0...7.....",
           },
+          half: {
+            kick: "x.........x.....",
+            snare: "........x.......",
+            hat: "x...x...x...x...",
+            open: "..............x.",
+            bass: "0.........7.....",
+          },
+          shuffle: {
+            kick: "x.........x.....",
+            snare: "....x.......x...",
+            hat: "x...x.x.x...x.x.",
+            open: "................",
+            bass: "0.......7.....0.",
+            swing: 0.3,
+          },
         };
-        const CHORD_HITS = [0, 8];
+        // which voice plays each drum row
+        const KITS = {
+          kit: { kick: "kick", snare: "snare", hat: "hat", open: "open" },
+          brush: { kick: "softKick", snare: "brush", hat: "ride", open: "ride" },
+          clicks: { kick: "tock", snare: "rim", hat: "shaker", open: "tick" },
+        };
+        // a clock that ticks over some songs (tick, tock on alternate beats)
+        const CLICKS = ["x...x...x...x...", "x...x...x...x..x", "x.......x.......", "..x...x...x...x."];
+        // Bands: the voices for chords, lead (one of leads), bass and drums (a KITS row), the drum loops
+        // they may use, the echo [send, length in steps, feedback], when the chords hit and a loudness trim.
+        const BANDS = {
+          dusty: {
+            chords: "keys",
+            leads: ["flute", "bell", "keys"],
+            bass: "bass",
+            drums: "kit",
+            loops: ["lazy", "sway", "half"],
+            echo: [0.12, 3, 0.3],
+            level: 0.95,
+          },
+          felt: {
+            chords: "felt",
+            leads: ["felt", "bell"],
+            bass: "bass",
+            drums: "kit",
+            loops: ["half", "sway"],
+            echo: [0.5, 3, 0.55],
+            level: 0.85,
+          },
+          jazz: {
+            chords: "keys",
+            leads: ["vibes", "horn"],
+            bass: "upright",
+            drums: "brush",
+            loops: ["shuffle", "half"],
+            echo: [0.12, 4, 0.25],
+            level: 1,
+          },
+          pad: {
+            chords: "pad",
+            leads: ["pluck", "flute"],
+            bass: "bass",
+            drums: "kit",
+            loops: ["lazy", "half"],
+            echo: [0.3, 4, 0.45],
+            hits: [0],
+            level: 1,
+          },
+          clicky: {
+            chords: "felt",
+            leads: ["bell", "pluck"],
+            bass: "upright",
+            drums: "clicks",
+            loops: ["lazy", "sway", "shuffle"],
+            echo: [0.25, 3, 0.4],
+            level: 1.05,
+          },
+          nylon: {
+            chords: "nylon",
+            leads: ["nylon", "flute"],
+            bass: "upright",
+            drums: "brush",
+            loops: ["sway", "half"],
+            echo: [0.2, 4, 0.35],
+            level: 1.1,
+          },
+        };
         const MAJOR = [0, 2, 4, 5, 7, 9, 11],
           MINOR = [0, 2, 3, 5, 7, 8, 10];
         // four-bar loops as scale degrees (0 = I)
@@ -663,6 +755,8 @@
             [3, 2, 1, 0],
             [3, 4, 2, 5],
             [0, 3, 2, 5],
+            [2, 5, 1, 4],
+            [1, 4, 2, 5],
           ],
           minor: [
             [0, 3, 6, 2],
@@ -671,6 +765,8 @@
             [0, 6, 5, 4],
             [3, 4, 0, 5],
             [0, 3, 0, 6],
+            [1, 4, 0, 0],
+            [5, 1, 4, 0],
           ],
         };
         // melody rhythms for one bar: [step, length in steps]
@@ -714,6 +810,24 @@
             [10, 2],
             [12, 4],
           ],
+          [
+            [0, 2],
+            [3, 1],
+            [4, 2],
+            [8, 2],
+            [10, 2],
+            [12, 4],
+          ],
+          [
+            [6, 2],
+            [8, 8],
+          ],
+          [
+            [0, 4],
+            [6, 1],
+            [7, 1],
+            [8, 8],
+          ],
         ];
         const ENDS = [
           [[0, 12]],
@@ -725,17 +839,30 @@
             [0, 4],
             [4, 12],
           ],
+          [
+            [0, 2],
+            [2, 2],
+            [4, 12],
+          ],
+          [
+            [2, 2],
+            [4, 4],
+            [8, 8],
+          ],
         ];
+        // what plays in each section; mel* and solo name the melody (A2 and B2 are A and B coming back changed)
         const SECTIONS = {
-          intro: "keys",
-          groove: "keys drums bass",
-          A: "keys drums bass melA",
-          B: "keys drums bass melB",
-          break: "keys bass melA",
-          outro: "keys",
+          intro: "chords",
+          groove: "chords drums bass clicks",
+          A: "chords drums bass clicks melA",
+          B: "chords drums bass clicks melB",
+          A2: "chords drums bass clicks melA2",
+          B2: "chords drums bass clicks melB2",
+          solo: "chords drums bass clicks solo",
+          break: "chords bass clicks melA",
+          outro: "chords",
         };
-        const MIDDLE = ["A", "B", "groove", "A", "break", "B"];
-        const LEADS = ["keys", "flute", "bell"];
+        const MIDDLE = ["A", "B", "groove", "A2", "solo", "B2", "break", "A2", "B2"];
         const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
         function rngFrom(seed) {
           let a = seed >>> 0;
@@ -770,10 +897,14 @@
             pool = [];
           for (let n = 67; n <= 86; n++) if (pent.includes((n - key + 120) % 12)) pool.push(n);
           const nearest = (list, n) => list.reduce((b, p) => (Math.abs(p - n) < Math.abs(b - n) ? p : b));
-          function phrase(from) {
+          // keep[bar], when given, is a bar copied as it is (a returning phrase keeps its hook)
+          function phrase(from, cells, keep = []) {
             let note = from;
-            const c = pick(CELLS);
-            return [c, pick(CELLS), c, pick(ENDS)].map((cell, bar) => {
+            return cells.map((cell, bar) => {
+              if (keep[bar]) {
+                note = keep[bar].at(-1)[1];
+                return keep[bar];
+              }
               const pcs = chords[bar].keys.concat(chords[bar].root).map((n) => n % 12),
                 landing = [];
               for (let n = 67; n <= 86; n++) if (pcs.includes(n % 12)) landing.push(n);
@@ -787,8 +918,23 @@
               });
             });
           }
-          const melA = phrase(72),
-            melB = phrase(81);
+          const other = (list, not) => pick(list.filter((x) => x !== not)) ?? not,
+            busy = CELLS.filter((c) => c.length >= 4);
+          function tune(from) {
+            const c = pick(CELLS),
+              end = pick(ENDS),
+              mel = phrase(from, [c, pick(CELLS), c, end]);
+            // coming back: the same first and third bars, a new second bar and a different ending
+            const again = phrase(from, [c, other(CELLS, c), c, other(ENDS, end)], [mel[0], null, mel[2]]);
+            return [mel, again];
+          }
+          const [melA, melA2] = tune(72),
+            [melB, melB2] = tune(81),
+            solo = phrase(79, [pick(busy), pick(busy), pick(busy), pick(ENDS)]);
+          const bandName = pick(Object.keys(BANDS)),
+            band = BANDS[bandName],
+            loop = pick(band.loops),
+            lead = pick(band.leads);
           // two to three minutes of four-bar sections
           const secLen = (4 * 240) / bpm,
             target = 120 + r() * 60;
@@ -796,17 +942,27 @@
           const form = ["intro", "groove"];
           for (let i = 0; form.length < count - 1; i++) form.push(MIDDLE[i % MIDDLE.length]);
           form.push("outro");
+          const swing = 0.1 + r() * 0.12;
           return {
             seed: seed >>> 0,
             bpm,
             key,
             minor,
-            swing: 0.1 + r() * 0.12,
-            loop: pick(Object.keys(LOOPS)),
-            lead: pick(LEADS),
+            swing: LOOPS[loop].swing || swing,
+            band: bandName,
+            voices: { chords: band.chords, lead, solo: other(band.leads, lead), bass: band.bass },
+            drums: band.drums,
+            hits: band.hits || [0, 8],
+            echo: band.echo,
+            level: band.level,
+            click: band.drums === "clicks" || r() < 0.35 ? pick(CLICKS) : "",
+            loop,
             chords,
             melA,
             melB,
+            melA2,
+            melB2,
+            solo,
             form,
             bars: form.length * 4,
             seconds: form.length * secLen,
@@ -860,8 +1016,26 @@
             lp.frequency.value = sheet.cutoff;
             lp.Q.value = 0.4;
             this.bus = ctx.createGain();
-            this.bus.gain.value = 0.8;
-            this.bus.connect(sat).connect(lp).connect(this.fader);
+            this.bus.gain.value = 0.8 * (sheet.level || 1);
+            const trim = ctx.createGain(); // the saturator peaks at 1, so leave room for the beds and the echo
+            trim.gain.value = 0.8;
+            this.bus.connect(sat).connect(lp).connect(trim).connect(this.fader);
+            // chords and leads play into this.tone, which goes to the bus and to an echo send
+            // (a delay fed back through a dark low-pass)
+            const [send, steps, feedback] = sheet.echo || [0, 3, 0],
+              sendG = ctx.createGain(),
+              delay = ctx.createDelay(2),
+              dark = ctx.createBiquadFilter();
+            this.tone = ctx.createGain();
+            this.tone.connect(this.bus);
+            this.back = ctx.createGain();
+            sendG.gain.value = send;
+            delay.delayTime.value = Math.min(2, steps * this.sd);
+            dark.type = "lowpass";
+            dark.frequency.value = 1500;
+            this.back.gain.value = feedback;
+            this.tone.connect(sendG).connect(delay).connect(dark).connect(this.back).connect(delay);
+            dark.connect(this.bus);
             // tape wobble: a slow LFO on the pitch of every note
             this.lfo = ctx.createOscillator();
             this.lfo.frequency.value = 0.4 + (sheet.seed % 5) / 10;
@@ -897,6 +1071,7 @@
           dispose() {
             for (const b of this.beds) b.stop();
             this.fader.disconnect();
+            this.back.disconnect(); // break the echo loop
           }
           schedule(until) {
             while (this.step < this.s.bars * 16) {
@@ -912,35 +1087,55 @@
               bar = Math.floor(step / 16),
               i = step % 16,
               sd = this.sd;
-            const parts = SECTIONS[s.form[Math.floor(bar / 4)]] || "",
+            const parts = (SECTIONS[s.form[Math.floor(bar / 4)]] || "").split(" "),
               has = (p) => parts.includes(p),
               chord = s.chords[bar % 4],
+              v = s.voices || { chords: "keys", lead: s.lead || "keys", bass: "bass" },
+              hits = s.hits || [0, 8],
               human = () => 0.85 + Math.random() * 0.3;
-            if (has("keys") && CHORD_HITS.includes(i))
+            if (has("chords") && hits.includes(i))
               chord.keys.forEach((n, j) =>
-                this.keys(n, t + j * 0.012, sd * (i ? 6 : 7), (i ? 0.07 : 0.1) * human()),
+                this[v.chords](
+                  n,
+                  t + j * 0.012,
+                  sd * (hits.length < 2 ? 15 : i ? 6 : 7),
+                  (i ? 0.07 : 0.1) * human(),
+                ),
               );
-            if (has("bass") && L.bass[i] !== ".") this.bass(chord.root + +L.bass[i], t, sd * 3);
+            if (has("bass") && L.bass[i] !== ".") this[v.bass](chord.root + +L.bass[i], t, sd * 3);
             if (has("drums")) {
-              if (L.kick[i] === "x") this.kick(t, human());
-              if (L.snare[i] === "x") this.hit(t, 0.18, "bandpass", 1700, 0.32 * human());
-              else if (bar % 4 === 3 && i === 15) this.hit(t, 0.12, "bandpass", 1900, 0.12); // a ghost note into the next section
-              if (L.hat[i] === "x") this.hit(t, 0.04, "highpass", 7000, (i % 4 ? 0.05 : 0.09) * human());
-              if (L.open[i] === "x") this.hit(t, 0.22, "highpass", 6000, 0.06);
+              const K = KITS[s.drums] || KITS.kit;
+              if (L.kick[i] === "x") this[K.kick](t, human());
+              if (L.snare[i] === "x") this[K.snare](t, human());
+              else if (bar % 4 === 3 && i === 15) this[K.snare](t, 0.4); // a ghost note into the next section
+              if (L.hat[i] === "x") this[K.hat](t, (i % 4 ? 0.55 : 1) * human());
+              if (L.open[i] === "x") this[K.open](t, 1);
             }
-            const mel = has("melA") ? s.melA : has("melB") ? s.melB : null;
+            if (has("clicks") && s.click && s.click[i] === "x")
+              this[(i >> 2) % 2 ? "tock" : "tick"](t, 0.6 * human());
+            const name = parts.find((p) => p.startsWith("mel") || p === "solo"),
+              mel = name && s[name];
             if (mel)
               for (const [ms, n, len] of mel[bar % 4])
-                if (ms === i) this[s.lead](n, t + 0.01, sd * len, 0.08 * human());
+                if (ms === i)
+                  this[name === "solo" ? v.solo || v.lead : v.lead](n, t + 0.01, sd * len, 0.08 * human());
           }
           // ---- voices ----
-          env(t, peak, attack, decay) {
+          env(t, peak, attack, decay, out = this.bus) {
             const g = this.ctx.createGain();
             g.gain.setValueAtTime(0, t);
             g.gain.linearRampToValueAtTime(peak, t + attack);
             g.gain.setTargetAtTime(0, t + attack, decay / 4);
-            g.connect(this.bus);
+            g.connect(out);
             return g;
+          }
+          lowpass(t, from, to, time, q = 0.7) {
+            const f = this.ctx.createBiquadFilter();
+            f.type = "lowpass";
+            f.Q.value = q;
+            f.frequency.setValueAtTime(from, t);
+            f.frequency.setTargetAtTime(to, t, time);
+            return f;
           }
           osc(type, f, t, stop) {
             const o = this.ctx.createOscillator();
@@ -960,7 +1155,7 @@
             idx.gain.setValueAtTime(f * bright, t);
             idx.gain.setTargetAtTime(f * 0.2, t, mellow);
             mod.connect(idx).connect(car.frequency);
-            car.connect(this.env(t, vel, 0.006, dur + 0.8));
+            car.connect(this.env(t, vel, 0.006, dur + 0.8, this.tone));
           }
           keys(n, t, dur, vel) {
             this.fm(n, t, dur, vel, 1, 1.8, 0.12); // an electric piano
@@ -973,8 +1168,86 @@
             g.gain.setValueAtTime(0, t);
             g.gain.linearRampToValueAtTime(vel * 0.8, t + 0.08);
             g.gain.setTargetAtTime(0, t + dur, 0.08);
-            g.connect(this.bus);
+            g.connect(this.tone);
             this.osc("sine", hz(n), t, t + dur + 0.6).connect(g);
+          }
+          felt(n, t, dur, vel) {
+            // a felt piano: a triangle and a soft octave through a low-pass that closes as the note dies
+            const f = hz(n),
+              end = t + dur + 2.5,
+              lp = this.lowpass(t, 2400, 450, 0.3),
+              oct = this.ctx.createGain();
+            lp.connect(this.env(t, vel * 1.3, 0.01, dur + 1.5, this.tone));
+            oct.gain.value = 0.3;
+            this.osc("triangle", f, t, end).connect(lp);
+            this.osc("sine", f * 2, t, end)
+              .connect(oct)
+              .connect(lp);
+          }
+          vibes(n, t, dur, vel) {
+            // a vibraphone: a sine, a short fourth partial and the motor's tremolo
+            const f = hz(n),
+              end = t + dur + 2.5,
+              trem = this.ctx.createGain(),
+              depth = this.ctx.createGain(),
+              lfo = this.ctx.createOscillator();
+            trem.gain.value = 0.75;
+            depth.gain.value = 0.25;
+            lfo.frequency.value = 4.5;
+            lfo.connect(depth).connect(trem.gain);
+            lfo.start(t);
+            lfo.stop(end);
+            trem.connect(this.env(t, vel * 1.1, 0.003, dur + 1.8, this.tone));
+            this.osc("sine", f, t, end).connect(trem);
+            this.osc("sine", f * 4, t, t + 0.6).connect(this.env(t, 0.3, 0.002, 0.25, trem));
+          }
+          horn(n, t, dur, vel) {
+            // a muted trumpet: a sawtooth that scoops up into the note, through a narrow nasal band-pass
+            const o = this.osc("sawtooth", hz(n), t, t + dur + 0.5),
+              bp = this.ctx.createBiquadFilter(),
+              g = this.ctx.createGain();
+            o.detune.setValueAtTime(-40, t);
+            o.detune.linearRampToValueAtTime(0, t + 0.06);
+            bp.type = "bandpass";
+            bp.frequency.value = 1300;
+            bp.Q.value = 2.5;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(vel, t + 0.05);
+            g.gain.setTargetAtTime(vel * 0.6, t + 0.05, 0.2);
+            g.gain.setTargetAtTime(0, t + dur, 0.06);
+            o.connect(bp).connect(g).connect(this.tone);
+          }
+          pad(n, t, dur, vel) {
+            // a warm pad: two detuned sawtooths, dark, slow to swell
+            const lp = this.lowpass(t, 900, 900, 1, 0.5),
+              g = this.ctx.createGain();
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(vel * 0.4, t + 0.6);
+            g.gain.setTargetAtTime(0, t + dur, 0.4);
+            for (const d of [-8, 8]) {
+              const o = this.osc("sawtooth", hz(n), t, t + dur + 2.5);
+              o.detune.value = d;
+              o.connect(lp);
+            }
+            lp.connect(g).connect(this.tone);
+          }
+          // a plucked string: a bright attack whose low-pass closes fast, then a short ring
+          plk(n, t, vel, type, bright, ring) {
+            const lp = this.lowpass(t, bright, hz(n) * 1.5, 0.06, 1);
+            this.osc(type, hz(n), t, t + ring * 5 + 0.1).connect(lp);
+            lp.connect(this.env(t, vel, 0.002, ring * 4, this.tone));
+          }
+          pluck(n, t, dur, vel) {
+            this.plk(n, t, vel * 0.9, "square", 3000, 0.3);
+          }
+          nylon(n, t, dur, vel) {
+            this.plk(n, t, vel * 1.4, "sawtooth", 2200, 0.6);
+          }
+          upright(n, t, dur) {
+            // a plucked upright: a sawtooth whose low-pass closes right after the pluck
+            const lp = this.lowpass(t, 1100, 220, 0.08);
+            this.osc("sawtooth", hz(n), t, t + dur + 0.8).connect(lp);
+            lp.connect(this.env(t, 0.6, 0.004, Math.min(dur, 0.5) + 0.4));
           }
           bass(n, t, dur) {
             const lp = this.ctx.createBiquadFilter();
@@ -992,17 +1265,53 @@
             o.start(t);
             o.stop(t + 0.5);
           }
-          hit(t, dur, type, freq, vel) {
+          hit(t, dur, type, freq, vel, attack = 0.002) {
             const src = this.ctx.createBufferSource(),
               f = this.ctx.createBiquadFilter();
             src.buffer = kit(this.ctx).noise;
             f.type = type;
             f.frequency.value = freq;
-            src.connect(f).connect(this.env(t, vel, 0.002, dur));
-            src.start(t, Math.random() * 1.5, dur + 0.1);
+            src.connect(f).connect(this.env(t, vel, attack, dur));
+            src.start(t, Math.random() * 1.5, dur + attack + 0.1);
+          }
+          ping(f, t, dur, vel, type = "sine") {
+            this.osc(type, f, t, t + dur + 0.05).connect(this.env(t, vel, 0.001, dur));
+          }
+          // drum voices: (time, velocity about 1); KITS says which row plays which
+          snare(t, vel) {
+            this.hit(t, 0.18, "bandpass", 1700, 0.32 * vel);
+          }
+          hat(t, vel) {
+            this.hit(t, 0.04, "highpass", 7000, 0.09 * vel);
+          }
+          open(t, vel) {
+            this.hit(t, 0.22, "highpass", 6000, 0.06 * vel);
+          }
+          softKick(t, vel) {
+            this.kick(t, 0.6 * vel);
+          }
+          brush(t, vel) {
+            this.hit(t, 0.3, "bandpass", 2800, 0.2 * vel, 0.03);
+          }
+          ride(t, vel) {
+            this.hit(t, 0.5, "bandpass", 7500, 0.08 * vel);
+            this.ping(3700, t, 0.3, 0.012 * vel, "square");
+          }
+          tick(t, vel) {
+            this.ping(2400, t, 0.02, 0.2 * vel);
+          }
+          tock(t, vel) {
+            this.ping(1500, t, 0.03, 0.25 * vel);
+          }
+          rim(t, vel) {
+            this.hit(t, 0.03, "bandpass", 2200, 0.35 * vel);
+            this.ping(1800, t, 0.015, 0.06 * vel, "square");
+          }
+          shaker(t, vel) {
+            this.hit(t, 0.07, "highpass", 5500, 0.08 * vel, 0.015);
           }
         }
-        return { song, Player };
+        return { song, Player, BANDS, KITS };
       })();
     </script>
     <script>
@@ -7632,8 +7941,8 @@
 
       // ==== Music: lo-fi written live from the clocks (the songs themselves are in script#lofi) ====
       // Songs take turns over the clocks. A song's seed is its clock's place, local date and hour, the
-      // variation number and how many rounds of the clocks have played, so the same hour and variation
-      // replay the same playlist. Each song lasts two to three minutes and crossfades into the next.
+      // variation number and the round (how many times the clocks have taken turns). The round starts at a
+      // random number each time the music starts, so starting it again gives other songs. Each song lasts two to three minutes and crossfades into the next.
       // musicPlay(true) starts it, musicTick (every 50 ms) keeps notes scheduled and starts the next song,
       // moodAt makes songs darker at night and adds rain. The test file is tests/music.test.js.
       const music = { songs: [], k: 0, timer: 0, bus: null, title: "" };
@@ -7713,6 +8022,8 @@
           music.bus.connect(audioCtx.destination);
         }
         music.bus.gain.value = (CONFIG.music.volume / 100) ** 2;
+        // start from the first clock but at a random round, so starting twice in an hour gives other songs
+        music.k = CONFIG.zones.length * Math.floor(Math.random() * 1000);
         nextSong(3);
         music.timer = setInterval(musicTick, 50);
         showMusicState(true);

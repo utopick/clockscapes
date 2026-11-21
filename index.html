@@ -5240,7 +5240,7 @@
           walkers,
           boats,
           rail: e.rail,
-          trains: [...(TRAIN_LINES[CITY_ATLAS[e.scene]?.country] || []), ...(e.freight ? ["freight"] : [])],
+          trains: [...(TRAIN_LINES[e.country] || []), ...(e.freight ? ["freight"] : [])],
           trainPaint: Object.fromEntries(
             Object.entries(TRAIN_KINDS).map(([k, t]) => [
               k,
@@ -5254,7 +5254,7 @@
           flockSize: e.W > 180 ? 5 : 3,
           coastal: Boolean(e.water) || SEASIDE.has(e.scene),
           // parrots: the tropics, and Australia's lorikeets and cockatoos
-          tropical: e.flora === "tropical" || CITY_ATLAS[e.scene]?.country === "AU",
+          tropical: e.flora === "tropical" || e.country === "AU",
           flightDirection: rng() < 0.5 ? 1 : -1,
           cargo: paint([218, 215, 203]),
           cream: paint([226, 214, 186]),
@@ -7968,13 +7968,18 @@
             hz: (c, d) => mixc(shade(c), bot, d || 0),
           };
           const city = CITY_ATLAS[z.scene];
+          // The old scene names (saved by the first versions, and still offered as artwork) draw those
+          // cities, so they count as them for the country's trains and the city's festivals.
+          const home =
+            city || CITY_ATLAS[{ madrid: "madrid-es", london: "london-gb", austin: "austin-us" }[z.scene]];
+          e.country = home?.country;
           const legacyFlora = { madrid: "mediterranean", london: "temperate", austin: "liveOak" };
           e.flora = city ? cityFlora(city) : legacyFlora[z.scene];
           e.scene = z.scene;
           // today's festival in this city, if any (?fest=Name shows one now, for trying it)
           this.festival =
             PARAMS.get("fest") ||
-            festivalFor(city?.id, city?.country, +tp.year, MONTHS.indexOf(tp.month) + 1, +tp.day);
+            festivalFor(home?.id, home?.country, +tp.year, MONTHS.indexOf(tp.month) + 1, +tp.day);
           e.month = MONTHS.indexOf(tp.month);
           e.day = +tp.day;
           e.latitude = +z.lat;

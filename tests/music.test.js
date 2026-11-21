@@ -37,7 +37,7 @@ test("notes stay in range and the melody stays in the key", () => {
       assert.ok(c.root >= 24 && c.root < 48 && inScale(c.root), `seed ${seed}: bass ${c.root}`);
       for (const n of c.keys) assert.ok(n >= 52 && n < 88 && inScale(n), `seed ${seed}: chord note ${n}`);
     }
-    for (const mel of [s.melA, s.melB]) {
+    for (const mel of [s.melA, s.melB, s.melA2, s.melB2, s.solo]) {
       assert.strictEqual(mel.length, 4);
       for (const [bar, notes] of mel.entries())
         for (const [step, n, len] of notes) {
@@ -64,4 +64,28 @@ test("rain is passed through and clamped", () => {
   assert.strictEqual(LOFI.song(7, { rain: 0.6 }).rain, 0.6);
   assert.strictEqual(LOFI.song(7, { rain: 5 }).rain, 1);
   assert.strictEqual(LOFI.song(7).rain, 0);
+});
+
+test("every band is used, and every voice it names exists", () => {
+  const used = new Set(SEEDS.map((seed) => LOFI.song(seed).band));
+  assert.deepStrictEqual([...used].sort(), Object.keys(LOFI.BANDS).sort());
+  const has = (v) => typeof LOFI.Player.prototype[v] === "function";
+  for (const [name, b] of Object.entries(LOFI.BANDS)) {
+    for (const v of [b.chords, b.bass, ...b.leads]) assert.ok(has(v), `${name}: no voice ${v}`);
+    assert.ok(LOFI.KITS[b.drums], `${name}: no kit ${b.drums}`);
+    assert.ok(b.leads.length >= 2, `${name}: needs two leads (one for the solo)`);
+  }
+  for (const kit of Object.values(LOFI.KITS)) for (const v of Object.values(kit)) assert.ok(has(v), v);
+  for (const v of ["tick", "tock"]) assert.ok(has(v));
+});
+
+test("a section that comes back is changed, and the form has a solo", () => {
+  let same = 0;
+  for (const seed of SEEDS) {
+    const s = LOFI.song(seed);
+    if (JSON.stringify(s.melA) === JSON.stringify(s.melA2)) same++;
+    assert.deepStrictEqual(s.melA2[0], s.melA[0], `seed ${seed}: the hook is kept`);
+    assert.ok(s.form.includes("solo") && s.form.includes("A2"), `seed ${seed}: ${s.form}`);
+  }
+  assert.ok(same < SEEDS.length / 10, `${same} songs repeat A unchanged`);
 });

@@ -102,7 +102,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | `?wx=snow&i=0.9` | Heavy snow. Other weathers are `clear`, `partly`, `cloudy`, `fog`, `rain` and `thunder` |
 | `?layout=rows` or `?layout=columns` | Forces the phone or the desktop layout |
 | `?alarm=Hello there` | Shows that alarm message right away (`&style=trucks`, `march` or `planes` to choose) |
-| `?enc=0` | Plays a monster encounter (0 to 3) |
+| `?enc=0` | Plays a monster encounter: 0 kaiju, 1 mecha, 2 turtle, 3 pterosaur, 4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 moth |
 | `?fx=crt` or `?fx=lcd` | Shows a screen filter without saving it |
 
 ## 5. Where to fix things

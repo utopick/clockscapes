@@ -1015,7 +1015,8 @@
        * Debug URL parameters: ?alt=-10 (fake sun altitude in degrees), ?wx=rain (fake weather:
        *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
        *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes,
-       *   ?fx=crt|lcd (screen filter), ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
+       *   ?fx=crt|lcd (screen filter), ?enc=0..7 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur,
+       *   4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 giant moth).
        * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, A A A (or a down-up-down
        *       zigzag stroke on the clocks) plays the test alarm message from the alarms tab, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
@@ -5192,7 +5193,13 @@
       // (scales, belly plates, armour panels and rivets). Scene lighting (dusk tint, night darkness) is applied last, and
       // eyes / spines / lamps / jets glow at night.
       const ENCOUNTER_DURATION = 10000;
-      const ENCOUNTER_KINDS = 4; // 0 kaiju, 1 mecha kaiju, 2 spinning turtle (flies), 3 pterosaur (flies)
+      // 0 kaiju, 1 mecha kaiju, 2 spinning turtle (flies), 3 pterosaur (flies), 4 spiked lizard,
+      // 5 three-headed dragon (flies), 6 rose plant (rises from behind the skyline), 7 giant moth (flies)
+      const ENCOUNTER_KINDS = 8;
+      const AIR_KINDS = new Set([2, 3, 5, 7]);
+      // [design width, design height, how much taller than usual]: the low lizard is drawn bigger (its width
+      // counts as 100 though the art is 160 wide) and the plant may reach higher, so both clear the rooftops
+      const GROUND_BOX = { 0: [152, 100, 1], 1: [152, 100, 1], 4: [100, 84, 1], 6: [100, 110, 1.25] };
       // Ground timeline (fractions of ENCOUNTER_DURATION): walk in, stop, charge (spines / chest lamp),
       // fire (breath beam / finger missiles), walk off.
       const ROAR_START = 0.42,
@@ -5421,6 +5428,193 @@
             [248, 162, 74],
             [255, 204, 130],
           ],
+        },
+        // spiked lizard
+        quad: {
+          ramp: [
+            [24, 20, 16],
+            [70, 58, 44],
+            [104, 88, 62],
+            [140, 120, 84],
+            [176, 158, 118],
+          ],
+          tex: "scales",
+        },
+        quadBelly: {
+          ramp: [
+            [30, 26, 20],
+            [110, 96, 70],
+            [150, 134, 98],
+            [184, 168, 128],
+            [212, 198, 160],
+          ],
+          tex: "plates",
+        },
+        quadSpine: {
+          ramp: [
+            [30, 24, 20],
+            [120, 110, 96],
+            [170, 160, 140],
+            [206, 198, 180],
+            [236, 230, 214],
+          ],
+        },
+        prismA: {
+          ramp: [
+            [60, 20, 80],
+            [200, 90, 255],
+            [255, 140, 200],
+            [255, 220, 140],
+            [255, 255, 230],
+          ],
+          glow: true,
+        },
+        prismB: {
+          ramp: [
+            [20, 60, 80],
+            [90, 200, 255],
+            [120, 255, 180],
+            [230, 255, 150],
+            [255, 255, 230],
+          ],
+          glow: true,
+        },
+        // three-headed dragon
+        goldScale: {
+          ramp: [
+            [60, 36, 8],
+            [150, 104, 28],
+            [204, 156, 52],
+            [236, 200, 92],
+            [255, 238, 160],
+          ],
+          tex: "scales",
+        },
+        goldBelly: {
+          ramp: [
+            [70, 46, 12],
+            [180, 140, 60],
+            [220, 184, 96],
+            [240, 214, 140],
+            [255, 240, 190],
+          ],
+          tex: "plates",
+        },
+        goldWing: {
+          ramp: [
+            [60, 34, 8],
+            [170, 118, 40],
+            [214, 160, 70],
+            [236, 196, 110],
+            [250, 226, 160],
+          ],
+        },
+        goldWingFar: {
+          ramp: [
+            [44, 24, 6],
+            [130, 88, 30],
+            [168, 124, 52],
+            [196, 156, 82],
+            [222, 190, 120],
+          ],
+        },
+        // rose plant
+        vine: {
+          ramp: [
+            [10, 24, 14],
+            [30, 62, 34],
+            [46, 92, 48],
+            [70, 124, 64],
+            [110, 160, 96],
+          ],
+          tex: "scales",
+        },
+        leaf: {
+          ramp: [
+            [12, 30, 12],
+            [34, 84, 30],
+            [54, 120, 44],
+            [86, 156, 62],
+            [130, 192, 96],
+          ],
+        },
+        rose: {
+          ramp: [
+            [50, 6, 16],
+            [140, 20, 40],
+            [190, 40, 60],
+            [226, 80, 96],
+            [250, 140, 150],
+          ],
+        },
+        roseFront: {
+          ramp: [
+            [60, 8, 20],
+            [170, 30, 54],
+            [214, 60, 80],
+            [240, 110, 124],
+            [255, 170, 176],
+          ],
+        },
+        // giant moth
+        mothFur: {
+          ramp: [
+            [40, 20, 8],
+            [140, 80, 30],
+            [190, 120, 50],
+            [220, 160, 90],
+            [245, 205, 150],
+          ],
+          tex: "scales",
+        },
+        mothWing: {
+          glow: true, // a luminous moth: its wings stay bright at night
+          ramp: [
+            [50, 16, 6],
+            [196, 86, 24],
+            [236, 136, 40],
+            [252, 184, 72],
+            [255, 226, 140],
+          ],
+        },
+        mothWingFar: {
+          glow: true, // a luminous moth: its wings stay bright at night
+          ramp: [
+            [40, 12, 6],
+            [150, 62, 20],
+            [190, 100, 32],
+            [214, 140, 60],
+            [236, 180, 110],
+          ],
+        },
+        mothEye: {
+          ramp: [
+            [10, 8, 10],
+            [34, 22, 30],
+            [54, 34, 44],
+            [70, 46, 56],
+            [90, 60, 70],
+          ],
+        },
+        mothSpot: {
+          glow: true,
+          ramp: [
+            [80, 50, 0],
+            [220, 170, 30],
+            [250, 210, 60],
+            [255, 236, 120],
+            [255, 250, 190],
+          ],
+        },
+        mothEyeBlue: {
+          ramp: [
+            [8, 20, 60],
+            [40, 110, 230],
+            [80, 170, 255],
+            [150, 210, 255],
+            [220, 240, 255],
+          ],
+          glow: true,
         },
       };
 
@@ -5909,6 +6103,287 @@
         return d;
       }
 
+      // A long, low four-legged lizard with a row of back spikes and a nose horn (walks, diagonal gait).
+      // roar (0..1) lifts the head and opens the jaw; its spikes flash and it fires a rainbow from its mouth.
+      function quadArt(phase, roar) {
+        const d = sketch(160, 84);
+        const leg = (hx, hy, off, grp) => {
+          const a = (phase + off) * TAU,
+            lift = Math.max(0, Math.cos(a)) * 3.5,
+            foot = [hx + Math.sin(a) * 7, 81 - lift],
+            knee = [(hx + foot[0]) / 2 + 3.5, (hy + foot[1]) / 2 - 1];
+          d.add("quad", capsule([hx, hy], knee, 7, 5.5), grp);
+          d.add("quad", capsule(knee, foot, 5.5, 4.5), grp);
+          for (const k of [-1, 0, 1])
+            d.add(
+              "claw",
+              capsule([foot[0] + 3, foot[1] + k * 0.8], [foot[0] + 6.5, foot[1] + 1.2 + k], 1, 0.5),
+              "claw",
+            );
+        };
+        leg(62, 58, 0.5, "legBF");
+        leg(108, 58, 0, "legFF");
+        const tail = [[46, 54]];
+        for (let i = 0; i < 7; i++) {
+          const [px, py] = tail[i];
+          tail.push([px - 7, py + 1.2 + Math.sin(phase * TAU - i * 0.8) * 0.9]);
+        }
+        for (let i = 0; i < 7; i++)
+          d.add("quad", capsule(tail[i], tail[i + 1], 8 - i * 0.9, 7 - i * 0.9), "tail");
+        const back = (x) => 52 - 15 * Math.sqrt(Math.max(0, 1 - ((x - 82) / 41) ** 2));
+        for (let x = 50; x <= 114; x += 8) {
+          const k = 6.5 + 5.5 * Math.sin((Math.PI * (x - 46)) / 72),
+            y = back(x) + 2;
+          d.add(
+            "quadSpine",
+            polygon([
+              [x - k * 0.5, y + 2],
+              [x - k * 0.45, y - k * 1.1],
+              [x + k * 0.55, y + 2],
+            ]),
+            "spine",
+          );
+        }
+        for (let i = 1; i < 5; i++) {
+          const [x, y] = tail[i],
+            k = 4 - i * 0.7;
+          d.add(
+            "quadSpine",
+            polygon([
+              [x - k, y - 5 + i * 0.5],
+              [x - k * 1.1, y - 5 - k * 1.3],
+              [x + k * 0.6, y - 5 + i * 0.5],
+            ]),
+            "spine",
+          );
+        }
+        d.add("quad", ellipse([82, 52], 41, 15, -0.03), "body");
+        d.add("quad", ellipse([104, 47], 16, 12), "body");
+        d.add(
+          "quadBelly",
+          clipTo(ellipse([84, 56], 36, 11), (x, y) => y > 58),
+          "belly",
+        );
+        const pivot = [118, 36],
+          Hd = (q) => rotP(q, pivot, -0.2 * roar);
+        d.add("quad", capsule([106, 50], Hd([126, 34]), 10.5, 8), "neck");
+        const jawPivot = [130, 39],
+          jawTip = rotP([152, 42], jawPivot, 0.05 + roar * 0.45);
+        d.add("mouth", polygon([Hd([130, 37.5]), Hd([152, 37.5]), Hd(jawTip), Hd([128, 41])]), "mouth");
+        d.add("quad", capsule(Hd(jawPivot), Hd(jawTip), 3.6, 2.2), "jaw");
+        d.add("quad", ellipse(Hd([134, 33]), 10, 7.5, 0.05), "head");
+        d.add("quad", capsule(Hd([136, 35]), Hd([153, 37]), 5.2, 3.4), "head");
+        d.add("claw", polygon([Hd([145, 32]), Hd([151, 23]), Hd([149, 33])]), "horn");
+        d.add("quadSpine", polygon([Hd([128, 28]), Hd([119, 20]), Hd([131, 30])]), "spine");
+        d.add("eye", ellipse(Hd([139, 31]), 1.8, 1.4), "eye");
+        d.dot("frame", 0, Hd([140, 31]));
+        leg(58, 60, 0, "legBN");
+        leg(104, 60, 0.5, "legFN");
+        d.anchors.mouth = Hd([153, 39]);
+        return d;
+      }
+
+      // A three-headed golden dragon with bat wings and two tails (flies). Each head is an anchor for its
+      // lightning.
+      function dragonArt(k) {
+        const d = sketch(150, 110);
+        const f = Math.cos(k * TAU);
+        const toward = (p, q, t) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t)];
+        const wing = (sh, spread, grp, mat) => {
+          const wrist = [sh[0] + 10, sh[1] - 34 * f + spread * 0.3],
+            tip = [sh[0] - 56, sh[1] - 44 * f + spread],
+            hip = [sh[0] - 22, sh[1] + 4],
+            p1 = toward(toward(tip, hip, 0.35), sh, 0.22),
+            p2 = toward(toward(tip, hip, 0.7), sh, 0.15);
+          d.add(mat, polygon([sh, wrist, tip, p1, p2, hip]), grp);
+          d.add("goldScale", capsule(sh, wrist, 3.2, 2.4), grp);
+          d.add("goldScale", capsule(wrist, tip, 2.2, 0.6), grp);
+          d.line(mat, 1, wrist, p1);
+          d.line(mat, 1, wrist, p2);
+        };
+        wing([72, 50], -24, "wingF", "goldWingFar");
+        // two tails, waving out of step
+        for (const [dir, grp] of [
+          [-0.12, "tailA"],
+          [0.2, "tailB"],
+        ]) {
+          let [px, py] = [48, 62];
+          for (let i = 0; i < 8; i++) {
+            const nx = px - 6.5,
+              ny = py + dir * 6.5 + Math.sin(k * TAU - i * 0.7 + dir * 9) * 1.6;
+            d.add("goldScale", capsule([px, py], [nx, ny], 5 - i * 0.5, 4.5 - i * 0.5), grp);
+            [px, py] = [nx, ny];
+          }
+        }
+        d.add("goldScale", capsule([58, 66], [54, 80], 4, 3), "legs");
+        d.add("goldScale", capsule([64, 68], [62, 82], 4, 3), "legs");
+        d.add("goldScale", ellipse([66, 60], 21, 11, -0.1), "body");
+        d.add(
+          "goldBelly",
+          clipTo(ellipse([68, 63], 17, 8, -0.1), (x, y) => y > 63),
+          "belly",
+        );
+        const head = (i, hx, hy) => {
+          const base = [82, 56],
+            mid = [lerp(base[0], hx, 0.5) - 2, lerp(base[1], hy, 0.5) + (i === 0 ? 6 : i === 2 ? -6 : 0)],
+            H = ([x, y]) => [hx + x, hy + y]; // head-relative points
+          d.add("goldScale", capsule(base, mid, 7, 5.5), "neck" + i);
+          d.add("goldScale", capsule(mid, [hx, hy], 5.5, 5), "neck" + i);
+          d.add("crest", polygon([H([-3, -4]), H([-17, -15]), H([-1, -7])]), "horn" + i);
+          d.add("crest", polygon([H([-5, -1]), H([-20, -5]), H([-4, -3.5])]), "horn" + i);
+          d.add("goldScale", ellipse([hx, hy], 8.5, 6.5), "head" + i);
+          d.add("goldScale", capsule(H([4, 1.5]), H([18, 3.5]), 5.2, 3.1), "head" + i);
+          d.add("goldBelly", capsule(H([3, 5]), H([16, 6.5]), 2.8, 1.6), "jaw" + i);
+          d.add("eye", ellipse(H([4, -2]), 1.8, 1.4), "eye");
+          d.anchors["head" + i] = H([18, 4]);
+        };
+        const sway = (i) => Math.sin(k * TAU + i * 2.1) * 3;
+        head(0, 112, 22 + sway(0));
+        head(2, 110, 84 + sway(2));
+        head(1, 124, 52 + sway(1));
+        wing([70, 54], 16, "wingN", "goldWing");
+        return d;
+      }
+
+      // A rose on a thick vine stalk with tendrils, rooted behind the skyline. phase sways it; roar (0..1)
+      // opens the rose into a toothed mouth.
+      function plantArt(phase, roar) {
+        const d = sketch(120, 110);
+        const sway = Math.sin(phase * TAU);
+        d.add(
+          "leaf",
+          polygon([
+            [60, 108],
+            [18, 94],
+            [38, 86],
+            [58, 100],
+          ]),
+          "leafL",
+        );
+        d.add(
+          "leaf",
+          polygon([
+            [60, 108],
+            [104, 92],
+            [84, 84],
+            [62, 100],
+          ]),
+          "leafR",
+        );
+        // tendrils curling out of the stalk, behind it
+        for (let i = 0; i < 6; i++) {
+          const side = i % 2 ? 1 : -1;
+          let [px, py] = [60 + sway * (2 + i * 0.4), 92 - i * 8];
+          let ang = -Math.PI / 2 + side * (0.9 + (i % 3) * 0.25);
+          for (let j = 0; j < 7; j++) {
+            ang += side * (0.16 + 0.1 * Math.sin(phase * TAU + i + j * 0.5));
+            const nx = px + Math.cos(ang) * 6,
+              ny = py + Math.sin(ang) * 6;
+            d.add("vine", capsule([px, py], [nx, ny], 3.2 - j * 0.3, 3 - j * 0.3), "tendril" + i);
+            [px, py] = [nx, ny];
+          }
+          if (i % 2 === 0) d.add("rose", ellipse([px, py], 2.4, 2.2), "bud" + i);
+        }
+        const top = [60 + sway * 5, 42];
+        d.add("vine", capsule([60, 110], [60 + sway * 3, 64], 11, 8), "stalk");
+        d.add("vine", capsule([60 + sway * 3, 64], top, 8, 7), "stalk");
+        const [cx, cy] = [top[0], top[1] - 8];
+        const R = 16 + roar * 4;
+        for (let j = 0; j < 6; j++) {
+          const a = -Math.PI / 2 + (j - 2.5) * 0.55 * (1 + roar * 0.6);
+          const at = (da, r) => [cx + Math.cos(a + da) * r, cy + Math.sin(a + da) * r];
+          d.add("rose", polygon([[cx, cy], at(-0.3, R * 0.7), at(0, R), at(0.3, R * 0.7)]), "petal" + j);
+        }
+        d.add("rose", ellipse([cx, cy + 3], 12, 9), "cup");
+        if (roar > 0.2) {
+          d.add("mouth", ellipse([cx, cy], 3 + roar * 5, 2 + roar * 4), "mouth");
+          for (let j = 0; j < 8; j++) {
+            const a = (j / 8) * TAU,
+              rx = 3 + roar * 5,
+              ry = 2 + roar * 4;
+            const p = [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry],
+              q = [cx + Math.cos(a) * rx * 0.55, cy + Math.sin(a) * ry * 0.55];
+            d.add("tooth", capsule(p, q, 0.9, 0.3), "tooth");
+          }
+        }
+        const open = roar * 6;
+        d.add(
+          "roseFront",
+          polygon([
+            [cx - 12 - open, cy + 5],
+            [cx - open * 0.5, cy - 13 + open],
+            [cx + 3 - open, cy + 9],
+          ]),
+          "front",
+        );
+        d.add(
+          "roseFront",
+          polygon([
+            [cx + 12 + open, cy + 5],
+            [cx + open * 0.5, cy - 13 + open],
+            [cx - 3 + open, cy + 9],
+          ]),
+          "front",
+        );
+        d.anchors.mouth = [cx, cy];
+        return d;
+      }
+
+      // A giant moth with patterned wings, eyespots and glowing blue eyes (flies), seen from the side.
+      function mothArt(k) {
+        const d = sketch(140, 96);
+        const f = Math.cos(k * TAU);
+        const wings = (sh, spread, grp, mat) => {
+          const tip = [sh[0] - 40, sh[1] - 40 * f + spread];
+          d.add(
+            mat,
+            polygon([
+              sh,
+              [sh[0] + 6, sh[1] - 26 * f + spread * 0.3],
+              tip,
+              [sh[0] - 52, sh[1] - 26 * f + spread * 0.8],
+              [sh[0] - 30, sh[1] - 6 * f + spread * 0.4],
+            ]),
+            grp,
+          );
+          d.add(
+            mat,
+            polygon([
+              [sh[0] - 6, sh[1] + 2],
+              [sh[0] - 30, sh[1] - 20 * f + spread * 0.6],
+              [sh[0] - 46, sh[1] - 8 * f + spread * 0.6],
+              [sh[0] - 32, sh[1] + 7],
+            ]),
+            grp + "h",
+          );
+          const spot = [lerp(sh[0], tip[0], 0.62), lerp(sh[1], tip[1], 0.62) + 3 * Math.sign(f || 1)];
+          d.add("mothEye", ellipse(spot, 5.5, 4.5), grp + "s");
+          d.add("mothSpot", ellipse(spot, 2.6, 2.1), grp + "s");
+          d.line(
+            "mothEye",
+            1,
+            [sh[0] - 4, sh[1] - 12 * f + spread * 0.2],
+            [sh[0] - 44, sh[1] - 30 * f + spread * 0.8],
+          );
+        };
+        wings([74, 46], -10, "wingF", "mothWingFar");
+        d.add("mothFur", capsule([54, 51], [76, 47], 6, 8), "body");
+        for (let i = 0; i < 3; i++) d.line("mothFur", 1, [60 + i * 5, 44], [58 + i * 5, 56]);
+        d.add("mothFur", ellipse([80, 46], 8.5, 7.5), "thorax");
+        d.add("mothFur", capsule([82, 52], [86, 62], 1, 0.6), "legs");
+        d.add("mothFur", capsule([78, 53], [78, 63], 1, 0.6), "legs");
+        d.add("mothFur", ellipse([90, 45], 5, 4.5), "head");
+        d.add("mothFur", capsule([92, 41], [106, 26], 1, 0.7), "antenna");
+        d.add("mothFur", capsule([90, 41], [100, 24], 1, 0.7), "antenna");
+        for (let i = 1; i < 5; i++) {
+          const p = [lerp(92, 106, i / 5), lerp(41, 26, i / 5)];
+          d.line("mothFur", 2, p, [p[0] + 3, p[1] + 1]);
+        }
+        d.add("mothEyeBlue", ellipse([93, 44], 2.4, 2), "eye");
+        wings([72, 48], 8, "wingN", "mothWing");
+        return d;
+      }
+
       const ART_CACHE = new Map();
       function monsterRaster(kind, H, frame) {
         const key = kind + "|" + H + "|" + frame;
@@ -5916,14 +6391,16 @@
         if (!art) {
           if (ART_CACHE.size > 160) ART_CACHE.clear();
           const [f, extra] = String(frame).split(":").map(Number);
-          const def =
-            kind === 0
-              ? kaijuArt(f / 8, extra || 0)
-              : kind === 1
-                ? mechaArt(f / 8, extra || 0)
-                : kind === 2
-                  ? turtleArt(f)
-                  : pteroArt(f / 6);
+          const def = [
+            () => kaijuArt(f / 8, extra || 0),
+            () => mechaArt(f / 8, extra || 0),
+            () => turtleArt(f),
+            () => pteroArt(f / 6),
+            () => quadArt(f / 8, extra || 0),
+            () => dragonArt(f / 6),
+            () => plantArt(f / 8, extra || 0),
+            () => mothArt(f / 6),
+          ][kind]();
           art = rasterize(def, H);
           ART_CACHE.set(key, art);
         }
@@ -5998,7 +6475,7 @@
         if (elapsed < 0 || elapsed >= ENCOUNTER_DURATION) return false;
         const { kind, direction } = encounter;
         const animate = !reducedMotion,
-          air = kind >= 2,
+          air = AIR_KINDS.has(kind),
           flip = direction < 0;
         const fraction = elapsed / ENCOUNTER_DURATION;
         const roaring = !air && animate && fraction >= ROAR_START && fraction < ROAR_END;
@@ -6022,16 +6499,103 @@
           // high in the sky, but below the clock and labels where the column has room for it
           const sky = Math.min(Math.floor(e.G * 0.55) - art.h, Math.floor(e.G - e.A * 0.79));
           const top = Math.max(1, sky, Math.min(e.T, e.G - art.h - 2));
-          blitMonster(g, painted, x, top + Math.round(bob));
+          const y = top + Math.round(bob);
+          blitMonster(g, painted, x, y);
+          const at = ([ax, ay]) => [flip ? x + art.w - 1 - ax : x + ax, y + ay];
+          // the dragon throws zigzag lightning from its three mouths, halfway across
+          if (kind === 5 && animate && fraction > 0.35 && fraction < 0.65) {
+            const th = Math.max(1, Math.round(art.h / 36)),
+              step = Math.max(3, Math.round(e.W / 14));
+            for (let i = 0; i < 3; i++) {
+              let [bx, by] = at(art.anchors["head" + i]);
+              const r = rngFrom(Math.floor(elapsed / 90) * 7 + i);
+              for (let j = 0; j < 8; j++) {
+                const nx = bx + direction * step,
+                  ny = by + (r() - 0.35) * step * 0.9;
+                for (const [col, w] of [
+                  [[255, 220, 90, 0.3], th * 3],
+                  [flicker ? [255, 250, 210, 1] : [255, 214, 60, 1], th],
+                ]) {
+                  g.fillStyle = css(col, col[3]);
+                  const n = Math.max(1, Math.round(Math.abs(nx - bx)));
+                  for (let t = 0; t <= n; t++)
+                    g.fillRect(
+                      Math.round(lerp(bx, nx, t / n) - w / 2),
+                      Math.round(lerp(by, ny, t / n) - w / 2),
+                      w,
+                      w,
+                    );
+                }
+                [bx, by] = [nx, ny];
+              }
+            }
+          }
+          // the moth leaves a trail of glittering scale dust
+          if (kind === 7 && animate) {
+            const night = e.pal.lit > 0.2;
+            for (let i = 0; i < 18; i++) {
+              const age = ((elapsed / 1000 + i * 0.13) % 2.3) / 2.3;
+              const dx =
+                  x +
+                  art.w / 2 -
+                  direction * (art.w * 0.2 + age * e.W * 0.25) +
+                  Math.sin(i * 7.1) * art.w * 0.2,
+                dy = y + art.h * 0.55 + age * art.h * 0.9 + Math.sin(elapsed * 0.004 + i) * 2;
+              const twinkle = (Math.floor(elapsed / 120) + i) % 3 === 0;
+              g.fillStyle = css(
+                twinkle ? [255, 250, 220] : [255, 214, 110],
+                (1 - age) * (night ? 0.95 : 0.75),
+              );
+              g.fillRect(Math.round(dx), Math.round(dy), 1, 1);
+            }
+          }
           return false;
         }
 
         // Ground monsters tower over the skyline from behind it; feet stay hidden behind the front row.
-        const H = Math.max(24, Math.round(Math.min(e.A * 0.9, (e.W * 0.72 * 100) / 152)));
+        const [bw, bh, tall] = GROUND_BOX[kind];
+        const H = Math.max(24, Math.round(Math.min(e.A * 0.9 * tall, (e.W * 0.72 * bh * tall) / bw)));
         const pause = ROAR_END - ROAR_START;
         const walk =
           (fraction < ROAR_START ? fraction : fraction < ROAR_END ? ROAR_START : fraction - pause) /
           (1 - pause);
+        // the rose plant does not walk: it rises from behind the skyline, sways, opens and flings glowing
+        // sap, then sinks back down
+        if (kind === 6) {
+          const level = roaring ? Math.min(1, Math.round(((fraction - ROAR_START) / 0.06) * 4) / 4) : 0;
+          const sway = animate ? Math.floor(elapsed / 170) % 8 : 0;
+          const art = monsterRaster(kind, H, sway + ":" + level);
+          const painted = paintRaster(art, e, null, flip);
+          const ease = (t) => t * t * (3 - 2 * t);
+          const shown = reducedMotion
+            ? 1
+            : Math.min(ease(clamp(fraction / 0.15, 0, 1)), ease(clamp((1 - fraction) / 0.15, 0, 1)));
+          const x = Math.round((e.W - art.w) / 2 + direction * e.W * 0.12);
+          const top = e.G + 1 - Math.round(art.h * 0.97) + Math.round((1 - shown) * art.h);
+          blitMonster(g, painted, x, top);
+          if (roaring && fraction >= BEAM_START) {
+            const [ax, ay] = art.anchors.mouth;
+            const mx = flip ? x + art.w - 1 - ax : x + ax,
+              my = top + ay,
+              since = (elapsed - BEAM_START * ENCOUNTER_DURATION) / 1000,
+              th = Math.max(1, Math.round(art.h / 50));
+            for (let i = 0; i < 14; i++) {
+              const t = since - i * 0.09;
+              if (t < 0) break;
+              const side = i % 2 ? 1 : -1,
+                vx = side * e.W * (0.25 + (i % 3) * 0.1),
+                vy = -e.A * 0.55,
+                px = Math.round(mx + vx * t),
+                py = Math.round(my + vy * t + 0.5 * e.A * 1.6 * t * t);
+              if (py > e.G) continue;
+              g.fillStyle = css([200, 255, 120], 0.3);
+              g.fillRect(px - th, py - th, th * 3, th * 3);
+              g.fillStyle = css(flicker ? [240, 255, 170] : [170, 240, 90]);
+              g.fillRect(px, py, th + 1, th + 1);
+            }
+          }
+          return false;
+        }
         const tick = Math.floor(elapsed / (STEP_MS / 4));
         const walking = animate && !roaring;
         const frame = walking ? tick % 8 : 0;
@@ -6040,15 +6604,21 @@
         const charge = roaring && fraction >= ROAR_START + 0.03;
         const blink = animate && elapsed % 2600 < 160;
         const swap =
-          kind === 0
+          kind === 4
             ? charge
-              ? { spine: flicker ? "spineGlow" : "spineHot" }
+              ? { quadSpine: flicker ? "prismA" : "prismB" }
               : blink
-                ? { eye: "skin" }
+                ? { eye: "quad" }
                 : null
-            : charge
-              ? { core: flicker ? "flameCore" : "core" }
-              : null;
+            : kind === 0
+              ? charge
+                ? { spine: flicker ? "spineGlow" : "spineHot" }
+                : blink
+                  ? { eye: "skin" }
+                  : null
+              : charge
+                ? { core: flicker ? "flameCore" : "core" }
+                : null;
         const painted = paintRaster(art, e, swap, flip);
         const travel = direction > 0 ? walk : 1 - walk;
         const x = Math.round(reducedMotion ? (e.W - art.w) / 2 : travel * (e.W + art.w + 4) - art.w - 2);
@@ -6082,6 +6652,32 @@
             const sx = bx + ((i * 37 + Math.floor(elapsed / 40) * 13) % Math.max(1, len));
             g.fillRect(sx, y + (i % 2 ? -th * 2 : th * 2), th, th);
           }
+        }
+
+        // the spiked lizard's rainbow, a striped beam from its mouth to the edge of the column
+        if (kind === 4 && roaring && fraction >= BEAM_START) {
+          const [ax, ay] = art.anchors.mouth;
+          const mx = flip ? x + art.w - 1 - ax : x + ax;
+          const th = Math.max(1, Math.round(art.h / 30));
+          const grow = Math.min(1, (fraction - BEAM_START) / 0.03);
+          const x1 = direction > 0 ? e.W : 0;
+          const len = Math.round(Math.abs(x1 - mx) * grow);
+          const bx = direction > 0 ? mx : mx - len;
+          const bands = [
+            [255, 80, 80],
+            [255, 170, 60],
+            [255, 240, 90],
+            [100, 230, 110],
+            [80, 170, 255],
+            [170, 110, 255],
+          ];
+          const y0 = top + ay - Math.round((bands.length * th) / 2);
+          g.fillStyle = css([255, 255, 255], 0.18);
+          g.fillRect(bx, y0 - th * 2, len, bands.length * th + th * 4);
+          bands.forEach((c, i) => {
+            g.fillStyle = css(flicker ? mixc(c, [255, 255, 255], 0.3) : c, 0.9);
+            g.fillRect(bx, y0 + i * th, len, th);
+          });
         }
 
         // finger missiles: one every 0.2 s from the raised hand, each with a launch flash and a smoke trail

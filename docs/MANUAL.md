@@ -89,7 +89,7 @@ You can also open `index.html` straight from the disk, but the offline copy and 
 
 ```sh
 python3 -m http.server 8000                         # run it locally at http://localhost:8000
-node --test tests/music.test.js                     # test the music writer (5 tests, about 1 second)
+node --test tests/music.test.js                     # test the music writer (7 tests, about 1 second)
 npx -y prettier@3 --print-width 110 --write index.html   # format the file the way it is kept
 npx -y prettier@3 --print-width 110 --check index.html   # check the format without changing it
 git push origin main                                # publish: GitHub Pages rebuilds in about a minute

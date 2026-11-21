@@ -7519,10 +7519,13 @@
                 w: Math.round(
                   (deck ? (big ? 44 : 22) : big ? 30 : 16) + rc() * (deck ? (big ? 56 : 20) : big ? 34 : 22),
                 ),
-                h: Math.round((deck ? 7 : 6) + rc() * (big ? 9 : 5)),
+                h: Math.round((deck ? 9 : 6) + rc() * (big ? 9 : 5)),
                 v: 0.004 + rc() * 0.006,
                 seed: (rc() * 1e9) | 0,
               });
+              // a thin deck stretched long reads as a bar, so it is at most eight times as wide as it is tall
+              const last = this.clouds.at(-1);
+              if (deck) last.w = Math.min(last.w, last.h * 8);
             }
           }
           const cb = mixc([252, 252, 255], [105, 110, 122], clamp(ov * 1.1 - 0.1, 0, 1));
@@ -7547,13 +7550,17 @@
             let lift = 0;
             for (let x = 3; x < W - 3; x += 3 + Math.floor(r() * 4)) {
               const edge = Math.min(x - 1, W - 2 - x);
-              const rr = Math.max(1, Math.min(edge, Math.round(cl.h * 0.35 + r() * cl.h * 0.45)));
+              const rr = Math.max(
+                1,
+                Math.min(edge, Math.max(3, Math.round(cl.h * 0.35 + r() * cl.h * 0.45))),
+              );
               lift = clamp(lift + (r() - 0.5) * 3, 0, cl.h * 0.45);
               puffs.push([x, base - rr + 1 - Math.round(lift), rr]);
             }
-            for (let i = 0, m = 1 + Math.floor((W / 30) * r()); i < m; i++) {
-              const x = Math.round(W * (0.2 + r() * 0.6)),
-                rr = Math.max(2, Math.round(cl.h * (0.45 + r() * 0.3)));
+            // a crown every 16 pixels or so, so a long deck is a lumpy layer and never a flat bar
+            for (let i = 0, m = 1 + Math.floor(W / 16); i < m; i++) {
+              const x = Math.round(W * (0.12 + ((i + 0.2 + r() * 0.6) / m) * 0.76)),
+                rr = Math.max(3, Math.round(cl.h * (0.4 + r() * 0.4))); // 2 would draw a plus sign
               puffs.push([x, Math.max(rr, base - cl.h * 0.5 - rr), rr, true]);
             }
           } else {
@@ -7606,8 +7613,6 @@
           g.fillStyle = css(mid);
           for (const [x, y, rr] of puffs) disc(g, x, y, rr);
           bridge(0);
-          const left = Math.min(...puffs.map(([x, , rr]) => x - rr)) + 2,
-            right = Math.max(...puffs.map(([x, , rr]) => x + rr)) - 2;
           g.fillStyle = css(ctop);
           for (const [x, y, rr] of puffs)
             disc(g, x - (rr > 2 ? 1 : 0), y - (rr > 2 ? 1 : 0), rr > 2 ? rr - 1 : rr);
@@ -7617,13 +7622,25 @@
           // shadowed underside: each lower puff darkens its own bottom, so the shade follows the lobes
           // instead of running along the cloud as a straight band
           g.globalCompositeOperation = "source-atop";
-          g.fillStyle = css(deck ? mixc(ctop, cbot, 0.65) : cbot);
+          g.fillStyle = css(deck ? mixc(ctop, cbot, 0.4) : cbot);
           for (const [x, y, rr, crown] of puffs) if (!crown) disc(g, x + 1, y + Math.ceil(rr * 0.6), rr);
-          bridge(0.45);
-          // ragged base: knock a few pixels out of the bottom row
-          g.globalCompositeOperation = "destination-out";
-          for (let x = left; x < right; x++) if (r() < 0.3) g.fillRect(x, base, 1 + Math.floor(r() * 2), 1);
+          // a heap's shade joins up underneath; a deck keeps it per puff, since one shaded band along a long
+          // layer reads as a bar when the lit top melts into a dusk sky
+          if (!deck) bridge(0.45);
           g.globalCompositeOperation = "source-over";
+          // trim nubs: a one- or two-pixel tooth hanging under the cloud (a disc's bottom tip) reads as a spike
+          const img = g.getImageData(0, 0, W, H),
+            d = img.data;
+          const on = (x, y) => x >= 0 && x < W && y >= 0 && y < H && d[(y * W + x) * 4 + 3] > 0;
+          const off = (x, y) => (d[(y * W + x) * 4 + 3] = 0);
+          for (let pass = 0; pass < 2; pass++)
+            for (let y = H - 1; y > 0; y--)
+              for (let x = 0; x < W; x++) {
+                if (!on(x, y) || on(x, y + 1) || on(x - 1, y)) continue;
+                if (!on(x + 1, y)) off(x, y);
+                else if (!on(x + 2, y) && !on(x + 1, y + 1)) (off(x, y), off(x + 1, y));
+              }
+          g.putImageData(img, 0, 0);
           return c;
         }
         ensureParticles(wx) {

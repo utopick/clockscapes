@@ -124,6 +124,37 @@
         overflow: hidden;
         font-family: var(--soft-type);
       }
+      /* Burn-in protection: the clocks shift by a pixel or two every 2 minutes (screenCare), and a soft bright
+         band sweeps down the screen every 10 minutes. */
+      #cols {
+        transition: transform 3s ease-in-out;
+      }
+      .sweep {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: -20vh;
+        height: 18vh;
+        z-index: 4;
+        pointer-events: none;
+        display: none;
+        background: linear-gradient(
+          to bottom,
+          transparent,
+          rgba(255, 255, 255, 0.06) 70%,
+          rgba(255, 255, 255, 0.16) 96%,
+          transparent
+        );
+      }
+      body.sweeping .sweep {
+        display: block;
+        animation: sweep 7s linear 1;
+      }
+      @keyframes sweep {
+        to {
+          transform: translateY(125vh);
+        }
+      }
       body.idle {
         cursor: none;
       }
@@ -446,6 +477,7 @@
   </head>
   <body>
     <div id="cols"></div>
+    <div class="sweep"></div>
     <div id="controls">
       <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">
         ▶︎ MUSIC
@@ -490,6 +522,36 @@
                 <option value="off">Off</option>
                 <option value="crt">CRT television</option>
                 <option value="lcd">LCD screen</option>
+              </select></label
+            >
+          </fieldset>
+          <fieldset>
+            <legend>Power and screen care</legend>
+            <p class="hint atlasHint">
+              Battery saver draws 5 frames a second instead of 15, so the phone stays cooler. Letting the
+              screen sleep saves the most. Burn-in protection keeps OLED screens safe when the clocks stay up
+              for hours: the picture moves by a pixel or two every 2 minutes, and a soft line sweeps down the
+              screen every 10 minutes.
+            </p>
+            <label
+              >Motion
+              <select name="power">
+                <option value="smooth">Smooth (15 frames a second)</option>
+                <option value="saver">Battery saver (5 frames a second)</option>
+              </select></label
+            >
+            <label
+              >Keep the screen on
+              <select name="awake">
+                <option value="1">On</option>
+                <option value="0">Off, let it sleep</option>
+              </select></label
+            >
+            <label
+              >Burn-in protection
+              <select name="care">
+                <option value="1">On</option>
+                <option value="0">Off</option>
               </select></label
             >
           </fieldset>
@@ -1626,6 +1688,9 @@
         hour12: false,
         layout: "auto",
         filter: "off", // screen filter: off, crt or lcd
+        power: "smooth", // smooth (15 frames a second) or saver (5)
+        awake: true, // keep the screen on (wake lock)
+        care: true, // burn-in protection: pixel shift and a sweep line
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
         music: { on: false, volume: 60, variation: 1 }, // volume 0..100, variation 1..9999 (part of each song's seed)
@@ -8528,12 +8593,17 @@
       }
       let lastFrame = 0;
       // requestAnimationFrame runs at the screen's rate (60 Hz or more); the clocks only draw at 15 fps.
+      // Draws every clock, then sleeps until the next frame is due. A timer sets the pace and
+      // requestAnimationFrame lines the drawing up with the screen (and stops while the page is hidden),
+      // so the page wakes 15 times a second (5 in battery saver), not on every screen refresh (60 to 120).
       function loop(t) {
-        if (t - lastFrame >= 1000 / 15 && !document.hidden) {
+        if (!document.hidden) {
           lastFrame = t;
           for (const c of COLS) c.frame(t);
         }
-        requestAnimationFrame(loop);
+        const fps = CONFIG.power === "saver" ? 5 : 15;
+        // 8 ms early, because requestAnimationFrame then waits for the next screen refresh
+        setTimeout(() => requestAnimationFrame(loop), Math.max(0, 1000 / fps - (performance.now() - t) - 8));
       }
       let rT;
       addEventListener("resize", () => {
@@ -8559,12 +8629,51 @@
 
       // ---- wake lock (keep the screen on) ----
       let wakeLock = null;
+      // Keeps the screen on while the clocks show, unless "Keep the screen on" is off.
       async function keepAwake() {
+        if (CONFIG.awake === false) {
+          wakeLock?.release().catch(() => {});
+          wakeLock = null;
+          return;
+        }
         try {
           if ("wakeLock" in navigator && !document.hidden)
             wakeLock = await navigator.wakeLock.request("screen");
         } catch (e) {}
       }
+
+      // ---- burn-in protection ----
+      // Every 2 minutes the clocks move to the next spot on a small loop of offsets (2 CSS pixels at most),
+      // so no screen pixel shows the same thing for hours; every 10 minutes a soft line sweeps down.
+      const CARE_SPOTS = [
+        [0, 0],
+        [2, 1],
+        [1, -2],
+        [-2, -1],
+        [-1, 2],
+        [2, -1],
+        [-2, 1],
+        [0, 2],
+        [0, -2],
+      ];
+      let lastSweep = -1;
+      function screenCare() {
+        const cols = $("#cols");
+        if (CONFIG.care === false) {
+          cols.style.transform = "";
+          return;
+        }
+        const now = Date.now();
+        const [x, y] = CARE_SPOTS[Math.floor(now / 120000) % CARE_SPOTS.length];
+        cols.style.transform = x || y ? `translate(${x}px, ${y}px)` : "";
+        const slot = Math.floor(now / 600000);
+        if (slot !== lastSweep && now % 600000 < 15000) {
+          lastSweep = slot;
+          document.body.classList.add("sweeping");
+          setTimeout(() => document.body.classList.remove("sweeping"), 7500);
+        }
+      }
+      setInterval(screenCare, 5000);
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           keepAwake();
@@ -8690,6 +8799,9 @@
         form.weather.value = CONFIG.weather === false ? "0" : "1";
         form.layout.value = CONFIG.layout || "auto";
         form.filter.value = FILTERS.includes(CONFIG.filter) ? CONFIG.filter : "off";
+        form.power.value = CONFIG.power === "saver" ? "saver" : "smooth";
+        form.awake.value = CONFIG.awake === false ? "0" : "1";
+        form.care.value = CONFIG.care === false ? "0" : "1";
         renderZones(CONFIG.zones);
         renderAlarms(CONFIG.alarms || []);
         form.alarmTest.value = CONFIG.alarmTest || "";
@@ -8904,6 +9016,9 @@
           hour12: form.hour12.value === "1",
           layout: form.layout.value,
           filter: FILTERS.includes(form.filter.value) ? form.filter.value : "off",
+          power: form.power.value === "saver" ? "saver" : "smooth",
+          awake: form.awake.value === "1",
+          care: form.care.value === "1",
           alarms,
           alarmTest: form.alarmTest.value.trim().slice(0, 36),
           zones: zs.slice(0, 4),
@@ -8920,6 +9035,8 @@
         if (CONFIG.music.on !== musicOn()) musicPlay(CONFIG.music.on);
         else if (musicOn() && changedVariation) nextSong(3);
         buildColumns();
+        keepAwake();
+        screenCare();
         refreshAllWeather(false);
       });
       addEventListener("keydown", (ev) => {

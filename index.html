@@ -4837,6 +4837,22 @@
         "reykjavik-is rio-de-janeiro-br saint-helier-je saint-peter-port-gg saint-pierre-pm sao-tome-st shenzhen-cn " +
         "sri-jayawardenepura-kotte-lk stanley-fk tallinn-ee the-hague-nl tijuana-mx tokyo-jp torshavn-fo tripoli-ly " +
         "valletta-mt vancouver-ca victoria-sc").split(" "));
+      // How busy a city's streets are at its local weekday and hour, as multipliers of a normal hour:
+      // weekday rush hours fill the roads, weekends bring people out walking, Friday and Saturday nights
+      // (until about 3 am) bring both out to party, and the small hours are quiet.
+      function busyness(day, h) {
+        const weekend = day === "Sat" || day === "Sun";
+        const party =
+          ((day === "Fri" || day === "Sat") && h >= 21) || ((day === "Sat" || day === "Sun") && h < 3);
+        if (party) return { traffic: 1.2, walkers: 1.9, party };
+        if (h < 6) return { traffic: 0.4, walkers: 0.4 };
+        if (h >= 22) return { traffic: 0.6, walkers: 0.6 };
+        if (weekend) return { traffic: 0.8, walkers: h >= 10 && h < 20 ? 1.6 : 1 };
+        if (h >= 7 && h < 10) return { traffic: h === 9 ? 1.3 : 1.7, walkers: 1.3 };
+        if (h >= 13 && h < 15) return { traffic: 1.3, walkers: 1.2 };
+        if (h >= 17 && h < 20) return { traffic: h === 19 ? 1.4 : 1.8, walkers: 1.4 };
+        return { traffic: 1, walkers: 1 };
+      }
       function makeSceneLife(e, seed) {
         const rng = rngFrom(seed ^ 0xb12d);
         const night = e.alt < -5;
@@ -4862,14 +4878,29 @@
             color: paint(palette[i % palette.length]),
           }));
         };
-        const traffic = movers(e.road, Math.min(8, Math.max(5, Math.round(e.W / 38))), 18, 18);
+        const busy = busyness(e.weekday, e.hour);
+        const traffic = movers(
+          e.road,
+          clamp(Math.round(Math.min(8, Math.max(5, Math.round(e.W / 38))) * busy.traffic), 2, 14),
+          18,
+          18,
+        );
         traffic.forEach((vehicle, i) => {
           vehicle.id = i + 1 + ((seed >>> 0) % 97);
           vehicle.direction = vehicle.y === e.G + SYNC_LANE ? -1 : 1;
         });
         // one rider each way, a lane apart
         const cyclists = e.bike == null ? [] : movers({ lanes: [e.bike - 1, e.bike + 1] }, 2, 10, 12);
-        const walkers = movers(e.walk, Math.min(night ? 5 : 10, Math.max(4, Math.round(e.W / 22))), 4, 7);
+        const walkers = movers(
+          e.walk,
+          clamp(
+            Math.round(Math.max(4, Math.round(e.W / 22)) * busy.walkers),
+            2,
+            night && !busy.party ? 5 : 18,
+          ),
+          4,
+          7,
+        );
         // deep water gets a far lane too; the far boats are drawn first so near ones pass in front
         const deepWater = e.water && e.H - e.water.y0 >= 20;
         const boats =
@@ -4891,6 +4922,20 @@
         ];
         for (const walker of walkers)
           if (rng() < 0.15) walker.dog = paint(coats[Math.floor(rng() * coats.length)]);
+        // In the rain most people open an umbrella (picked by a hash, so the random draws above stay put).
+        const umbrellas = [
+          [38, 40, 52],
+          [42, 62, 120],
+          [196, 52, 58],
+          [232, 190, 64],
+          [112, 64, 140],
+          [70, 140, 110],
+        ];
+        if (e.rain)
+          walkers.forEach((walker, i) => {
+            const h = (Math.imul(i + 1 + (seed >>> 0), 2654435761) >>> 0) % 100;
+            if (h < 85) walker.umbrella = paint(umbrellas[h % umbrellas.length]);
+          });
         return {
           traffic,
           cyclists,
@@ -5213,6 +5258,12 @@
           g.fillRect(x, y - 2, 2, 2);
           g.fillStyle = life.shade;
           g.fillRect(x - person.direction * stride, y, 1, 1);
+          if (person.umbrella) {
+            // a small dome held just above the head
+            g.fillStyle = person.umbrella;
+            g.fillRect(x - 2, y - 4, 5, 1);
+            g.fillRect(x - 1, y - 5, 3, 1);
+          }
           if (person.dog) {
             // a small dog trotting a step ahead on a lead: body, head, tail, legs in step
             const dir = person.direction,
@@ -7519,7 +7570,9 @@
             sunH: sun.H,
             k,
             snow: wx.cat === "snow",
+            rain: wx.cat === "rain" || wx.cat === "thunder",
             hour: tp.h,
+            weekday: tp.weekday,
             min: tp.m,
             rng: rngFrom(this.seed),
             sh: (c) => shade(c),

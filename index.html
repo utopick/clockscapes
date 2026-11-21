@@ -4904,7 +4904,7 @@
           cx = Math.round(e.W * at);
         const season = (e.latitude ?? 0) < 0 ? (e.month + 6) % 12 : e.month;
         const caps =
-          e.snow || snow === "y" || (snow === "w" && e.month >= 0 && (season >= 10 || season <= 4));
+          e.snow || snow === "y" || (snow === "w" && e.month >= 0 && (season >= 10 || season <= 3)); // November to April, like the ranges;
         const color = rock || [92, 120, 140];
         for (let x = Math.max(0, cx - hw); x <= Math.min(e.W - 1, cx + hw); x++) {
           const u = (x - cx) / hw,

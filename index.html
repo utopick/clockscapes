@@ -383,6 +383,26 @@
       .atlasHint {
         margin: 0 0 10px;
       }
+      /* the suggestion list under "Find a city" and "Time zone" (see suggestFor) */
+      .suggest {
+        display: flex;
+        flex-direction: column;
+        max-width: 380px;
+        border: 2px solid #3a4280;
+        border-top: 0;
+        text-transform: none;
+      }
+      #cfg .suggest button {
+        text-align: left;
+        border: 0;
+        border-top: 1px solid #2b3270;
+        background: #0b0f2e;
+        padding: 9px 8px;
+      }
+      #cfg .suggest small {
+        color: #9fb0e0;
+        margin-left: 6px;
+      }
       .zone .n {
         color: #ffd27a;
         font-weight: bold;
@@ -9078,9 +9098,9 @@
         const d = document.createElement("div");
         d.className = "zone";
         d.innerHTML = `<span class="n">${i + 1}</span>
-    <label class="atlas">Find a city <input data-atlas list="citylist" value="${city ? esc(cityOption(city)) : ""}" placeholder="Search capitals and major cities" spellcheck="false"></label>
+    <label class="atlas">Find a city <input data-atlas data-suggest="citylist" autocomplete="off" value="${city ? esc(cityOption(city)) : ""}" placeholder="Search capitals and major cities" spellcheck="false"></label>
     <label>Label <input data-k="label" value="${esc(z.label)}" maxlength="48"></label>
-    <label>Time zone (IANA) <input data-k="tz" list="tzlist" class="wide" value="${esc(z.tz)}"></label>
+    <label>Time zone (IANA) <input data-k="tz" data-suggest="tzlist" autocomplete="off" class="wide" value="${esc(z.tz)}"></label>
     <label>Lat <input data-k="lat" class="short" value="${esc(z.lat)}"></label>
     <label>Lon <input data-k="lon" class="short" value="${esc(z.lon)}"></label>
     <label>Scene <select data-k="scene">${Object.entries(sceneOptions)
@@ -9138,6 +9158,54 @@
       $("#nextSong").onclick = () => (musicOn() ? nextSong(3) : toast("The music is off"));
       $("#music").onclick = toggleMusic;
       $("#next").onclick = () => musicOn() && nextSong(3);
+      // ---- suggestion lists ----
+      // Phones, and the Android app above all, show a <datalist> as a popup over the keyboard or in the
+      // middle of the screen, where picking a city is hard. So the datalists only hold the choices, and
+      // suggestFor shows the best 8 as big buttons right under the box being typed in.
+      const fold = (t) =>
+        t
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+      function suggestFor(input) {
+        input.parentElement.querySelector(".suggest")?.remove();
+        const words = fold(input.value)
+          .split(/[\s,/_]+/)
+          .filter(Boolean);
+        if (!words.length) return;
+        const hits = [...$("#" + input.dataset.suggest).options]
+          .filter((o) => words.every((w) => fold(o.value).includes(w)))
+          .slice(0, 8);
+        if (!hits.length || (hits.length === 1 && hits[0].value === input.value)) return;
+        const list = document.createElement("div");
+        list.className = "suggest";
+        for (const o of hits) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = o.value;
+          if (o.label && o.label !== o.value)
+            b.append(Object.assign(document.createElement("small"), { textContent: o.label }));
+          // pointerdown, not click: the box would lose focus first and take the list away
+          b.addEventListener("pointerdown", (ev) => {
+            ev.preventDefault();
+            input.value = o.value;
+            list.remove();
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          list.append(b);
+        }
+        input.after(list);
+      }
+      zonesEl.addEventListener("input", (ev) => ev.target.dataset.suggest && suggestFor(ev.target));
+      zonesEl.addEventListener("focusout", (ev) => {
+        if (ev.target.dataset.suggest)
+          setTimeout(() => {
+            // unless the box got the focus back meanwhile
+            if (document.activeElement !== ev.target)
+              ev.target.parentElement?.querySelector(".suggest")?.remove();
+          }, 150);
+      });
+
       zonesEl.addEventListener("change", (ev) => {
         if (!ev.target.matches("[data-atlas]")) return;
         const value = ev.target.value.trim().toLowerCase();
@@ -9342,6 +9410,7 @@
         const changedVariation = CONFIG.music.variation !== music.variation;
         music.variation = CONFIG.music.variation;
         await store.set("config", CONFIG);
+        settingsNews?.postMessage("saved");
         closeSettings();
         if (CONFIG.music.on !== musicOn()) musicPlay(CONFIG.music.on);
         else if (musicOn() && changedVariation) nextSong(3);
@@ -9392,6 +9461,36 @@
         }
       });
 
+      // ---- easter egg: shake the phone 4 times within 3 seconds ----
+      // This also works where nothing can be tapped, such as the Android lock screen, whose wallpaper
+      // calls nativeShake() from the phone's own motion sensor.
+      const SHAKE_FORCE = 14, // m/s² beyond gravity that counts as a shake
+        SHAKE_GOAL = 4,
+        SHAKE_WINDOW = 3000,
+        SHAKE_GAP = 300; // one shake makes several peaks, so peaks closer than this count once
+      let shakes = [],
+        lastMotion = 0;
+      function shaken() {
+        const now = Date.now();
+        if (now - (shakes.at(-1) || 0) < SHAKE_GAP) return;
+        shakes = shakes.filter((t) => now - t < SHAKE_WINDOW).concat(now);
+        if (shakes.length < SHAKE_GOAL) return;
+        shakes = [];
+        triggerEncounter();
+      }
+      addEventListener("devicemotion", (ev) => {
+        const a = ev.acceleration,
+          g = ev.accelerationIncludingGravity;
+        let force;
+        if (a?.x != null) force = Math.hypot(a.x, a.y, a.z);
+        else if (g?.x != null) force = Math.abs(Math.hypot(g.x, g.y, g.z) - 9.81);
+        else return;
+        lastMotion = Date.now();
+        if (force > SHAKE_FORCE) shaken();
+      });
+      // for the Android wallpaper; ignored when the page gets its own motion events, so no shake counts twice
+      window.nativeShake = () => Date.now() - lastMotion > 2000 && shaken();
+
       // ---- test alarm: A three times within 2 s, or one down-up-down zigzag stroke on the clocks ----
       // (a vertical zigzag, because sideways swipes from the screen edge are the phone's back gesture)
       function playTestAlarm() {
@@ -9436,15 +9535,36 @@
       // ---- boot ----
       // Open storage, load saved settings over the defaults, build the clocks, start the loop, the alarm
       // check and the music state, then fetch the weather and refresh it every 10 minutes.
+      // Puts the saved settings over the defaults; returns null when nothing usable is saved.
+      async function savedConfig() {
+        const saved = await store.get("config");
+        if (!saved || !Array.isArray(saved.zones) || !saved.zones.length) return null;
+        // Older versions stored an OpenWeather API key; drop it from saved settings.
+        const { apiKey, ...settings } = saved;
+        const config = { ...structuredClone(DEFAULT_CONFIG), ...settings };
+        if (Object.hasOwn(saved, "apiKey")) await store.set("config", config);
+        config.music = vetMusic(config.music);
+        return config;
+      }
+      // Another page with the same storage (a second tab, or the Android wallpaper next to the app) may
+      // have saved new settings: read them again when this page comes back on screen or is told so.
+      const settingsNews = "BroadcastChannel" in window ? new BroadcastChannel("clockscapes-settings") : null;
+      async function reloadConfig() {
+        const config = await savedConfig();
+        if (!config || JSON.stringify(config) === JSON.stringify(CONFIG)) return;
+        CONFIG = config;
+        music.variation = CONFIG.music.variation;
+        buildColumns();
+        keepAwake();
+        screenCare();
+        refreshAllWeather(false);
+      }
+      if (settingsNews) settingsNews.onmessage = reloadConfig;
+      document.addEventListener("visibilitychange", () => document.hidden || reloadConfig());
+
       (async function boot() {
         await store.open();
-        const saved = await store.get("config");
-        if (saved && Array.isArray(saved.zones) && saved.zones.length) {
-          // Older versions stored an OpenWeather API key; drop it from saved settings.
-          const { apiKey, ...settings } = saved;
-          CONFIG = { ...structuredClone(DEFAULT_CONFIG), ...settings };
-          if (Object.hasOwn(saved, "apiKey")) await store.set("config", CONFIG);
-        }
+        CONFIG = (await savedConfig()) || CONFIG;
         CONFIG.music = vetMusic(CONFIG.music);
         music.variation = CONFIG.music.variation;
         buildColumns();

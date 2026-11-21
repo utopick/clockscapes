@@ -624,6 +624,8 @@
        * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
+       * This script stands alone (it uses nothing from the main script), so it can be copied into another
+       * page as it is: everything it offers is the LOFI object it defines.
        */
       const LOFI = (() => {
         // 16 steps per bar. Drums: x = hit. Bass: the interval above the chord root, . = rest.
@@ -1027,15 +1029,20 @@
        *     water, road, walk, bike, rail  set by the scene: where boats, cars, people and trains move
        *   Colours are [r, g, b] arrays; css(c, alpha) turns one into a CSS string.
        *
-       * Debug URL parameters: ?alt=-10 (fake sun altitude in degrees), ?wx=rain (fake weather:
-       *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
-       *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes,
-       *   ?fx=crt|lcd (screen filter), ?enc=0..7 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur,
-       *   4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 giant moth).
-       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, A A A (or a down-up-down
-       *       zigzag stroke on the clocks) plays the test alarm message from the alarms tab, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
-       *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
-       *   (they also appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00).
+       * Debug URL parameters (they can be combined with &):
+       *   ?alt=-10           fake sun altitude in degrees
+       *   ?wx=rain           fake weather: clear partly cloudy fog rain thunder snow; &i=0.9 sets its intensity
+       *   ?layout=rows       or columns
+       *   ?alarm=Good morning  show an alarm message now; &style=trucks|march|planes picks its look
+       *   ?fest=Name         show a festival banner plane now, in every clock (it crosses every 30 s)
+       *   ?fx=crt            screen filter: crt or lcd
+       *   ?enc=0..7          play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle,
+       *                      3 pterosaur, 4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 giant moth
+       *   ?exit              show the EXIT button, which normally only shows in the installed app
+       * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close.
+       *   A A A (or a down-up-down zigzag stroke on the clocks) plays the test alarm message from the alarms tab.
+       *   K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now. Encounters also
+       *   appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00 local time.
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
        *   saved settings are lost), store "kv": "config" (zones, display, alarms, music) and the weather cache "wx:open-meteo:...".
        * Network: only Open-Meteo (weather every 10 minutes, and the FIND button's place lookup).
@@ -1043,6 +1050,10 @@
        *   seed from a clock's place, local date and hour, and the variation number, and crossfades songs.
        */
       // ==== Utilities ====
+      // Small helpers used everywhere: colour maths (clamp, lerp, mixc, mulc, css), a seeded random
+      // generator (rngFrom), a string hash (hashStr) and pixel shapes (disc, halfDisc, line, ring).
+      // None of them depend on the rest of the file, so they can be copied into another project as they are.
+      // A colour is an [r, g, b] array; mixc blends two of them, mulc darkens or brightens one.
       const $ = (s) => document.querySelector(s);
       const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
       const lerp = (a, b, t) => a + (b - a) * t;
@@ -1054,6 +1065,8 @@
           : `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
       const rad = (d) => (d * Math.PI) / 180,
         deg = (r) => (r * 180) / Math.PI;
+      // Seeded random numbers (the "mulberry32" generator): rngFrom(seed) returns a function that gives
+      // numbers in 0..1, always the same series for the same seed. Self-contained; copy it as it is.
       function rngFrom(seed) {
         let a = seed >>> 0;
         return () => {
@@ -1063,6 +1076,7 @@
           return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
       }
+      // FNV-1a hash: turns a string (a city id, a date) into a 32-bit number to seed rngFrom with.
       function hashStr(s) {
         let h = 2166136261;
         for (let i = 0; i < s.length; i++) {
@@ -1077,6 +1091,8 @@
         c.height = Math.max(1, h);
         return c;
       }
+      // Filled circle of radius r, drawn as one fillRect per row so the edge stays pixel-sharp.
+      // Uses whatever fillStyle g has; needs nothing else from this file. halfDisc is the upper half.
       function disc(g, cx, cy, r) {
         for (let y = -r; y <= r; y++) {
           const w = Math.floor(Math.sqrt(r * r - y * y) + 0.5);
@@ -1089,6 +1105,7 @@
           g.fillRect(cx - w, baseY - dy, 2 * w + 1, 1);
         }
       }
+      // One-pixel line from (x0, y0) to (x1, y1) (Bresenham's algorithm), without anti-aliasing.
       function line(g, x0, y0, x1, y1) {
         x0 = Math.round(x0);
         y0 = Math.round(y0);
@@ -1140,6 +1157,9 @@
       }
 
       // ==== IndexedDB (config + weather cache) ====
+      // A tiny key-value store: await store.get(key) and store.set(key, value). If IndexedDB is not
+      // available (private browsing, file://) it quietly keeps values in memory (store.mem) instead,
+      // so the app still runs but forgets settings on reload. Never rename the database or settings are lost.
       const store = {
         db: null,
         mem: {},
@@ -1187,6 +1207,10 @@
       };
 
       // ==== Config ====
+      // CITY_ATLAS is the list of cities you can pick, one row per city (the row's fields are named in the
+      // .map at its end). DEFAULT_CONFIG holds the settings a new user starts with; CONFIG is the live copy
+      // that boot() fills from storage. To add a city, add a row to CITY_ATLAS (never rename an id, saved
+      // settings point to it). To add a setting, give it a default in DEFAULT_CONFIG so old saves still load.
       const SCENES = {
         madrid: "Madrid",
         london: "London",
@@ -1609,7 +1633,10 @@
       const PARAMS = new URLSearchParams(location.search); // debug parameters, see the comment at the top of the script
 
       // ==== Time helpers ====
-      const FMT = {};
+      // timeParts(tz, ms) is the one place the app asks "what time is it in that zone?". It returns the
+      // pieces Intl gives (hour, minute, weekday, day, month, year, timeZoneName as strings) plus h, m, s
+      // as numbers. An unknown zone falls back to UTC. Self-contained apart from the FMT cache next to it.
+      const FMT = {}; // one Intl formatter per zone, because making one is slow
       function timeParts(tz, ms) {
         let f = FMT[tz];
         if (!f) {
@@ -1651,17 +1678,27 @@
       }
 
       // ==== Astronomy: sun altitude / hour angle, moon phase ====
+      // sunPos(ms, lat, lon) returns { alt, H }: the sun's height above the horizon in degrees (below 0 at
+      // night) and its hour angle in degrees (below 0 before local solar noon). moonPhase(ms) returns 0..1
+      // (0 new moon, 0.5 full moon). Both need only rad and deg from Utilities, so they are easy to copy.
+      // The sky colours follow alt (see paletteAt); ?alt=-10 in the URL overrides it for testing.
+
+      // Low-precision sun position (the Astronomical Almanac formulas, good to about 0.01 degree).
       function sunPos(ms, lat, lon) {
-        const d = ms / 86400000 + 2440587.5 - 2451545.0;
-        const g = rad((357.529 + 0.98560028 * d) % 360);
-        const q = (280.459 + 0.98564736 * d) % 360;
-        const L = rad(q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g));
-        const e = rad(23.439 - 0.00000036 * d);
-        const ra = deg(Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)));
-        const dec = Math.asin(Math.sin(e) * Math.sin(L));
-        const gmst = (((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24;
-        let H = gmst * 15 + lon - ra;
-        H = ((((H + 180) % 360) + 360) % 360) - 180;
+        const UNIX_EPOCH_JD = 2440587.5, // Julian day of 1970-01-01 00:00 UTC
+          J2000_JD = 2451545.0; // Julian day of 2000-01-01 12:00 UTC, the reference the formulas use
+        const d = ms / 86400000 + UNIX_EPOCH_JD - J2000_JD; // days since J2000
+        const meanAnomaly = rad((357.529 + 0.98560028 * d) % 360);
+        const meanLongitude = (280.459 + 0.98564736 * d) % 360;
+        const eclipticLon = rad(
+          meanLongitude + 1.915 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly),
+        );
+        const obliquity = rad(23.439 - 0.00000036 * d); // tilt of the Earth's axis
+        const ra = deg(Math.atan2(Math.cos(obliquity) * Math.sin(eclipticLon), Math.cos(eclipticLon))); // right ascension
+        const dec = Math.asin(Math.sin(obliquity) * Math.sin(eclipticLon)); // declination
+        const gmst = (((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24; // sidereal time at Greenwich, hours
+        let H = gmst * 15 + lon - ra; // local hour angle in degrees...
+        H = ((((H + 180) % 360) + 360) % 360) - 180; // ...wrapped into -180..180
         const alt = deg(
           Math.asin(
             Math.sin(rad(lat)) * Math.sin(dec) + Math.cos(rad(lat)) * Math.cos(dec) * Math.cos(rad(H)),
@@ -1669,13 +1706,19 @@
         );
         return { alt, H };
       }
+      // Moon age as a fraction of a lunar month, counted from a known new moon.
       function moonPhase(ms) {
-        const syn = 29.530588853,
-          ref = Date.UTC(2000, 0, 6, 18, 14);
-        return ((((ms - ref) / 86400000 / syn) % 1) + 1) % 1;
+        const SYNODIC_MONTH = 29.530588853, // days from one new moon to the next
+          KNOWN_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
+        return ((((ms - KNOWN_NEW_MOON) / 86400000 / SYNODIC_MONTH) % 1) + 1) % 1;
       }
 
       // ==== Lighting palette by sun altitude ====
+      // PAL is a table of looks, one row per sun altitude a (degrees): deep night, night, blue hour, sunset,
+      // golden hour, day. paletteAt(alt, morning) blends the two rows around alt, and adds a pink tint at
+      // dawn. Row fields: top and bot = sky colour at the top and at the horizon, k = daylight brightness,
+      // tint and ta = colour cast over the scene and how strong it is, lit = how many windows are lit,
+      // star = how bright the stars are. To change the sky at a time of day, edit that row's colours.
       const PAL = [
         {
           a: -18,
@@ -1739,6 +1782,7 @@
         },
       ];
       function paletteAt(alt, morning) {
+        // find the row just below alt (never the last one, so B always exists)
         let i = 0;
         while (i < PAL.length - 2 && alt > PAL[i + 1].a) i++;
         const A = PAL[i],
@@ -1754,6 +1798,7 @@
           star: lerp(A.star, B.star, t),
         };
         if (morning) {
+          // dawn is pinker than dusk; strongest at the horizon crossing, gone 12 degrees away
           const bump = clamp(1 - Math.abs(alt) / 12, 0, 1);
           p.bot = mixc(p.bot, [245, 160, 180], 0.35 * bump);
           p.tint = mixc(p.tint, [245, 160, 180], 0.3 * bump);
@@ -1762,6 +1807,11 @@
       }
 
       // ==== Weather ====
+      // fetchWeather asks Open-Meteo for each clock's current weather every 10 minutes and keeps it in WX,
+      // keyed by place (wxKey), and in the IndexedDB cache. WEATHER_CODES maps Open-Meteo's code to a
+      // category (clear partly cloudy fog rain thunder snow), a description and an intensity 0..1.
+      // OVERCAST says how grey each category makes the sky. debugWx is the ?wx= test override.
+      // If a fetch fails, the clock keeps the last good weather (marked stale) or shows a clear sky.
       const OVERCAST = {
         clear: 0,
         partly: 0.15,
@@ -1868,11 +1918,23 @@
       }
 
       // ==== Scene building blocks ====
+      // The pieces every scene is made of: tower (a building with windows), filler (a row of random
+      // towers), trees, lamp, street (sidewalk, lanes, median; it also sets e.road, e.walk and e.bike),
+      // water, drawBridge, and the train tables. Then the five hand-made scenes (sceneMadrid,
+      // sceneLondon, sceneAustin, sceneCity, sceneField) with their animations (animAustin, animField).
+      // Every piece draws with e.rng(), so the same city always comes out the same.
+      // To add a train kind, add a row to TRAIN_KINDS and, if it needs a new country, a row to TRAIN_LINES.
       const LITC = [
+        // colours of lit windows
         [255, 210, 120],
         [255, 235, 170],
         [250, 190, 100],
       ];
+      // A building standing on the ground line e.G, with lit and dark windows; returns its top y.
+      // Options in o: d = distance 0..1 (fades into the haze), base = wall colour, wx and wy = window
+      // spacing, glass = dark window colour, litMul = scales how many windows are lit, win: false = no
+      // windows, roof: false = no snow line on top. Each window is also saved in e.windows so
+      // Column.flipWindow can switch lights on and off later.
       function tower(g, e, x, w, h, o = {}) {
         x = Math.round(x);
         w = Math.round(w);
@@ -1914,6 +1976,7 @@
         }
         return top;
       }
+      // A street lamp h pixels tall at x; it glows at night and registers itself for drawLampLight.
       function lamp(g, e, x, h) {
         const top = e.G - h;
         e.lamps?.push({ x, y: top + 1, len: h + 9 }); // the cone reaches over the road below
@@ -1957,6 +2020,9 @@
         JP: ["shinkansen", "shinkansen", "commuter"],
         ES: ["ave", "cercanias", "cercanias"],
       };
+      // Sidewalk and road from the ground line down to bottom. A deep street (27 pixels or more) gets two
+      // carriageways, a planted median and a bike lane. It tells the scene life where to move things by
+      // setting e.walk (people), e.road (cars) and e.bike; the first car lane is always at G + SYNC_LANE.
       function street(g, e, bottom = e.H) {
         const { W, G } = e;
         const deep = bottom - G >= 27;
@@ -2036,6 +2102,7 @@
         return slab + 3;
       }
 
+      // Madrid's foreground: a small park on the boulevard and, if there is room below, a rail line (e.rail).
       function madridParkAndRail(g, e, bottom) {
         const { W, H, G } = e;
         const parkTop = Math.floor(G - 6);
@@ -2062,6 +2129,7 @@
         e.freight = true;
       }
 
+      // River or sea from y0 to the bottom, with ripples; sets e.water so boats and the shimmer use it.
       function water(g, e, y0) {
         const { W, H } = e;
         const base = mixc(e.bot, [18, 38, 62], 0.55);
@@ -2072,6 +2140,8 @@
           for (let x = (y * 7) % 9; x < W; x += 9 + ((x + y) % 5)) g.fillRect(x, y, 3, 1);
         e.water = { y0, y1: H };
       }
+      // A row of plain towers from x0 to x1, heights between hmin and hmax of the usable height e.A,
+      // walls picked from palette, all at distance d. Used for the hazy blocks behind landmarks.
       function filler(g, e, x0, x1, hmin, hmax, d, palette) {
         let x = Math.round(x0);
         while (x < x1) {
@@ -2081,6 +2151,7 @@
           x += w - 1 + ((e.rng() * 3) | 0);
         }
       }
+      // Round generic trees standing on y, from x0 to x1 (Atlas cities use drawPlant for climate trees).
       function trees(g, e, x0, x1, y) {
         for (let x = x0; x < x1; x += 4 + ((e.rng() * 4) | 0)) {
           const r = 1 + ((e.rng() * 2) | 0);
@@ -2506,6 +2577,12 @@
         g.fillRect(m.x + 1, m.y, 4, 1);
       }
       // ==== Atlas cities: building colours per style, landmark names, plants by climate ====
+      // Data that turns a CITY_ATLAS row into a scene: CITY_PALETTES (wall colours for each "style"),
+      // CITY_LANDMARKS (the real landmarks of each city, drawn by cityLandmark in the Landmarks section),
+      // LANDMARK_NAMES (the caption list, built from CITY_LANDMARKS), and cityFlora, which picks the
+      // kind of trees from FLORA_OVERRIDES or from the country and latitude. The trees themselves are
+      // drawn by plantKind and drawPlant, at the end of the Festivities section.
+      // To give a city other landmarks, edit its CITY_LANDMARKS row; to fix its trees, add it to FLORA_OVERRIDES.
       const CITY_PALETTES = {
         old: [
           [179, 107, 85],
@@ -2954,6 +3031,7 @@
         LANDMARK_NAMES[id] = names.slice(0, -1).join(", ") + " and " + names.at(-1);
       }
 
+      // Tree profile for cities the rules in cityFlora get wrong (the profiles are the cases of plantKind).
       const FLORA_OVERRIDES = {
         "tokyo-jp": "japanese",
         "kyoto-jp": "japanese",
@@ -3083,6 +3161,8 @@
         ),
       );
       const SUBARCTIC_COUNTRIES = new Set(["AQ", "GL", "IS", "SJ"]);
+      // Which tree profile a city gets: an override first, then cold, dry, Australian, northern,
+      // Mediterranean, tropical and highland rules, in that order; the first that matches wins.
       function cityFlora({ id, country, lat, style }) {
         if (FLORA_OVERRIDES[id]) return FLORA_OVERRIDES[id];
         if (SUBARCTIC_COUNTRIES.has(country) || Math.abs(lat) > 66) return "subarctic";
@@ -3097,12 +3177,19 @@
         return "temperate";
       }
 
+      // Month names as Intl writes them in timeParts; MONTHS.indexOf(tp.month) gives 0 (January) to 11.
       const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 
       // ==== Festivities: on a city's local or national holiday a plane tows its name every 15 minutes ====
       // A rule is "MM-DD" (a fixed day), "MM-DD+N" (and the N days after), "E+N" or "E-N" (days from Easter
       // Sunday), "MM/n/Day" (the nth weekday of the month, -1 = the last) or "LNY" (Lunar New Year).
       // City festivals win over national ones, and those over New Year's Day.
+      // To add a holiday, add [rule, name] to the country's list (two-letter code) or to the city's (its
+      // CITY_ATLAS id) under "local". Names are drawn in capitals with the GLYPHS font, which drops
+      // accents, so check that any new punctuation mark has a glyph.
+      // Column.build asks festivalFor once a minute and the frame draws the banner plane.
+      // To reuse the holiday rules elsewhere, copy FESTIVALS, LUNAR_NEW_YEAR, easterSunday, DAY_MS,
+      // festivalStart and festivalFor; they need nothing else.
       const FESTIVALS = {
         // national
         AR: [
@@ -3222,8 +3309,9 @@
       };
       // Lunar New Year's Day, by year (it follows the moon, so it is listed rather than computed)
       const LUNAR_NEW_YEAR = { 2026: "02-17", 2027: "02-06", 2028: "01-26", 2029: "02-13", 2030: "02-03" };
+      // Easter Sunday of year y, as UTC midnight in milliseconds. Self-contained.
       function easterSunday(y) {
-        // the anonymous Gregorian algorithm (Meeus/Jones/Butcher)
+        // the anonymous Gregorian algorithm (Meeus/Jones/Butcher); the one-letter names are the algorithm's own
         const a = y % 19,
           b = Math.floor(y / 100),
           c = y % 100,
@@ -3235,8 +3323,9 @@
           i = Math.floor(c / 4),
           l = c % 4,
           m = (32 + 2 * k + 2 * i - h - l) % 7,
-          n = Math.floor((a + 11 * h + 22 * m) / 451);
-        return Date.UTC(y, Math.floor((h + m - 7 * n + 114) / 31) - 1, ((h + m - 7 * n + 114) % 31) + 1);
+          n = Math.floor((a + 11 * h + 22 * m) / 451),
+          monthAndDay = h + m - 7 * n + 114; // month = monthAndDay / 31 (3 or 4), day = the remainder + 1
+        return Date.UTC(y, Math.floor(monthAndDay / 31) - 1, (monthAndDay % 31) + 1);
       }
       const DAY_MS = 86400000;
       // The first day a rule falls on in year y (as UTC midnight), and how many days it lasts.
@@ -3270,26 +3359,33 @@
           }
         return month === 1 && day === 1 ? "Happy New Year" : "";
       }
+      // Which tree to draw: the city's profile (from cityFlora), the tree's number in its row (variant,
+      // so a row mixes kinds), the month 0..11 (-1 when unknown), latitude and day of the month.
+      // In the southern half of the world the seasons are shifted by six months.
       function plantKind(profile, variant, month, lat, day) {
-        const season = lat < 0 ? (month + 6) % 12 : month;
+        const season = lat < 0 ? (month + 6) % 12 : month; // the month as it would be in the north
         if (profile === "japanese") {
           if (variant % 3 === 0) return "pine";
-          if (variant % 3 === 1)
-            return season === 10 ? "ginkgo" : season >= 11 || season <= 1 ? "bare" : "deciduous";
-          const blossom = (season === 2 && day >= 22) || (season === 3 && day <= 14);
-          return blossom ? "blossom" : season === 10 ? "russet" : "deciduous";
+          if (variant % 3 === 1) {
+            if (season === 10) return "ginkgo";
+            if (season >= 11 || season <= 1) return "bare";
+            return "deciduous";
+          }
+          const blossom = (season === 2 && day >= 22) || (season === 3 && day <= 14); // cherry blossom
+          if (blossom) return "blossom";
+          return season === 10 ? "russet" : "deciduous";
         }
-        if (profile === "korean")
-          return variant % 2
-            ? "pine"
-            : season === 3
-              ? "blossom"
-              : season === 9 || season === 10
-                ? "russet"
-                : "deciduous";
+        if (profile === "korean") {
+          if (variant % 2) return "pine";
+          if (season === 3) return "blossom";
+          if (season === 9 || season === 10) return "russet";
+          return "deciduous";
+        }
         if (profile === "mediterranean") return ["cypress", "olive", "stonePine"][variant % 3];
-        if (profile === "boreal")
-          return variant % 3 ? "spruce" : season >= 10 || season <= 2 ? "bare" : "deciduous";
+        if (profile === "boreal") {
+          if (variant % 3) return "spruce";
+          return season >= 10 || season <= 2 ? "bare" : "deciduous";
+        }
         if (profile === "tropical") return variant % 3 ? "palm" : "broadleaf";
         if (profile === "highland") return ["broadleaf", "eucalypt", "cypress"][variant % 3];
         if (profile === "warm") return variant % 3 ? "broadleaf" : "shrub";
@@ -3297,10 +3393,15 @@
         if (profile === "dry" || profile === "subarctic") return "shrub";
         if (profile === "sonoran") return variant % 2 ? "cactus" : "shrub";
         if (profile === "eucalypt" || profile === "liveOak" || profile === "shrub") return profile;
+        // temperate: green, then autumn colours, then bare in winter (always green near the tropics)
         if (Math.abs(lat) < 30 || month < 0) return "deciduous";
-        return season >= 11 || season <= 1 ? "bare" : season === 9 || season === 10 ? "russet" : "deciduous";
+        if (season >= 11 || season <= 1) return "bare";
+        if (season === 9 || season === 10) return "russet";
+        return "deciduous";
       }
 
+      // One tree standing at (x, y), scaled by u pixels per art unit (1 in the street, more for big
+      // trees). The kind comes from plantKind; the small helpers below draw in those scaled units.
       function drawPlant(g, e, x, y, u, variant) {
         const kind = plantKind(e.flora || "temperate", variant, e.month ?? -1, e.latitude ?? 0, e.day ?? 1);
         const color = (rgb) => {
@@ -3388,6 +3489,12 @@
       }
 
       // ==== Landmarks (the "art" field of CITY_ATLAS) ====
+      // cityLandmark(g, e, kind, x, unit, o) draws one landmark centred on x. It is one long switch: a few
+      // "archetypes" (church, mosque, sky, tower, palace, stadium...) shaped by the parameters o from
+      // CITY_LANDMARKS, and one-off cases for famous buildings (tokyo-tower, taj, sagrada...).
+      // landmarkSize measures a landmark without drawing it, so the scene can make it fit.
+      // To add a one-off landmark, add a case that draws it with box/stroke/orb/dome (all in grid cells,
+      // counted upwards from the ground), then name that kind in the city's CITY_LANDMARKS row.
       function cityLandmark(g, e, kind, x, unit, o = {}) {
         // Landmarks are drawn on a grid of `unit`-sized cells centred on x, counted upwards from the
         // ground: box(left, up, w, h, colour) fills w x h cells whose top-left cell is `up` above ground.
@@ -4710,6 +4817,10 @@
       }
 
       // ==== Mountains on the horizon ====
+      // MOUNTAINS lists the cities with ranges behind them and drawMountains draws those ranges; PEAKS
+      // lists single famous mountains (Fuji, Sugarloaf...) and drawPeak draws one in a shape from
+      // PEAK_SHAPES. Both are called from drawAtlasCity before the buildings. To give a city mountains,
+      // add a row to MOUNTAINS or PEAKS; only add mountains that can really be seen from the city.
       // Only cities with hills or mountains really visible from the streets. [size, snow]:
       // size 1 low hills, 2 mountains, 3 a high range; snow 0 never, 1 in the local winter (Nov to Apr), 2 all year;
       // an optional third value puts a lone volcano at that fraction of the width (Ararat, Vesuvius...).
@@ -4741,9 +4852,6 @@
         "urumqi-cn":[3,2],"vaduz-li":[3,2],"vancouver-ca":[2,2],"victoria-sc":[2,0],"vienna-at":[1,0],"wellington-nz":[1,0],
         "yaounde-cm":[1,0],"yerevan-am":[3,2],"zagreb-hr":[1,0],"zurich-ch":[2,2],
       };
-      // Three ridge layers, far to near, in 2-px strips to keep every edge on the pixel grid. The far layer
-      // rises above the back row of buildings (about 0.6 of `room`) so the range shows. `far` adds haze.
-      // Uses its own rng so building layouts never shift.
       // Famous mountains seen from the city, drawn in front of the far ranges in their own shape:
       // [name, shape, centre (fraction of the width), height (fraction of the room above the street),
       // snow: "y" all year, "w" in the local winter, "" never]. Shapes: strato (a concave volcano cone),
@@ -4787,6 +4895,8 @@
         massif: [2.4, (u) => (1 - Math.abs(u)) ** 1.3 * (0.86 + 0.14 * Math.abs(Math.cos(u * Math.PI * 3)))],
         mesa: [3, (u) => Math.min(1, (1 - Math.abs(u)) * 3) * (0.94 + 0.06 * Math.sin(u * 9))],
       };
+      // One PEAKS row drawn column by column: the shape gives the height at each x, and snow covers what
+      // rises above a wavy snow line when snow is due (or when it is snowing now).
       function drawPeak(g, e, [, shape, at, tall, snow], room, rock) {
         const [spread, profile] = PEAK_SHAPES[shape];
         const H = Math.min(Math.round(room * tall), e.G - e.T - 2),
@@ -4804,13 +4914,16 @@
           // lit from the left: the right flank is a shade darker
           g.fillStyle = css(e.hz(u > 0.04 ? mulc(color, 0.84) : color, 0.36));
           g.fillRect(x, e.G - h, 1, h);
-          const line = 0.7 + 0.05 * Math.sin(x * 0.61) + 0.035 * Math.sin(x * 1.9 + 1); // gullies, not a comb
-          if (caps && f > line) {
+          const snowLine = 0.7 + 0.05 * Math.sin(x * 0.61) + 0.035 * Math.sin(x * 1.9 + 1); // gullies, not a comb
+          if (caps && f > snowLine) {
             g.fillStyle = css(e.hz(u > 0.04 ? [206, 214, 222] : [236, 241, 244], 0.3));
-            g.fillRect(x, e.G - h, 1, Math.max(1, Math.round((f - line) * H)));
+            g.fillRect(x, e.G - h, 1, Math.max(1, Math.round((f - snowLine) * H)));
           }
         }
       }
+      // Three ridge layers, far to near, in 2-px strips to keep every edge on the pixel grid. The far layer
+      // rises above the back row of buildings (about 0.6 of `room`) so the range shows. `far` adds haze.
+      // Uses its own rng so building layouts never shift.
       function drawMountains(g, e, id, [size, snow, cone], room, rock, far = 0) {
         const rng = rngFrom(hashStr(id + "/mountains"));
         const peak = room * [0.55, 0.74, 0.92][size - 1];
@@ -4825,10 +4938,11 @@
             : [96 - layer * 10, 127 - layer * 5, 147 - layer * 5];
           for (let x = 0; x < e.W; x += 2) {
             const f = x / e.W;
-            const ridge =
-              layer === 0 && cone != null
-                ? Math.max(0.12, Math.min(0.93, 1.05 - Math.abs(f - cone) * 3.2))
-                : 0.5 + 0.35 * Math.sin(f * 6 + tilt) + 0.15 * Math.sin(f * 20 + tilt);
+            // ridge height 0..1 at this x: a lone volcano cone, or two waves added together
+            let ridge;
+            if (layer === 0 && cone != null)
+              ridge = Math.max(0.12, Math.min(0.93, 1.05 - Math.abs(f - cone) * 3.2));
+            else ridge = 0.5 + 0.35 * Math.sin(f * 6 + tilt) + 0.15 * Math.sin(f * 20 + tilt);
             const rel = 0.3 + 0.7 * ridge;
             const height = Math.max(3, Math.floor((top * rel) / 2) * 2);
             g.fillStyle = css(e.hz(color, Math.min(0.9, 0.57 - layer * 0.13 + far)));
@@ -4842,6 +4956,11 @@
       }
 
       // ==== Atlas city scene: hills, two rows of buildings, landmark, street or quay, trees ====
+      // drawAtlasCity draws any CITY_ATLAS city from its row: mountains, two rows of buildings in the
+      // style's colours, its landmarks spread across the width, an elevated rail line (TRAIN_LINES),
+      // the street or a quay with water, and trees and lamps in front. Its rng is seeded by the city id.
+      // Every rng() call here moves every later building, so add new random details at the end, or
+      // give them their own rngFrom(...) like drawMountains and addStreetDetail do.
       function drawAtlasCity(g, e, city) {
         const { W, H, G, T } = e;
         const seed = hashStr(city.id);
@@ -4851,7 +4970,8 @@
         const hilly = ["ridge", "desert", "lush", "island"].includes(city.style);
         const arid = city.style === "desert" || ["dry", "datePalm", "sonoran"].includes(e.flora);
         const old = city.style === "old" || city.style === "island";
-        const available = Math.max(12, G - Math.min(T, G * 0.52));
+        const available = Math.max(12, G - Math.min(T, G * 0.52)); // height the buildings may use
+        // pixels per landmark grid cell: 1 to 5, bigger on big screens
         const unit = Math.max(1, Math.min(5, Math.floor(Math.min(W / 62, available / 56))));
         const set = (color, haze = 0) => {
           g.fillStyle = css(e.hz(color, haze));
@@ -4862,7 +4982,11 @@
         };
 
         // The old style-based hills drew from rng; burn the same calls so street layouts stay as they were.
-        if (hilly) (rng(), rng(), rng());
+        if (hilly) {
+          rng();
+          rng();
+          rng();
+        }
         if (MOUNTAINS[city.id])
           drawMountains(g, e, city.id, MOUNTAINS[city.id], available, arid ? [174, 119, 106] : undefined);
         if (PEAKS[city.id]) drawPeak(g, e, PEAKS[city.id], available, arid ? [174, 119, 106] : undefined);
@@ -4985,6 +5109,7 @@
         }
       }
 
+      // Faint specks of grit and fallen leaves on the pavement below the bank; its own rng keeps it apart.
       function addStreetDetail(g, e) {
         const { W, H, G } = e;
         const rng = rngFrom(hashStr(e.cityId || "") ^ 0x9a727);
@@ -4998,7 +5123,14 @@
       }
 
       // ==== Scene life: planes, birds, boats, trains, cars, bikes and people ====
-      // Keep movement on the scene's surfaces, with positions derived from elapsed time.
+      // makeSceneLife(e, seed) runs once per build and rolls who is out (cars, walkers, boats...) on the
+      // lanes the scene set in e.road, e.walk, e.bike, e.water and e.rail. Then every frame,
+      // drawSkyLife draws planes and birds, and drawStreetPlanes (through drawGroundLife) draws the rest.
+      // Nothing stores a position: each mover's place is worked out from the elapsed seconds
+      // (lifePosition), so a frame can be drawn for any time. Each pass across the screen rolls a new
+      // kind from a hash (lapKind), not from rng, so it stays the same however often frames are drawn.
+      // To add a vehicle kind, add a row to VEHICLE_MIX (the chances add up to 100), its half-length to
+      // VEHICLE_HALF, and an else-if branch that draws it in drawGroundLife. Boats work the same with BOAT_MIX.
       // Seaside cities whose scene is not drawn with the sea in front (a ridge, an old town...): their
       // skies still get gulls.
       // prettier-ignore
@@ -5027,6 +5159,9 @@
         if (h >= 17 && h < 20) return { traffic: h === 19 ? 1.4 : 1.8, walkers: 1.4 };
         return { traffic: 1, walkers: 1 };
       }
+      // Rolls the movers for one build and returns the "life" object the draw functions read: the movers
+      // themselves, the colours they are painted in (already shaded for the light) and a few flags.
+      // The order of the rng() calls fixes where every mover starts, so add new draws at the end.
       function makeSceneLife(e, seed) {
         const rng = rngFrom(seed ^ 0xb12d);
         const night = e.alt < -5;
@@ -5038,6 +5173,7 @@
           [179, 154, 209],
           [225, 221, 202],
         ];
+        // count movers spread along route.lanes, alternating direction, each with its own speed and colour
         const movers = (route, count, minSpeed, maxSpeed) => {
           if (!route || e.W < 20) return [];
           const left = 0,
@@ -5053,39 +5189,27 @@
           }));
         };
         const busy = busyness(e.weekday, e.hour);
-        const traffic = movers(
-          e.road,
-          clamp(Math.round(Math.min(8, Math.max(5, Math.round(e.W / 38))) * busy.traffic), 2, 14),
-          18,
-          18,
-        );
+        // a normal hour has about one car per 38 pixels of width (5 to 8); busyness scales it, 2 to 14
+        const normalCars = Math.min(8, Math.max(5, Math.round(e.W / 38)));
+        const traffic = movers(e.road, clamp(Math.round(normalCars * busy.traffic), 2, 14), 18, 18);
         traffic.forEach((vehicle, i) => {
           vehicle.id = i + 1 + ((seed >>> 0) % 97);
           vehicle.direction = vehicle.y === e.G + SYNC_LANE ? -1 : 1;
         });
         // one rider each way, a lane apart
         const cyclists = e.bike == null ? [] : movers({ lanes: [e.bike - 1, e.bike + 1] }, 2, 10, 12);
-        const walkers = movers(
-          e.walk,
-          clamp(
-            Math.round(Math.max(4, Math.round(e.W / 22)) * busy.walkers),
-            2,
-            night && !busy.party ? 5 : 18,
-          ),
-          4,
-          7,
-        );
+        // about one walker per 22 pixels (at least 4), scaled by busyness; at most 5 on a quiet night
+        const normalWalkers = Math.max(4, Math.round(e.W / 22));
+        const maxWalkers = night && !busy.party ? 5 : 18;
+        const walkers = movers(e.walk, clamp(Math.round(normalWalkers * busy.walkers), 2, maxWalkers), 4, 7);
         // deep water gets a far lane too; the far boats are drawn first so near ones pass in front
         const deepWater = e.water && e.H - e.water.y0 >= 20;
-        const boats =
-          e.water && e.H - e.water.y0 >= 12
-            ? movers(
-                { lanes: deepWater ? [e.H - 5, e.H - 11] : [e.H - 5] },
-                Math.max(1, Math.round(e.W / (deepWater ? 70 : 110))),
-                6,
-                9,
-              ).sort((a, b) => a.y - b.y)
-            : [];
+        let boats = [];
+        if (e.water && e.H - e.water.y0 >= 12) {
+          const lanes = deepWater ? [e.H - 5, e.H - 11] : [e.H - 5];
+          const count = Math.max(1, Math.round(e.W / (deepWater ? 70 : 110))); // one boat per 70 or 110 pixels
+          boats = movers({ lanes }, count, 6, 9).sort((a, b) => a.y - b.y);
+        }
         boats.forEach((boat, i) => (boat.id = i + 7 + ((seed >>> 0) % 89)));
         // A few walkers have a dog (drawn after the other draws, so the scene's other movers keep their places).
         const coats = [
@@ -5107,7 +5231,7 @@
         ];
         if (e.rain)
           walkers.forEach((walker, i) => {
-            const h = (Math.imul(i + 1 + (seed >>> 0), 2654435761) >>> 0) % 100;
+            const h = (Math.imul(i + 1 + (seed >>> 0), 2654435761) >>> 0) % 100; // 0..99, fixed per walker
             if (h < 85) walker.umbrella = paint(umbrellas[h % umbrellas.length]);
           });
         return {
@@ -5149,6 +5273,8 @@
         };
       }
 
+      // x of a mover at this time: it slides along its lane at actor.speed pixels a second and wraps
+      // around, starting padding pixels off-screen so it drives in and out instead of popping up.
       function lifePosition(actor, seconds, padding = 0) {
         const span = actor.right - actor.left + padding * 2;
         const travel = (actor.offset * span + seconds * actor.speed) % span;
@@ -5157,16 +5283,20 @@
         );
       }
 
+      // Planes (or a helicopter) and flocks of birds crossing the sky, worked out from the time alone.
+      // Birds stay home at night and in bad weather.
       function drawSkyLife(g, e, life, seconds, weather) {
         const { W, G } = e;
-        const top = Math.max(6, Math.min(e.T + 6, Math.floor(G * 0.44)));
-        const aircraftDistance = W + 64,
-          cycle = aircraftDistance + 25 * 34;
-        const run = (seconds + life.phase * 12) * 25 + aircraftDistance * 0.25;
-        const aircraft = run % cycle;
+        const top = Math.max(6, Math.min(e.T + 6, Math.floor(G * 0.44))); // highest flight level
+        const PLANE_SPEED = 25, // pixels a second
+          PLANE_GAP = 34; // seconds of empty sky between two planes
+        const aircraftDistance = W + 64, // pixels flown in one pass, from off-screen to off-screen
+          cycle = aircraftDistance + PLANE_SPEED * PLANE_GAP;
+        const run = (seconds + life.phase * 12) * PLANE_SPEED + aircraftDistance * 0.25;
+        const aircraft = run % cycle; // how far into this cycle; a plane is on screen while below aircraftDistance
         if (aircraft < aircraftDistance) {
           // every pass is a new aircraft for this city: a jet, a jumbo, a small prop plane or a helicopter,
-          // flying either way at its own height
+          // flying either way at its own height. roll mixes the city and the pass number into 32 bits.
           let roll =
             (Math.imul(life.skyId + 1, 2654435761) ^ Math.imul(Math.floor(run / cycle) + 7, 40503)) >>> 0;
           roll = (roll ^ (roll >>> 15)) >>> 0;
@@ -5213,9 +5343,11 @@
 
         // Every pass is a new flock for this city: small birds, ducks or geese in a V, a loose cluster of
         // pigeons, gulls by the water, parrots in the tropics.
+        const FLOCK_SPEED = 16, // pixels a second
+          FLOCK_GAP = 16; // seconds between two flocks
         const flockDistance = W + 70,
-          flockCycle = flockDistance + 16 * 16;
-        const flockRun = (seconds + life.phase * 3) * 16 + flockDistance * 0.22;
+          flockCycle = flockDistance + FLOCK_SPEED * FLOCK_GAP;
+        const flockRun = (seconds + life.phase * 3) * FLOCK_SPEED + flockDistance * 0.22;
         const flock = flockRun % flockCycle;
         if (flock >= flockDistance) return;
         let roll =
@@ -5236,14 +5368,23 @@
         for (let i = 0; i < n; i++) {
           // V formations trail back from the leader on two arms; the others follow in a loose line or cloud
           const v = kind === "ducks" || kind === "geese";
-          const arm = (i + 1) >> 1,
+          const arm = (i + 1) >> 1, // place along the V's arm: 0 for the leader, then 1, 1, 2, 2...
             side = i % 2 ? 1 : -1;
-          const back = v ? arm * 5 : kind === "pigeons" ? i * 3 + ((i * 7) % 5) : i * 6;
+          // back: pixels behind the leader; rise: pixels above or below the flock's line
+          let back, rise;
+          if (v) {
+            back = arm * 5;
+            rise = arm * 2 * side;
+          } else if (kind === "pigeons") {
+            back = i * 3 + ((i * 7) % 5);
+            rise = ((i * 5) % 7) - 3;
+          } else {
+            back = i * 6;
+            rise = i % 3;
+          }
           const x = Math.round(lead - direction * back);
-          const y =
-            base +
-            (v ? arm * 2 * side : kind === "pigeons" ? ((i * 5) % 7) - 3 : i % 3) +
-            Math.round(Math.sin(seconds * (v ? 1.2 : 2) + i) * (v ? 1 : 2));
+          const bob = Math.round(Math.sin(seconds * (v ? 1.2 : 2) + i) * (v ? 1 : 2));
+          const y = base + rise + bob;
           const wing = Math.round(Math.sin(seconds * flap + i * 1.4));
           if (kind === "ducks" || kind === "geese") {
             const geese = kind === "geese";
@@ -5255,16 +5396,10 @@
             g.fillRect(x + direction, y, 1, 1);
             if (geese) g.fillRect(x + direction * 2, y, 1, 1);
           } else {
-            const color =
-              kind === "gulls"
-                ? [236, 238, 240]
-                : kind === "pigeons"
-                  ? [128, 132, 146]
-                  : kind === "parrots"
-                    ? i % 2
-                      ? [60, 170, 80]
-                      : [220, 60, 50]
-                    : null;
+            let color = null; // small birds: the dark sky-tinted colour
+            if (kind === "gulls") color = [236, 238, 240];
+            else if (kind === "pigeons") color = [128, 132, 146];
+            else if (kind === "parrots") color = i % 2 ? [60, 170, 80] : [220, 60, 50];
             g.fillStyle = color ? css(e.sh(color)) : dark;
             g.fillRect(x, y, 1, 1);
             g.fillRect(x - 1, y - wing, 1, 1);
@@ -5279,7 +5414,6 @@
 
       // Each time a vehicle drives off the edge it comes back as a new random kind: mostly cars, now and
       // then a truck or a semi, rarely an RV, a car transporter or a police car. [kind, chance in 100]
-      // chances out of 100
       const VEHICLE_MIX = [
         ["car", 30],
         ["van", 12],
@@ -5294,6 +5428,7 @@
         ["ambulance", 2],
         ["moto", 4],
       ];
+      // Half the length of each vehicle kind in pixels, not counting the middle pixel (a car is 7 long).
       const VEHICLE_HALF = {
         car: 3,
         van: 4,
@@ -5325,6 +5460,8 @@
         return mix[0][0];
       }
       const vehicleKind = (vehicle, seconds) => lapKind(vehicle, seconds, 20, VEHICLE_MIX);
+      // Boats, trains, walkers, cars and bikes, back to front. Only movers whose lane y is in
+      // minDepth..maxDepth are drawn, so drawStreetPlanes can draw the road in two passes around the median.
       function drawGroundLife(g, life, seconds, minDepth = -Infinity, maxDepth = Infinity) {
         const inPlane = (y) => y >= minDepth && y < maxDepth;
         for (const boat of life.boats) {
@@ -5397,6 +5534,7 @@
             L = t.cars * 20,
             run = (clock % cycle) * t.speed,
             front = dir > 0 ? run - 20 : life.width + 20 - run;
+          // height of the train d pixels from an end: 4, sloping down over the nose on fast trains
           const taper = (d) => (t.nose && d < t.nose ? 1 + Math.ceil((3 * (d + 1)) / (t.nose + 1)) : 4);
           for (let px = 0; px < L - 1; px++) {
             const x = Math.round(front - dir * px),
@@ -5411,10 +5549,10 @@
             g.fillStyle = look.stripe;
             g.fillRect(x, y - 1, 1, 1);
             const cab = t.nose >= 3 && (px === t.nose || tail === t.nose);
-            if (
-              cab ||
-              (h === 4 && px > t.nose && tail > t.nose && within >= 2 && within <= 16 && within % 4 >= 2)
-            ) {
+            // passenger windows: two pixels on, two off, along the full-height part of each 20-pixel car
+            const passengerWindow =
+              h === 4 && px > t.nose && tail > t.nose && within >= 2 && within <= 16 && within % 4 >= 2;
+            if (cab || passengerWindow) {
               g.fillStyle = cab ? life.ink : life.night ? "#ffdda1" : "#526984";
               g.fillRect(x, y - 2, 1, 1);
             }
@@ -5595,6 +5733,7 @@
         }
       }
 
+      // Ground life in two passes: movers behind the planted median, the median, then movers in front of it.
       function drawStreetPlanes(g, e, life, seconds, animate) {
         const median = e.streetMedian;
         // The actors' contact points determine which side of the planting they occupy.
@@ -5610,7 +5749,13 @@
       // upper left, darker seams where one body part passes behind another, and material textures
       // (scales, belly plates, armour panels and rivets). Scene lighting (dusk tint, night darkness) is applied last, and
       // eyes / spines / lamps / jets glow at night.
-      const ENCOUNTER_DURATION = 10000;
+      // The path of one monster: kaijuArt (or another *Art) returns a sketch in design units, monsterRaster
+      // turns it into pixels at the wanted height (cached), paintRaster colours it for the scene's light
+      // (cached), and drawEncounter places it, moves it and adds its beam or missiles.
+      // Encounters start on their own at 00:00, 06:00, 12:00 and 18:00 (scheduledEncounter), or with K.
+      // To add a monster, write a fooArt function, add it to the list in monsterRaster, raise
+      // ENCOUNTER_KINDS, and add its number to AIR_KINDS if it flies or to GROUND_BOX if it walks.
+      const ENCOUNTER_DURATION = 10000; // milliseconds on screen
       // 0 kaiju, 1 mecha kaiju, 2 spinning turtle (flies), 3 pterosaur (flies), 4 spiked lizard,
       // 5 three-headed dragon (flies), 6 rose plant (rises from behind the skyline), 7 giant moth (flies)
       const ENCOUNTER_KINDS = 8;
@@ -6037,6 +6182,9 @@
       };
 
       // ---- shape primitives (design-box coordinates) ----
+      // Each returns { box, inside(x, y) }: a bounding box [x0, y0, x1, y1] and a test for one point.
+      // rasterize only asks inside() for pixels within the box.
+      // A rod from one point to another, radius r1 at the first end and r2 at the second.
       function capsule([x1, y1], [x2, y2], r1, r2 = r1) {
         const dx = x2 - x1,
           dy = y2 - y1,
@@ -6070,6 +6218,7 @@
           },
         };
       }
+      // Any closed outline; inside() is the even-odd ray-crossing test.
       function polygon(pts) {
         const xs = pts.map((p) => p[0]),
           ys = pts.map((p) => p[1]);
@@ -6086,10 +6235,12 @@
           },
         };
       }
+      // The part of shape where test(x, y) is also true (for example only the upper half of an ellipse).
       const clipTo = (shape, test) => ({
         box: shape.box,
         inside: (x, y) => test(x, y) && shape.inside(x, y),
       });
+      // Point [x, y] turned by angle a (radians) around the centre [cx, cy].
       const rotP = ([x, y], [cx, cy], a) => {
         const s = Math.sin(a),
           c = Math.cos(a);
@@ -6099,15 +6250,32 @@
       // A drawing in progress: parts are painted in order (later = in front). Parts sharing a group blend
       // without seams (e.g. torso + neck, tail segments); different groups get a dark seam on the part behind.
       function sketch(w, h) {
+        // mat names a MAT colour ramp; tone picks a shade in it (0 outline .. 4 highlight).
+        // anchors are named points (a mouth, a hand) that drawEncounter reads back in pixels.
+        // add, line and dot return d, so calls can be chained.
         const d = { w, h, parts: [], lines: [], dots: [], anchors: {} };
-        d.add = (mat, shape, group) => (d.parts.push([mat, shape, group ?? "p" + d.parts.length]), d);
-        d.line = (mat, tone, a, b) => (d.lines.push([mat, tone, a, b]), d);
-        d.dot = (mat, tone, p) => (d.dots.push([mat, tone, p]), d);
+        d.add = (mat, shape, group) => {
+          d.parts.push([mat, shape, group ?? "p" + d.parts.length]);
+          return d;
+        };
+        d.line = (mat, tone, a, b) => {
+          d.lines.push([mat, tone, a, b]);
+          return d;
+        };
+        d.dot = (mat, tone, p) => {
+          d.dots.push([mat, tone, p]);
+          return d;
+        };
         return d;
       }
 
+      // Turns a sketch into pixels H tall. Returns { w, h, mat, tone, anchors }: for every pixel the
+      // material name (or null) and a tone 0..4 (0 outline, 1 shadow, 2 mid, 3 light, 4 highlight).
+      // Pass 1 fills each part; pass 2 picks the tone from the neighbours (outline at the edge, light on
+      // the upper left, shadow on the lower right and behind other groups, then textures); pass 3 adds
+      // the sketch's lines and dots on top.
       function rasterize(def, H) {
-        const s = H / def.h,
+        const s = H / def.h, // pixels per design unit
           w = Math.ceil(def.w * s),
           h = Math.ceil(def.h * s);
         const mat = new Array(w * h).fill(null),
@@ -6131,19 +6299,19 @@
             const i = y * w + x,
               p = part[i];
             if (p < 0) continue;
-            const g = groups[p],
+            const group = groups[p],
               same = (xx, yy) => {
                 const q = at(xx, yy);
-                return q >= 0 && groups[q] === g;
+                return q >= 0 && groups[q] === group;
               };
-            const n4 = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)];
-            let t = 2;
+            const n4 = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)]; // left, right, up, down
+            let t = 2; // the tone, mid unless a rule below changes it
             if (n4.some((q) => q < 0)) t = 0;
             else if (!same(x - 1, y - 1) || !same(x, y - 1)) t = 4;
             else if (!same(x - 1 - bevel, y - 1 - bevel) || !same(x, y - 1 - bevel)) t = 3;
             else if (!same(x + 1, y + 1) || !same(x + 1 + bevel, y + 1 + bevel) || !same(x, y + 1 + bevel))
               t = 1;
-            if (t > 0 && n4.some((q) => q > p && groups[q] !== g)) t = 1; // seam: this part is behind
+            if (t > 0 && n4.some((q) => q > p && groups[q] !== group)) t = 1; // seam: this part is behind
             const tex = MAT[mat[i]].tex;
             if (tex === "scales" && t >= 2 && (x + 2 * y) % 5 === 0 && y % 2 === 0) t--;
             else if (tex === "plates" && t >= 2 && y % 3 === 0) t--;
@@ -6158,6 +6326,7 @@
             tone[i] = t;
           }
         const toPx = ([x, y]) => [Math.floor(x * s), Math.floor(y * s)];
+        // lines (Bresenham, as in line()) recolour only pixels already inside the body, never its outline
         for (const [m, t, a, b] of def.lines) {
           let [x0, y0] = toPx(a);
           const [x1, y1] = toPx(b);
@@ -6174,14 +6343,23 @@
             }
             if (x0 === x1 && y0 === y1) break;
             const e2 = 2 * err;
-            if (e2 >= dy) ((err += dy), (x0 += sx));
-            if (e2 <= dx) ((err += dx), (y0 += sy));
+            if (e2 >= dy) {
+              err += dy;
+              x0 += sx;
+            }
+            if (e2 <= dx) {
+              err += dx;
+              y0 += sy;
+            }
           }
         }
         for (const [m, t, p] of def.dots) {
           const [x, y] = toPx(p),
             i = y * w + x;
-          if (x >= 0 && y >= 0 && x < w && y < h && mat[i]) ((mat[i] = m), (tone[i] = t));
+          if (x >= 0 && y >= 0 && x < w && y < h && mat[i]) {
+            mat[i] = m;
+            tone[i] = t;
+          }
         }
         const anchors = {};
         for (const [k, p] of Object.entries(def.anchors)) anchors[k] = toPx(p);
@@ -6802,6 +6980,8 @@
         return d;
       }
 
+      // Rasters are slow to make, so each (kind, height, frame) is made once. frame is a number, or
+      // "frame:roar" for monsters whose roar level (0..1) changes their shape.
       const ART_CACHE = new Map();
       function monsterRaster(kind, H, frame) {
         const key = kind + "|" + H + "|" + frame;
@@ -6849,12 +7029,12 @@
               ck = m + t;
             let col = colors[ck];
             if (!col) {
+              // glowing materials keep their own colour at night; everything else takes the scene light
               const base = M.ramp[t];
-              col = colors[ck] = M.glow
-                ? night
-                  ? base
-                  : mixc(e.hz(base, 0.16), base, 0.7)
-                : mixc(e.hz(base, 0.16), base, 0.17);
+              if (!M.glow) col = mixc(e.hz(base, 0.16), base, 0.17);
+              else if (night) col = base;
+              else col = mixc(e.hz(base, 0.16), base, 0.7);
+              colors[ck] = col;
             }
             const ox = flip ? art.w - 1 - x : x,
               o = (y * art.w + ox) * 4;
@@ -6870,6 +7050,7 @@
         else hit.set(key, out);
         return out;
       }
+      // Draws a painted monster and a soft halo around each of its glowing pixels.
       function blitMonster(g, painted, x, y) {
         g.drawImage(painted.canvas, x, y);
         for (const [gx, gy, col] of painted.glow) {
@@ -6878,9 +7059,12 @@
         }
       }
 
+      // Which monster and which way it goes, from any random function (Math.random, or a seeded rng).
       function selectEncounter(random) {
         return { kind: Math.floor(random() * ENCOUNTER_KINDS), direction: random() < 0.5 ? 1 : -1 };
       }
+      // The automatic encounter: the first 10 seconds of 00:00, 06:00, 12:00 and 18:00 local time. The
+      // monster is seeded by the column and the minute, so every frame of those 10 s agrees.
       function scheduledEncounter(now, tp, seed) {
         if (tp.h % 6 !== 0 || tp.m !== 0 || tp.s >= 10) return null;
         const start = Math.floor(now / 60000) * 60000;
@@ -6909,11 +7093,10 @@
           const travel = direction > 0 ? fraction : 1 - fraction;
           const x = Math.round(reducedMotion ? (e.W - art.w) / 2 : travel * (e.W + art.w + 4) - art.w - 2);
           // the pterosaur rises on each downstroke; the turtle wobbles slowly
-          const bob = !animate
-            ? 0
-            : turtle
-              ? Math.sin(elapsed * 0.003) * art.h * 0.15
-              : Math.sin(elapsed * 0.0015) * art.h * 0.12 - Math.sin((frame / 6) * TAU) * art.h * 0.04;
+          let bob = 0;
+          if (animate && turtle) bob = Math.sin(elapsed * 0.003) * art.h * 0.15;
+          else if (animate)
+            bob = Math.sin(elapsed * 0.0015) * art.h * 0.12 - Math.sin((frame / 6) * TAU) * art.h * 0.04;
           // high in the sky, but below the clock and labels where the column has room for it
           const sky = Math.min(Math.floor(e.G * 0.55) - art.h, Math.floor(e.G - e.A * 0.79));
           const top = Math.max(1, sky, Math.min(e.T, e.G - art.h - 2));
@@ -6973,10 +7156,13 @@
         // Ground monsters tower over the skyline from behind it; feet stay hidden behind the front row.
         const [bw, bh, tall] = GROUND_BOX[kind];
         const H = Math.max(24, Math.round(Math.min(e.A * 0.9 * tall, (e.W * 0.72 * bh * tall) / bw)));
+        // walk: 0..1 along the route. It stands still while roaring, then carries on from where it stopped.
         const pause = ROAR_END - ROAR_START;
-        const walk =
-          (fraction < ROAR_START ? fraction : fraction < ROAR_END ? ROAR_START : fraction - pause) /
-          (1 - pause);
+        let walked;
+        if (fraction < ROAR_START) walked = fraction;
+        else if (fraction < ROAR_END) walked = ROAR_START;
+        else walked = fraction - pause;
+        const walk = walked / (1 - pause);
         // the rose plant does not walk: it rises from behind the skyline, sways, opens and flings glowing
         // sap, then sinks back down
         if (kind === 6) {
@@ -6985,6 +7171,7 @@
           const art = monsterRaster(kind, H, sway + ":" + level);
           const painted = paintRaster(art, e, null, flip);
           const ease = (t) => t * t * (3 - 2 * t);
+          // how much of the plant is above the skyline: it rises in the first 15% and sinks in the last 15%
           const shown = reducedMotion
             ? 1
             : Math.min(ease(clamp(fraction / 0.15, 0, 1)), ease(clamp((1 - fraction) / 0.15, 0, 1)));
@@ -7021,22 +7208,16 @@
         const art = monsterRaster(kind, H, frame + ":" + roarLevel);
         const charge = roaring && fraction >= ROAR_START + 0.03;
         const blink = animate && elapsed % 2600 < 160;
-        const swap =
-          kind === 4
-            ? charge
-              ? { quadSpine: flicker ? "prismA" : "prismB" }
-              : blink
-                ? { eye: "quad" }
-                : null
-            : kind === 0
-              ? charge
-                ? { spine: flicker ? "spineGlow" : "spineHot" }
-                : blink
-                  ? { eye: "skin" }
-                  : null
-              : charge
-                ? { core: flicker ? "flameCore" : "core" }
-                : null;
+        // swap recolours one material for this frame: glowing spines or core while charging, a closed
+        // eye (painted in the skin colour) when blinking
+        let swap = null;
+        if (kind === 4) {
+          if (charge) swap = { quadSpine: flicker ? "prismA" : "prismB" };
+          else if (blink) swap = { eye: "quad" };
+        } else if (kind === 0) {
+          if (charge) swap = { spine: flicker ? "spineGlow" : "spineHot" };
+          else if (blink) swap = { eye: "skin" };
+        } else if (charge) swap = { core: flicker ? "flameCore" : "core" };
         const painted = paintRaster(art, e, swap, flip);
         const travel = direction > 0 ? walk : 1 - walk;
         const x = Math.round(reducedMotion ? (e.W - art.w) / 2 : travel * (e.W + art.w + 4) - art.w - 2);
@@ -7122,6 +7303,7 @@
             g.fillRect(mx - th, my - (th > 1 ? 1 : 0), th * 3, th + (th > 1 ? 2 : 0));
           }
         }
+        // a foot lands at the start of every step; only the first frame drawn in that tick (15 fps) shakes
         return walking && tick % 4 === 0 && elapsed - tick * (STEP_MS / 4) < 1000 / 15;
       }
 
@@ -7135,6 +7317,12 @@
       };
 
       // ==== Alarms: a message carried across a clock, one word per truck, sign or banner ====
+      // checkAlarms runs every second and calls fireAlarm when an alarm's time comes. fireAlarm splits the
+      // text into words, picks a style for each clock and stores it in column.alarm; each frame,
+      // drawAlarm works out where the procession is and ALARM_DRAW[style] draws one word (a truck, a sign
+      // held by two marchers, or a towed banner). The sound is alarmSound, a soft arpeggio.
+      // To add a style, add a row to ALARM_STYLES and a function with the same name to ALARM_DRAW.
+      // The GLYPHS font with drawWord and wordWidth can be copied on its own: they need only a canvas context.
       const ALARM_MS = 60000; // new laps start for a minute; the last one still finishes crossing
       // 3x5 pixel font: five octal digits per glyph, one per row, 4 = left pixel, 1 = right pixel.
       // prettier-ignore
@@ -7155,7 +7343,7 @@
         march: { speed: 14, gap: 6, extra: 14 },
         planes: { speed: 20, gap: 10, extra: 17 },
       };
-      const signTop = (y, s) => y - 7 - 5 * s;
+      const signTop = (y, s) => y - 7 - 5 * s; // top of the letters for a lane at y and letter scale s
       // By day the signs are bright cards with a dark frame and dark letters, so they stand out against a
       // light sky and sunlit buildings (unlit, like the night neon).
       const CARDS = [
@@ -7178,6 +7366,7 @@
         [255, 226, 92],
         [124, 255, 150],
       ];
+      // Writes word with GLYPHS at (x, y), each font pixel s x s screen pixels; unknown characters show "?".
       function drawWord(g, word, x, y, s, color) {
         g.fillStyle = color;
         [...word].forEach((ch, i) => {
@@ -7202,7 +7391,9 @@
         const elapsed = (now - alarm.start) / 1000;
         const laps = Math.ceil(((ALARM_MS / 1000) * speed) / lap);
         const travelled = elapsed * speed;
-        if (animate ? travelled > (laps - 1) * lap + run : elapsed * 1000 > ALARM_MS) return false;
+        // over when the last lap has left the screen (or, without motion, after ALARM_MS)
+        const over = animate ? travelled > (laps - 1) * lap + run : elapsed * 1000 > ALARM_MS;
+        if (over) return false;
         // Right to left like a news ticker, so the first word leads and the message reads left to right.
         for (let k = 0; k < (animate ? laps : 1); k++) {
           const d = travelled - k * lap;
@@ -7322,11 +7513,10 @@
           const z = column.zone;
           const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(start, +z.lat, +z.lon).alt;
           const night = alt < -4;
-          const styles = sync
-            ? [night ? "trucks" : "march"]
-            : night
-              ? ["trucks", "march"]
-              : ["march", "planes"];
+          let styles; // the styles this clock may pick from
+          if (sync) styles = [night ? "trucks" : "march"];
+          else if (night) styles = ["trucks", "march"];
+          else styles = ["march", "planes"];
           column.alarm = {
             start,
             sync,
@@ -7336,7 +7526,8 @@
         }
         if (sound) alarmSound(true);
       }
-      let alarmMinute = "";
+      let alarmMinute = ""; // the last minute checked, so each alarm fires once
+      // Alarm times are in the device's own time, not a clock's zone.
       function checkAlarms() {
         const d = new Date();
         const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
@@ -7367,6 +7558,8 @@
         [50, 53, 57, 60], // Dm7
         [48, 52, 55, 59], // Cmaj7
       ];
+      // alarmSound(true) starts the arpeggio (Web Audio oscillators through an echo); alarmSound(false)
+      // fades it out. It schedules notes half a second ahead from a 100 ms timer.
       function alarmSound(on) {
         if (!on) {
           if (!arp) return;
@@ -7411,7 +7604,7 @@
           while (next < ctx.currentTime + 0.5) {
             const chord = ARP_CHORDS[Math.floor(step / 8) % ARP_CHORDS.length],
               n = ORDER[step % 8];
-            const midi = (n === 4 ? chord[0] + 12 : chord[n]) + 12;
+            const midi = (n === 4 ? chord[0] + 12 : chord[n]) + 12; // step 4 is the root an octave up
             const osc = ctx.createOscillator(),
               env = ctx.createGain();
             osc.type = "triangle";
@@ -7435,8 +7628,11 @@
       // Songs take turns over the clocks. A song's seed is its clock's place, local date and hour, the
       // variation number and how many rounds of the clocks have played, so the same hour and variation
       // replay the same playlist. Each song lasts two to three minutes and crossfades into the next.
+      // musicPlay(true) starts it, musicTick (every 50 ms) keeps notes scheduled and starts the next song,
+      // moodAt makes songs darker at night and adds rain. The test file is tests/music.test.js.
       const music = { songs: [], k: 0, timer: 0, bus: null, title: "" };
       const musicOn = () => music.songs.length > 0;
+      // Saved music settings are checked before use: wrong or missing values fall back to the defaults.
       function vetMusic(m) {
         const num = (v, lo, hi, def) =>
           v !== "" && v != null && isFinite(+v) ? clamp(Math.round(+v), lo, hi) : def;
@@ -7446,6 +7642,8 @@
           variation: num(m?.variation, 1, 9999, 1),
         };
       }
+      // What the music should feel like at clock z now: night 0..1 (0 by day, 1 from 6 degrees below the
+      // horizon) and rain 0..1 from the weather.
       function moodAt(z) {
         const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
         const wx = CONFIG.weather === false ? null : WX[wxKey(z)];
@@ -7469,7 +7667,10 @@
         );
         music.k++;
         music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
-        const when = mood.alt > 6 ? "by day" : mood.alt < -6 ? "at night" : p.h < 12 ? "at dawn" : "at dusk";
+        let when;
+        if (mood.alt > 6) when = "by day";
+        else if (mood.alt < -6) when = "at night";
+        else when = p.h < 12 ? "at dawn" : "at dusk";
         music.title = `${z.label} ${when}${mood.rain ? " in the rain" : ""}, ${p.hour}:${p.minute}, variation ${CONFIG.music.variation}`;
         $("#nowPlaying").textContent = "Now playing: " + music.title;
         toast("♪ " + music.title);
@@ -7479,6 +7680,7 @@
         // a long lookahead, because timers slow down to once a second when the page is in the background
         for (const song of music.songs) song.schedule(now + 1.2);
         if (now > music.songs.at(-1).end - 8) nextSong(8);
+        // keep songs still sounding; dispose() frees the others and returns nothing, so they are dropped
         music.songs = music.songs.filter((song) => now < song.stopAt + 2 || song.dispose());
       }
       function musicPlay(on) {
@@ -7523,6 +7725,11 @@
       }
 
       // ==== Column renderer ====
+      // One Column per clock. resize() picks the art pixel size P and lays out the clock text; build()
+      // (once a minute, or when the weather or size changes) makes the sky in this.bg, the scene in
+      // this.fg, the clouds, the stars and the scene life; frame(t) draws everything 15 times a second.
+      // SCENE_FN (end of Encounters) says which hand-made scene draws a zone; other cities go to
+      // drawAtlasCity. To draw something new every frame, add it in frame() in the right layer.
       const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
       class Column {
         constructor(zone, idx) {
@@ -7590,8 +7797,9 @@
         }
         resize() {
           const r = this.el.getBoundingClientRect();
-          const compact = r.width > r.height * 1.3;
+          const compact = r.width > r.height * 1.3; // a wide, low band (stacked rows on a phone)
           this.compact = compact;
+          // P: screen pixels per art pixel, so a clock is about 145 to 175 art pixels across its short side
           const P = compact
             ? Math.max(2, Math.round(r.height / 174), Math.ceil(r.width / 780))
             : Math.max(2, Math.round(Math.min(r.width, r.height) / 145));
@@ -7625,7 +7833,10 @@
               top: Math.round(this.y0 * P + capV * P - fs * 0.86) + "px",
             });
           } else {
-            this.s = W >= 140 && H >= 230 ? 4 : W >= 96 && H >= 140 ? 3 : 2;
+            // clock scale: 4 on big columns, 3 on medium ones, 2 on small ones
+            if (W >= 140 && H >= 230) this.s = 4;
+            else if (W >= 96 && H >= 140) this.s = 3;
+            else this.s = 2;
             this.ls = this.s >= 3 ? 2 : 1;
             this.y0 = Math.max(4, Math.round(H * 0.03));
             capV = 7 * this.s;
@@ -7644,6 +7855,7 @@
             });
           }
           this.clockStr = "";
+          // street depth: 39% of the height, kept between 18 and 35 pixels (and at least 17% of the height)
           const ground = Math.min(35, Math.max(18, Math.round(H * 0.39)));
           this.G = H - Math.max(ground, Math.round(H * 0.17));
           // Height budget for landmarks: never taller than ~0.6× the column width, so tall desktop
@@ -7679,6 +7891,7 @@
             if (!compact) this.weatherText.style.top = this.yWx * P + extra + "px";
           }
         }
+        // Repaints one window on the finished scene and remembers it, so a rebuild keeps the same lights.
         paintWindow(w, lit) {
           const fg = this.fg.getContext("2d");
           w.lit = lit;
@@ -7702,6 +7915,7 @@
           this.alarm = null;
           if (!COLS.some((c) => c.alarm)) alarmSound(false);
         }
+        // This clock's current weather: the ?wx= override, the last fetch, or a clear placeholder.
         weather() {
           const d = debugWx();
           if (d) return d;
@@ -7723,6 +7937,7 @@
           const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sun.alt;
           const morning = PARAMS.has("alt") ? false : sun.H < 0;
           const pal = paletteAt(alt, morning);
+          // the weather greys the sky (ov = how overcast, 0..1), dims the light and lights more windows
           const ov = OVERCAST[wx.cat] ?? 0;
           const grey = mixc([150, 156, 166], [26, 28, 38], clamp(1 - pal.k, 0, 1));
           const top = mixc(pal.top, grey, ov * 0.85),
@@ -7770,6 +7985,8 @@
           const img = bg.createImageData(W, H),
             D = img.data,
             N = 9;
+          // The sky blends top to bot in N flat bands. Where y falls between two bands, a 4x4 ordered
+          // dither (the Bayer matrix) picks one of them per pixel, so the steps look smooth.
           const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
           for (let y = 0; y < H; y++) {
             const f = clamp(y / G, 0, 1) * N,
@@ -7788,6 +8005,7 @@
           bg.putImageData(img, 0, 0);
           // sun
           if (alt > -3 && ov < 0.7) {
+            // x follows the hour angle (noon in the middle), y the altitude (42 degrees or more is the top)
             const r = W > 140 ? 5 : 4;
             const sx = Math.round(clamp(W / 2 + (sun.H / 100) * W * 0.42, r + 2, W - r - 2));
             const sy = Math.round(G - clamp((alt + 3) / 45, 0, 1) * (G - T + r));
@@ -7813,6 +8031,7 @@
             for (let dy = -r; dy <= r; dy++) {
               const w = Math.sqrt(r * r - dy * dy);
               for (let dx = -Math.floor(w + 0.5); dx <= Math.floor(w + 0.5); dx++) {
+                // waxing (p < 0.5) lights the right side, waning the left; c moves the shadow's edge
                 const lit = p < 0.5 ? dx > c * w - 0.5 : dx < -c * w + 0.5;
                 bg.fillStyle = lit ? css([238, 236, 214], vis) : css(mixc([238, 236, 214], top, 0.82), vis);
                 bg.fillRect(mx + dx, my + dy, 1, 1);
@@ -7873,15 +8092,28 @@
               // Overcast skies are mostly long low decks with some heaped clouds; fair skies are puffy
               // heaps with the odd high wisp.
               const pick = rc();
-              const kind = big ? (pick < 0.65 ? "deck" : "heap") : pick < 0.75 ? "heap" : "deck";
+              let kind;
+              if (big) kind = pick < 0.65 ? "deck" : "heap";
+              else kind = pick < 0.75 ? "heap" : "deck";
               const deck = kind === "deck";
+              // width in pixels: the smallest, plus up to the extra, for [overcast, fair] skies
+              const CLOUD_WIDTH = {
+                deck: [
+                  [44, 56],
+                  [22, 20],
+                ],
+                heap: [
+                  [30, 34],
+                  [16, 22],
+                ],
+              };
+              const [minW, extraW] = CLOUD_WIDTH[kind][big ? 0 : 1];
+              // keep the rc() calls in this order (x, y, w, h, v, seed): it fixes every cloud's shape
               this.clouds.push({
                 kind,
                 x: rc() * W,
                 y: 2 + rc() * (G * (big ? 0.45 : 0.5)),
-                w: Math.round(
-                  (deck ? (big ? 44 : 22) : big ? 30 : 16) + rc() * (deck ? (big ? 56 : 20) : big ? 34 : 22),
-                ),
+                w: Math.round(minW + rc() * extraW),
                 h: Math.round((deck ? 9 : 6) + rc() * (big ? 9 : 5)),
                 v: 0.004 + rc() * 0.006,
                 seed: (rc() * 1e9) | 0,
@@ -8001,11 +8233,16 @@
               for (let x = 0; x < W; x++) {
                 if (!on(x, y) || on(x, y + 1) || on(x - 1, y)) continue;
                 if (!on(x + 1, y)) off(x, y);
-                else if (!on(x + 2, y) && !on(x + 1, y + 1)) (off(x, y), off(x + 1, y));
+                else if (!on(x + 2, y) && !on(x + 1, y + 1)) {
+                  off(x, y);
+                  off(x + 1, y);
+                }
               }
           g.putImageData(img, 0, 0);
           return c;
         }
+        // Rain drops or snowflakes, made again only when the weather or the size changes. They use
+        // Math.random, not the seeded rng, since they never need to come out the same.
         ensureParticles(wx) {
           const k = wx.cat + "|" + wx.inten + "|" + this.W + "x" + this.H;
           if (k === this.pkey) return;
@@ -8201,6 +8438,7 @@
           }
           this.drawText(tp, wx);
         }
+        // The HTML text over the canvas: the clock (touched only when the minute changes), date, zone, weather.
         drawText(tp, wx) {
           let hh = tp.h,
             ampm = "";
@@ -8240,6 +8478,11 @@
       }
 
       // ==== App ====
+      // Everything around the clocks: buildColumns (one Column per zone) and the 15 fps loop, the
+      // settings panel (openSettings, the submit handler that checks and saves CONFIG), fullscreen,
+      // toasts, the keys (S F M N K A Esc), the easter eggs (taps, zigzag) and boot(), which loads the
+      // saved settings and starts everything. To add a setting: a field in #modal (HTML), its default in
+      // DEFAULT_CONFIG, a line in openSettings that shows it, and a line in the submit handler that reads it.
       // Canonical IANA name (resolves aliases such as Europe/Kiev → Europe/Kyiv); null if unknown.
       function canonicalZone(tz) {
         try {
@@ -8273,6 +8516,7 @@
         for (const c of COLS) c.resize();
       }
       let lastFrame = 0;
+      // requestAnimationFrame runs at the screen's rate (60 Hz or more); the clocks only draw at 15 fps.
       function loop(t) {
         if (t - lastFrame >= 1000 / 15 && !document.hidden) {
           lastFrame = t;
@@ -8376,6 +8620,7 @@
         }
         $("#tzlist").innerHTML = list.map((t) => `<option value="${t}">`).join("");
       })();
+      // Escapes text for HTML, so names typed in settings cannot inject markup into innerHTML.
       function esc(s) {
         return String(s ?? "").replace(
           /[&<>"]/g,
@@ -8395,6 +8640,7 @@
         cityByOption.set(value.toLowerCase(), city);
       }
 
+      // The settings row for zone z (number i + 1). Every value goes through esc().
       function zoneRow(z, i) {
         const city = CITY_ATLAS[z.scene];
         const sceneOptions = city ? { [city.id]: city.label + " artwork", ...SCENES } : SCENES;
@@ -8614,8 +8860,8 @@
       fullscreenButton.onclick = toggleFullscreen;
       document.addEventListener("fullscreenchange", updateFullscreenButton);
       document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
-      modal.addEventListener("mousedown", (e) => {
-        if (e.target === modal) closeSettings();
+      modal.addEventListener("mousedown", (ev) => {
+        if (ev.target === modal) closeSettings();
       });
       form.addEventListener("submit", async (ev) => {
         ev.preventDefault();
@@ -8665,26 +8911,28 @@
         buildColumns();
         refreshAllWeather(false);
       });
-      addEventListener("keydown", (e) => {
+      addEventListener("keydown", (ev) => {
         const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "");
-        if (e.key === "Escape") closeSettings();
-        if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-        if (e.key === "s" || e.key === "S") {
-          e.preventDefault();
-          modal.classList.contains("hidden") ? openSettings() : closeSettings();
+        if (ev.key === "Escape") closeSettings();
+        if (typing || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        if (ev.key === "s" || ev.key === "S") {
+          ev.preventDefault();
+          if (modal.classList.contains("hidden")) openSettings();
+          else closeSettings();
         }
-        if (e.key.toLowerCase() === "k" && !e.repeat && modal.classList.contains("hidden"))
+        if (ev.key.toLowerCase() === "k" && !ev.repeat && modal.classList.contains("hidden"))
           triggerEncounter();
-        if ((e.key === "m" || e.key === "M") && !e.repeat) toggleMusic();
-        if ((e.key === "a" || e.key === "A") && !e.repeat && modal.classList.contains("hidden")) testKey();
-        if ((e.key === "n" || e.key === "N") && !e.repeat && musicOn()) nextSong(3);
-        if (e.key === "f" || e.key === "F") {
-          e.preventDefault();
-          if (!e.repeat) toggleFullscreen();
+        if ((ev.key === "m" || ev.key === "M") && !ev.repeat) toggleMusic();
+        if ((ev.key === "a" || ev.key === "A") && !ev.repeat && modal.classList.contains("hidden")) testKey();
+        if ((ev.key === "n" || ev.key === "N") && !ev.repeat && musicOn()) nextSong(3);
+        if (ev.key === "f" || ev.key === "F") {
+          ev.preventDefault();
+          if (!ev.repeat) toggleFullscreen();
         }
       });
 
       // ---- easter eggs: K on keyboards, or 20 taps/clicks within a minute (for phones) ----
+      // Starts an encounter now in every clock (?enc=N forces monster N).
       function triggerEncounter() {
         const start = Date.now(),
           forced = PARAMS.has("enc") ? { kind: clamp(+PARAMS.get("enc") | 0, 0, ENCOUNTER_KINDS - 1) } : {};
@@ -8747,6 +8995,8 @@
       $("#cols").addEventListener("pointercancel", () => (zig = null));
 
       // ---- boot ----
+      // Open storage, load saved settings over the defaults, build the clocks, start the loop, the alarm
+      // check and the music state, then fetch the weather and refresh it every 10 minutes.
       (async function boot() {
         await store.open();
         const saved = await store.get("config");

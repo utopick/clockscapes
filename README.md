@@ -18,7 +18,9 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 
 ## What it does
 
-- Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, planes and birds. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms).
+- Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms), so people open umbrellas when it rains there.
+- The streets follow each city's own week. Roads fill up in the weekday rush hours, people stroll at weekends, Friday and Saturday nights get busy with people going out, and the small hours are quiet.
+- On a city's holiday or local festival, such as Thanksgiving, Carnaval or Las Fallas, a small plane tows the festival's name across that clock every 15 minutes.
 - Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and rain in a city adds rain to the song.
 - Daily alarms carry a short message across your clocks for a minute, as explained [below](#alarms).
 - A screen filter can make the clocks look like an old CRT television or an LCD screen, as shown [below](#screen-filters).

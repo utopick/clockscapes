@@ -493,6 +493,12 @@
               </select></label
             >
           </fieldset>
+          <!-- only shown inside the Android app, which provides window.ClockscapesAndroid -->
+          <fieldset id="androidBox" hidden>
+            <legend>Android</legend>
+            <p class="hint atlasHint">Show these clocks on your home screen as a live wallpaper.</p>
+            <button type="button" id="setWallpaper">SET AS WALLPAPER</button>
+          </fieldset>
         </div>
         <div data-panel="music" hidden>
           <fieldset>
@@ -8714,6 +8720,11 @@
       };
       $("#nextSong").onclick = () => (musicOn() ? nextSong(3) : toast("The music is off"));
       $("#music").onclick = toggleMusic;
+      // Android app only: the button opens the system's live wallpaper screen
+      if (window.ClockscapesAndroid) {
+        $("#androidBox").hidden = false;
+        $("#setWallpaper").onclick = () => window.ClockscapesAndroid.setWallpaper();
+      }
       $("#next").onclick = () => musicOn() && nextSong(3);
       zonesEl.addEventListener("change", (ev) => {
         if (!ev.target.matches("[data-atlas]")) return;

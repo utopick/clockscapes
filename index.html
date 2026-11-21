@@ -7479,8 +7479,12 @@
           e.cityId = city?.id || z.label;
           e.windows = []; // filled by the scene, for windows that switch on and off at night
           e.lamps = [];
-          if (scene) scene[0](fg, e);
-          else if (city) drawAtlasCity(fg, e, city);
+          // Hand-drawn landmarks have fixed pixel widths, so their heights get at most the room a phone has:
+          // a taller screen shows more sky over the same skyline instead of stretching Big Ben.
+          if (scene) {
+            e.A = Math.min(e.A, 60);
+            scene[0](fg, e);
+          } else if (city) drawAtlasCity(fg, e, city);
           else sceneCity(fg, e);
           if (z.scene !== "field") addStreetDetail(fg, e);
           this.anim = scene?.[1];

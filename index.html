@@ -1622,6 +1622,7 @@
               weekday: "short",
               day: "2-digit",
               month: "short",
+              year: "numeric",
               hourCycle: "h23",
               timeZoneName: "shortOffset",
             });
@@ -1634,6 +1635,7 @@
               weekday: "short",
               day: "2-digit",
               month: "short",
+              year: "numeric",
               hourCycle: "h23",
               timeZoneName: "shortOffset",
             });
@@ -3096,6 +3098,178 @@
       }
 
       const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+
+      // ==== Festivities: on a city's local or national holiday a plane tows its name every 15 minutes ====
+      // A rule is "MM-DD" (a fixed day), "MM-DD+N" (and the N days after), "E+N" or "E-N" (days from Easter
+      // Sunday), "MM/n/Day" (the nth weekday of the month, -1 = the last) or "LNY" (Lunar New Year).
+      // City festivals win over national ones, and those over New Year's Day.
+      const FESTIVALS = {
+        // national
+        AR: [
+          ["05-25", "Revolucion de Mayo"],
+          ["07-09", "Dia de la Independencia"],
+        ],
+        AU: [["01-26", "Australia Day"]],
+        AT: [["10-26", "Nationalfeiertag"]],
+        BE: [["07-21", "Fete Nationale"]],
+        BR: [
+          ["09-07", "Dia da Independencia"],
+          ["E-48+1", "Carnaval"],
+        ],
+        CA: [
+          ["07-01", "Canada Day"],
+          ["10/2/Mon", "Thanksgiving"],
+        ],
+        CL: [["09-18+1", "Fiestas Patrias"]],
+        CN: [
+          ["LNY", "Happy New Year"],
+          ["10-01", "National Day"],
+        ],
+        CO: [["07-20", "Dia de la Independencia"]],
+        CR: [["09-15", "Dia de la Independencia"]],
+        CU: [["01-01", "Triunfo de la Revolucion"]],
+        CZ: [["10-28", "Den vzniku statu"]],
+        DE: [["10-03", "Tag der Deutschen Einheit"]],
+        DK: [["06-05", "Grundlovsdag"]],
+        EC: [["08-10", "Primer Grito de Independencia"]],
+        ES: [["10-12", "Fiesta Nacional"]],
+        FI: [["12-06", "Itsenaisyyspaiva"]],
+        FR: [["07-14", "Fete Nationale"]],
+        GB: [["11-05", "Bonfire Night"]],
+        GR: [["03-25", "Independence Day"]],
+        GT: [["09-15", "Dia de la Independencia"]],
+        HK: [
+          ["LNY", "Happy New Year"],
+          ["07-01", "HKSAR Day"],
+        ],
+        HU: [["08-20", "Szent Istvan napja"]],
+        ID: [["08-17", "Hari Kemerdekaan"]],
+        IE: [["03-17", "St Patrick's Day"]],
+        IN: [
+          ["01-26", "Republic Day"],
+          ["08-15", "Independence Day"],
+        ],
+        IS: [["06-17", "Thjodhatidardagurinn"]],
+        IT: [["06-02", "Festa della Repubblica"]],
+        JP: [["04-29+6", "Golden Week"]],
+        KR: [
+          ["LNY", "Seollal"],
+          ["08-15", "Gwangbokjeol"],
+        ],
+        MO: [["LNY", "Happy New Year"]],
+        MX: [
+          ["09-16", "Dia de la Independencia"],
+          ["11-01+1", "Dia de Muertos"],
+        ],
+        MY: [
+          ["LNY", "Happy New Year"],
+          ["08-31", "Hari Merdeka"],
+        ],
+        NL: [["04-27", "Koningsdag"]],
+        NO: [["05-17", "Syttende Mai"]],
+        NZ: [["02-06", "Waitangi Day"]],
+        PE: [["07-28+1", "Fiestas Patrias"]],
+        PH: [["06-12", "Araw ng Kalayaan"]],
+        PL: [
+          ["05-03", "Swieto Konstytucji"],
+          ["11-11", "Swieto Niepodleglosci"],
+        ],
+        PT: [["06-10", "Dia de Portugal"]],
+        SE: [["06-06", "Nationaldagen"]],
+        SG: [
+          ["LNY", "Happy New Year"],
+          ["08-09", "National Day"],
+        ],
+        CH: [["08-01", "Bundesfeier"]],
+        TH: [["04-13+2", "Songkran"]],
+        TR: [["10-29", "Cumhuriyet Bayrami"]],
+        TW: [
+          ["LNY", "Happy New Year"],
+          ["10-10", "Double Ten Day"],
+        ],
+        UA: [["08-24", "Independence Day"]],
+        US: [
+          ["07-04", "Independence Day"],
+          ["11/4/Thu", "Thanksgiving"],
+        ],
+        UY: [["08-25", "Dia de la Independencia"]],
+        VN: [
+          ["LNY", "Tet"],
+          ["09-02", "Quoc Khanh"],
+        ],
+        ZA: [["04-27", "Freedom Day"]],
+        // local
+        "madrid-es": [["05-15", "San Isidro"]],
+        "barcelona-es": [["09-24", "La Merce"]],
+        "valencia-es": [["03-15+4", "Las Fallas"]],
+        "london-gb": [["08/-1/Mon", "Notting Hill Carnival"]],
+        "edinburgh-gb": [["12-31", "Hogmanay"]],
+        "new-orleans-us": [["E-47", "Mardi Gras"]],
+        "boston-us": [["04/3/Mon", "Patriots' Day"]],
+        "honolulu-us": [["06-11", "Kamehameha Day"]],
+        "kyoto-jp": [["07-17", "Gion Matsuri"]],
+        "quito-ec": [["12-06", "Fiestas de Quito"]],
+        "rome-it": [["04-21", "Natale di Roma"]],
+        "milan-it": [["12-07", "Sant'Ambrogio"]],
+        "florence-it": [["06-24", "San Giovanni"]],
+        "naples-it": [["09-19", "San Gennaro"]],
+        "venice-it": [["07/3/Sun", "Festa del Redentore"]],
+        "lyon-fr": [["12-08+3", "Fete des Lumieres"]],
+        "lisbon-pt": [["06-13", "Santo Antonio"]],
+        "porto-pt": [["06-24", "Sao Joao"]],
+        "melbourne-au": [["11/1/Tue", "Melbourne Cup"]],
+        "ulaanbaatar-mn": [["07-11+4", "Naadam"]],
+      };
+      // Lunar New Year's Day, by year (it follows the moon, so it is listed rather than computed)
+      const LUNAR_NEW_YEAR = { 2026: "02-17", 2027: "02-06", 2028: "01-26", 2029: "02-13", 2030: "02-03" };
+      function easterSunday(y) {
+        // the anonymous Gregorian algorithm (Meeus/Jones/Butcher)
+        const a = y % 19,
+          b = Math.floor(y / 100),
+          c = y % 100,
+          d = Math.floor(b / 4),
+          k = b % 4,
+          f = Math.floor((b + 8) / 25),
+          g = Math.floor((b - f + 1) / 3),
+          h = (19 * a + b - d - g + 15) % 30,
+          i = Math.floor(c / 4),
+          l = c % 4,
+          m = (32 + 2 * k + 2 * i - h - l) % 7,
+          n = Math.floor((a + 11 * h + 22 * m) / 451);
+        return Date.UTC(y, Math.floor((h + m - 7 * n + 114) / 31) - 1, ((h + m - 7 * n + 114) % 31) + 1);
+      }
+      const DAY_MS = 86400000;
+      // The first day a rule falls on in year y (as UTC midnight), and how many days it lasts.
+      function festivalStart(rule, y) {
+        const [, base, extra] = rule.match(/^(E[+-]\d+|[^+]+)(?:\+(\d+))?$/); // "E-48+1": Easter -48, 1 more day
+        const days = 1 + (+extra || 0);
+        if (base.startsWith("E")) return [easterSunday(y) + +base.slice(1) * DAY_MS, days];
+        if (base === "LNY") return LUNAR_NEW_YEAR[y] ? festivalStart(LUNAR_NEW_YEAR[y], y) : [NaN, 1];
+        if (base.includes("/")) {
+          // the nth weekday of a month: count from the 1st, or back from the last day when n is -1
+          const [mm, nth, day] = base.split("/");
+          const want = "Sun Mon Tue Wed Thu Fri Sat".split(" ").indexOf(day);
+          if (+nth > 0) {
+            const first = Date.UTC(y, mm - 1, 1);
+            const ahead = (want - new Date(first).getUTCDay() + 7) % 7;
+            return [first + (ahead + (nth - 1) * 7) * DAY_MS, days];
+          }
+          const last = Date.UTC(y, mm, 0);
+          return [last - ((new Date(last).getUTCDay() - want + 7) % 7) * DAY_MS, days];
+        }
+        const [mm, dd] = base.split("-");
+        return [Date.UTC(y, mm - 1, +dd), days];
+      }
+      // the festival name for a city on its local date, or "" (y, month 1-12, day)
+      function festivalFor(cityId, country, y, month, day) {
+        const today = Date.UTC(y, month - 1, day);
+        for (const list of [FESTIVALS[cityId], FESTIVALS[country]])
+          for (const [rule, name] of list || []) {
+            const [start, days] = festivalStart(rule, y);
+            if (today >= start && today < start + days * DAY_MS) return name;
+          }
+        return month === 1 && day === 1 ? "Happy New Year" : "";
+      }
       function plantKind(profile, variant, month, lat, day) {
         const season = lat < 0 ? (month + 6) % 12 : month;
         if (profile === "japanese") {
@@ -6971,7 +7145,7 @@
         Y: "55222", Z: "71247", 0: "75557", 1: "26227", 2: "61247", 3: "61216", 4: "55711", 5: "74616",
         6: "34757", 7: "71222", 8: "75757", 9: "75711", "!": "22202", "?": "61202", "¡": "20222",
         "¿": "20243", ".": "00002", ",": "00024", "'": "22000", "-": "00700", ":": "02020", "/": "11244",
-        "&": "25253", "+": "02720", "#": "57575", "♥": "57720", "❤": "57720",
+        "&": "25253", "+": "02720", "#": "57575", "♥": "57720", "❤": "57720", " ": "00000",
       };
       // Each style: speed in art pixels per second, gap between units, and a unit's width beyond its word.
       // Trucks and marchers share one layout (the word 11 pixels into its unit, its top SIGN_TOP above
@@ -7582,6 +7756,10 @@
           const legacyFlora = { madrid: "mediterranean", london: "temperate", austin: "liveOak" };
           e.flora = city ? cityFlora(city) : legacyFlora[z.scene];
           e.scene = z.scene;
+          // today's festival in this city, if any (?fest=Name shows one now, for trying it)
+          this.festival =
+            PARAMS.get("fest") ||
+            festivalFor(city?.id, city?.country, +tp.year, MONTHS.indexOf(tp.month) + 1, +tp.day);
           e.month = MONTHS.indexOf(tp.month);
           e.day = +tp.day;
           e.latitude = +z.lat;
@@ -7921,6 +8099,17 @@
           if (this.anim) this.anim(g, e, t);
           this.life.quietLane = this.alarm ? e.G + SYNC_LANE : null; // the procession has the lane to itself
           drawStreetPlanes(g, e, this.life, seconds, !REDUCED_MOTION.matches);
+          if (this.festival && !this.alarm) {
+            // every quarter hour a banner plane crosses from right to left with the festival's name
+            const word = this.festival
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toUpperCase();
+            const into = PARAMS.has("fest") ? seconds % 30 : (tp.m % 15) * 60 + tp.s + (now % 1000) / 1000;
+            const s = e.W >= 240 ? 2 : 1,
+              x = Math.round(W + 4 - into * ALARM_STYLES.planes.speed);
+            if (x > -(wordWidth(word, s) + 24)) ALARM_DRAW.planes(g, e, word, x, s, 0, seconds, true);
+          }
           drawLampLight(g, e);
           if (this.alarm) {
             const span = this.alarm.sync ? Math.max(...COLS.map((c) => c.ox + c.W)) : this.W;

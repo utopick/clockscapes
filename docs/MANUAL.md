@@ -103,6 +103,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | `?layout=rows` or `?layout=columns` | Forces the phone or the desktop layout |
 | `?alarm=Hello there` | Shows that alarm message right away (`&style=trucks`, `march` or `planes` to choose) |
 | `?enc=0` | Plays a monster encounter (0 to 3) |
+| `?fx=crt` or `?fx=lcd` | Shows a screen filter without saving it |
 
 ## 5. Where to fix things
 
@@ -121,6 +122,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Music | `<script id="lofi">` and the `Music` section | Run `node --test tests/music.test.js` after any change |
 | Text layout (clock, city, country) | `resize` in `class Column` and the CSS at the top | Check both the phone (390 × 844) and a wide screen |
 | Settings panel | `openSettings` in `App`, and `#modal` in the HTML | Saved settings must keep loading, so give new options a default in `DEFAULT_CONFIG` |
+| Screen filters (CRT, LCD) | The CSS under "Screen filters" at the top, and `applyFilter` | They are CSS overlays on each clock, and the LCD grid uses `--px`, the clock's pixel size |
 | Offline copy | `sw.js` | It always asks the network first, so normally nothing needs changing there |
 
 ## 6. FAQ and troubleshooting

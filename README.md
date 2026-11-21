@@ -21,6 +21,7 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 - Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, planes and birds. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms).
 - Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and rain in a city adds rain to the song.
 - Daily alarms carry a short message across your clocks for a minute, as explained [below](#alarms).
+- The SCREEN tab in settings can make the clocks look like an old CRT television or an LCD screen.
 - Settings stay in this browser only. The only thing the page talks to is [Open-Meteo](https://open-meteo.com/), for the weather and the place search, and you can switch the weather off.
 
 ## Alarms
@@ -50,7 +51,7 @@ To try it without waiting, write something in the **TEST MESSAGE** box, save, an
 
 | Key | What it does |
 |---|---|
-| **S** | Opens settings (cities, alarms, music) |
+| **S** | Opens settings (cities, alarms, music, screen filter) |
 | **F** | Full screen |
 | **M** | Music on or off |
 | **N** | Next song |

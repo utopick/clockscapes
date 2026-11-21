@@ -143,6 +143,51 @@
       .col:last-child {
         border-right: 0;
       }
+      /* Screen filters (SCREEN tab): an overlay on each clock, above the art and the text. */
+      .col .screen {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 2;
+        display: none;
+      }
+      .fx-crt .col .screen,
+      .fx-lcd .col .screen {
+        display: block;
+      }
+      /* CRT: scanlines, a faint red-green-blue phosphor mask, darker rounded corners like a tube */
+      .fx-crt .col .screen {
+        background:
+          repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.26) 0 1px, transparent 1px 3px),
+          repeating-linear-gradient(
+            to right,
+            rgba(255, 40, 40, 0.06) 0 1px,
+            rgba(40, 255, 40, 0.06) 1px 2px,
+            rgba(40, 40, 255, 0.06) 2px 3px
+          ),
+          radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, 0.5) 100%);
+        border-radius: 22px / 18px;
+        box-shadow:
+          0 0 0 30px #05060f,
+          inset 0 0 30px rgba(0, 0, 0, 0.55);
+      }
+      .fx-crt .col canvas {
+        filter: saturate(1.25) contrast(1.08) brightness(1.1) blur(0.35px);
+      }
+      .fx-crt .clock,
+      .fx-crt .scene-text {
+        filter: blur(0.3px) drop-shadow(0 0 5px rgba(255, 240, 210, 0.45));
+      }
+      /* LCD: a thin dark gap around every art pixel (--px is the pixel size), slightly washed-out colours */
+      .fx-lcd .col .screen {
+        background:
+          repeating-linear-gradient(to right, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px var(--px)),
+          repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px var(--px)),
+          linear-gradient(rgba(200, 230, 200, 0.05), rgba(200, 230, 200, 0.05));
+      }
+      .fx-lcd .col canvas {
+        filter: saturate(0.85) contrast(0.95) brightness(1.04);
+      }
       .col canvas {
         display: block;
         image-rendering: pixelated;
@@ -409,6 +454,27 @@
           <button type="button" role="tab" data-tab="music" aria-selected="false" title="Lo-fi music">
             MUSIC
           </button>
+          <button type="button" role="tab" data-tab="screen" aria-selected="false" title="Screen filters">
+            SCREEN
+          </button>
+        </div>
+        <div data-panel="screen" hidden>
+          <fieldset>
+            <legend>Screen</legend>
+            <p class="hint atlasHint">
+              A filter over the clocks that imitates an old screen. CRT looks like a tube television, with
+              scanlines, glowing colours and dark rounded corners. LCD shows the thin gaps between the pixels
+              of a handheld screen. Save to see it.
+            </p>
+            <label
+              >Filter
+              <select name="filter">
+                <option value="off">Off</option>
+                <option value="crt">CRT television</option>
+                <option value="lcd">LCD screen</option>
+              </select></label
+            >
+          </fieldset>
         </div>
         <div data-panel="music" hidden>
           <fieldset>
@@ -949,7 +1015,7 @@
        * Debug URL parameters: ?alt=-10 (fake sun altitude in degrees), ?wx=rain (fake weather:
        *   clear partly cloudy fog rain thunder snow), &i=0.9 (its intensity), ?layout=rows|columns,
        *   ?alarm=Good morning (show an alarm message now) &style=trucks|march|planes,
-       *   ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
+       *   ?fx=crt|lcd (screen filter), ?enc=0..3 (play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle, 3 pterosaur).
        * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close, A A A (or a down-up-down
        *       zigzag stroke on the clocks) plays the test alarm message from the alarms tab, K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now;
        *       the ✕ EXIT button only shows when running as an installed app (or with ?exit)
@@ -1513,6 +1579,7 @@
         units: "metric",
         hour12: false,
         layout: "auto",
+        filter: "off", // screen filter: off, crt or lcd
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
         music: { on: false, volume: 60, variation: 1 }, // volume 0..100, variation 1..9999 (part of each song's seed)
@@ -6451,6 +6518,8 @@
           this.el.className = "col";
           this.cv = document.createElement("canvas");
           this.el.appendChild(this.cv);
+          this.screenEl = document.createElement("div"); // the screen filter overlay, added last so it sits on top
+          this.screenEl.className = "screen";
           this.clockEl = document.createElement("div");
           this.clockEl.className = "clock";
           this.clockEl.innerHTML =
@@ -6463,6 +6532,7 @@
             this.el.appendChild(el);
             return el;
           });
+          this.el.appendChild(this.screenEl);
           this.cityText.textContent = zone.label;
           // the country, smaller, after the city name (zones picked from the city list only)
           // (not when it only repeats the city, as for Singapore or Monaco)
@@ -6512,6 +6582,7 @@
             ? Math.max(2, Math.round(r.height / 174), Math.ceil(r.width / 780))
             : Math.max(2, Math.round(Math.min(r.width, r.height) / 145));
           this.P = P;
+          this.el.style.setProperty("--px", P + "px"); // the LCD filter's grid follows the art pixels
           this.ox = Math.round(r.left / P); // where this clock starts, for alarms that cross every clock
           this.W = Math.ceil(r.width / P);
           this.H = Math.ceil(r.height / P);
@@ -6856,8 +6927,24 @@
           const deck = cl.kind === "deck";
           const mid = mixc(ctop, cbot, deck ? 0.3 : 0.45),
             hi = mixc(ctop, [255, 255, 255], 0.22);
+          // feet: the lower puffs, left to right. Between two neighbours the underside runs straight from one
+          // foot to the next, so the base never caves in between the round puffs
+          const feet = puffs.filter((q) => !q[3]).sort((a, b) => a[0] - b[0]);
+          const bridge = (inset) => {
+            for (let i = 1; i < feet.length; i++) {
+              const [x0, y0, r0] = feet[i - 1],
+                [x1, y1, r1] = feet[i];
+              for (let x = x0; x <= x1; x++) {
+                const k = (x - x0) / (x1 - x0 || 1),
+                  bottom = Math.round(lerp(y0 + r0, y1 + r1, k)),
+                  top = Math.round(lerp(y0, y1, k) + inset * lerp(r0, r1, k));
+                if (bottom > top) g.fillRect(x, top, 1, bottom - top);
+              }
+            }
+          };
           g.fillStyle = css(mid);
           for (const [x, y, rr] of puffs) disc(g, x, y, rr);
+          bridge(0);
           const left = Math.min(...puffs.map(([x, , rr]) => x - rr)) + 2,
             right = Math.max(...puffs.map(([x, , rr]) => x + rr)) - 2;
           g.fillStyle = css(ctop);
@@ -6871,6 +6958,7 @@
           g.globalCompositeOperation = "source-atop";
           g.fillStyle = css(deck ? mixc(ctop, cbot, 0.65) : cbot);
           for (const [x, y, rr, crown] of puffs) if (!crown) disc(g, x + 1, y + Math.ceil(rr * 0.6), rr);
+          bridge(0.45);
           // ragged base: knock a few pixels out of the bottom row
           g.globalCompositeOperation = "destination-out";
           for (let x = left; x < right; x++) if (r() < 0.3) g.fillRect(x, base, 1 + Math.floor(r() * 2), 1);
@@ -7118,8 +7206,14 @@
         const rows = mode === "rows" || (mode === "auto" && innerWidth < 700);
         document.body.classList.toggle("rows", rows);
       }
+      const FILTERS = ["off", "crt", "lcd"];
+      function applyFilter() {
+        const fx = PARAMS.get("fx") || CONFIG.filter;
+        for (const f of FILTERS) document.body.classList.toggle("fx-" + f, f === fx);
+      }
       function buildColumns() {
         applyLayout();
+        applyFilter();
         const root = $("#cols");
         root.innerHTML = "";
         COLS = CONFIG.zones.slice(0, 4).map((z, i) => new Column(z, i));
@@ -7286,6 +7380,7 @@
         form.hour12.value = CONFIG.hour12 ? "1" : "0";
         form.weather.value = CONFIG.weather === false ? "0" : "1";
         form.layout.value = CONFIG.layout || "auto";
+        form.filter.value = FILTERS.includes(CONFIG.filter) ? CONFIG.filter : "off";
         renderZones(CONFIG.zones);
         renderAlarms(CONFIG.alarms || []);
         form.alarmTest.value = CONFIG.alarmTest || "";
@@ -7499,6 +7594,7 @@
           units: form.units.value,
           hour12: form.hour12.value === "1",
           layout: form.layout.value,
+          filter: FILTERS.includes(form.filter.value) ? form.filter.value : "off",
           alarms,
           alarmTest: form.alarmTest.value.trim().slice(0, 36),
           zones: zs.slice(0, 4),

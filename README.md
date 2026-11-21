@@ -21,8 +21,22 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 - Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, planes and birds. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms).
 - Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and rain in a city adds rain to the song.
 - Daily alarms carry a short message across your clocks for a minute, as explained [below](#alarms).
-- The SCREEN tab in settings can make the clocks look like an old CRT television or an LCD screen.
+- A screen filter can make the clocks look like an old CRT television or an LCD screen, as shown [below](#screen-filters).
 - Settings stay in this browser only. The only thing the page talks to is [Open-Meteo](https://open-meteo.com/), for the weather and the place search, and you can switch the weather off.
+
+## Pick your cities
+
+You can show one to four clocks. Press **S** (or tap the screen, then **⚙ SETTINGS**) and use the **CLOCKS** tab:
+
+1. Under Zones, type in **Find a city** and pick one of about 390 capitals and big cities. That fills in its time zone, coordinates and scene.
+2. For a place that isn't in the list, type its name in **Label** and press **FIND**, or type the time zone and coordinates yourself. It then gets a regional street scene.
+3. Press **+ ADD ZONE** for another clock, or **RANDOMIZE 3 CITIES** for a surprise, then **SAVE**.
+
+The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 hour clock, °C or °F, and whether to fetch the live weather. With the weather off, the scenes still follow day and night.
+
+## Music
+
+Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
 
 ## Alarms
 
@@ -46,6 +60,14 @@ When the alarm goes off, the message crosses your clocks for a full minute, one 
 With the clocks side by side, the message drives from one clock into the next along the same road, turning from trucks into a march where the city crosses from night to day, as in the animation at the top. When the clocks are stacked in rows, as on a phone, every clock shows the whole message.
 
 To try it without waiting, write something in the **TEST MESSAGE** box, save, and press **A** three times (or swipe down, up and down again on the clocks).
+
+## Screen filters
+
+The **SCREEN** tab in settings can lay a filter over the clocks. CRT makes each clock look like a small tube television, with scanlines, glowing colours and dark rounded corners. LCD shows the thin gaps between the pixels of a handheld screen. Pick one and press **SAVE**.
+
+| CRT television | LCD screen |
+|---|---|
+| ![Mexico City at dusk through the CRT filter, with scanlines and rounded tube corners](img/screen-crt.png) | ![Mexico City at dusk through the LCD filter, with a fine grid between the pixels](img/screen-lcd.png) |
 
 ## Keys
 

@@ -246,30 +246,51 @@
         bottom: 14px;
         z-index: 5;
         display: flex;
-        flex-wrap: wrap; /* a second row on narrow phones */
-        justify-content: flex-end;
-        gap: 8px;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
         pointer-events: none; /* taps between the buttons reach the clocks */
       }
-      #controls button {
+      /* one row of buttons; on narrow phones the text shrinks instead of wrapping to a second row */
+      #controls .row {
+        display: flex;
+        justify-content: flex-end;
+        gap: min(8px, 1.2vw);
+        max-width: 100%;
+      }
+      #controls button,
+      #credit a {
         pointer-events: auto;
       }
       #controls button {
         background: #0b0e22cc;
         color: #ffd27a;
         border: 2px solid #ffd27a;
-        font: 560 15px/1 var(--soft-type);
-        padding: 8px 10px;
+        font: 560 clamp(9px, 2.9vw, 15px) / 1 var(--soft-type);
+        padding: 8px min(10px, 1.4vw);
+        white-space: nowrap;
         cursor: pointer;
+      }
+      /* the weather credit Open-Meteo's licence asks for, shown with the buttons */
+      #credit {
+        color: #ffd27a;
+        font: 500 12px var(--soft-type);
+        text-shadow: 0 1px 2px #000;
+      }
+      #credit a {
+        color: inherit;
+      }
+      #controls button,
+      #credit {
         opacity: 0;
         transition: opacity 0.4s;
       }
-      body:not(.idle) #controls button,
+      body:not(.idle) #controls :is(button, #credit),
       #controls button:focus-visible {
         opacity: 1;
       }
       /* hidden buttons ignore taps, so the tap that shows them on a touch screen cannot press one */
-      body.idle #controls button:not(:focus-visible) {
+      body.idle #controls :is(button:not(:focus-visible), #credit a) {
         pointer-events: none;
       }
       #toast {
@@ -463,6 +484,7 @@
       }
       .tabs {
         display: flex;
+        flex-wrap: wrap;
         gap: 6px;
         margin: 0 0 12px;
       }
@@ -499,15 +521,21 @@
     <div id="cols"></div>
     <div class="sweep"></div>
     <div id="controls">
-      <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">
-        ▶︎ MUSIC
-      </button>
-      <button id="next" type="button" title="Next song (N)" hidden>NEXT »</button>
-      <button id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-pressed="false">
-        FULLSCREEN
-      </button>
-      <button id="gear" type="button" title="Settings (S)">⚙ SETTINGS</button>
-      <button id="exit" type="button" title="Close the app" hidden>✕ EXIT</button>
+      <div id="credit">
+        Weather data by
+        <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)
+      </div>
+      <div class="row">
+        <button id="music" type="button" title="Play or pause the music (M)" aria-pressed="false">
+          ▶︎ MUSIC
+        </button>
+        <button id="next" type="button" title="Next song (N)" hidden>NEXT »</button>
+        <button id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-pressed="false">
+          FULLSCREEN
+        </button>
+        <button id="gear" type="button" title="Settings (S)">⚙ SETTINGS</button>
+        <button id="exit" type="button" title="Close the app" hidden>✕ EXIT</button>
+      </div>
     </div>
     <div id="toast" role="status" aria-live="polite"></div>
 
@@ -527,6 +555,54 @@
           <button type="button" role="tab" data-tab="screen" aria-selected="false" title="Screen filters">
             SCREEN
           </button>
+          <button
+            type="button"
+            role="tab"
+            data-tab="license"
+            aria-selected="false"
+            title="Licences and credits"
+          >
+            LICENSE
+          </button>
+        </div>
+        <div data-panel="license" hidden>
+          <fieldset>
+            <legend>Weather and places</legend>
+            <p class="hint atlasHint">
+              Weather data by
+              <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>, under the
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"
+                >Creative Commons Attribution 4.0 licence (CC BY 4.0)</a
+              >. Clockscapes changes the data: it turns the current conditions into the sky, rain, snow and
+              fog of each scene, and shows the temperature and a short description.
+            </p>
+            <p class="hint atlasHint">
+              The FIND button's place search uses the
+              <a href="https://open-meteo.com/en/docs/geocoding-api" target="_blank" rel="noopener"
+                >Open-Meteo geocoding API</a
+              >, which is based on
+              <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a>
+              (CC BY 4.0). The free Open-Meteo API is for non-commercial use, and Clockscapes is free.
+            </p>
+          </fieldset>
+          <fieldset>
+            <legend>The app</legend>
+            <p class="hint atlasHint">
+              Clockscapes is open source under the
+              <a
+                href="https://github.com/utopick/clockscapes/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener"
+                >MIT licence</a
+              >. The clock font is
+              <a href="https://github.com/googlefonts/nunito" target="_blank" rel="noopener">Nunito</a>,
+              copyright 2014 The Nunito Project Authors, under the SIL Open Font License 1.1. The city
+              coordinates are adapted from
+              <a href="https://github.com/katerinaSo/countries_cities_data" target="_blank" rel="noopener"
+                >countries_cities_data</a
+              >. The pictures and the music are made by the app's own code.
+            </p>
+          </fieldset>
         </div>
         <div data-panel="screen" hidden>
           <fieldset>

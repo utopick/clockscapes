@@ -98,4 +98,4 @@ Everything about how it works, how to run it, change it and fix it is in the [ma
 
 - Font: [Nunito](https://github.com/googlefonts/nunito), SIL Open Font License 1.1, embedded in the page.
 - City coordinates adapted from [countries_cities_data](https://github.com/katerinaSo/countries_cities_data).
-- Weather by [Open-Meteo](https://open-meteo.com/).
+- Weather data by [Open-Meteo.com](https://open-meteo.com/), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The place search uses Open-Meteo's geocoding, which is based on [GeoNames](https://www.geonames.org/) (CC BY 4.0). The page shows this credit above its buttons, and the **LICENSE** tab in settings has the details.

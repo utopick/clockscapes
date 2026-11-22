@@ -18,7 +18,7 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 
 ## What it does
 
-- Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms), so people open umbrellas when it rains there. Trees follow the local season, bare in winter, in blossom in spring and orange in autumn.
+- Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. Ferris wheels such as the London Eye turn, and lighthouses sweep their beams at night. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms), so people open umbrellas when it rains there. Trees follow the local season, bare in winter, in blossom in spring and orange in autumn.
 - Every city has the same street, so clocks side by side line up: a sidewalk, a road, a strip of park and a second road, then a railway inland or the water in coastal and river cities. Bigger cities have overhead wires and a station where the trains stop for travellers.
 - How many people and cars a city has depends on its real population, in four levels from few people to super crowded.
 - The streets follow each city's own week. Roads fill up in the weekday rush hours, people stroll at weekends, Friday and Saturday nights get busy with people going out, and the small hours are quiet.
@@ -40,7 +40,7 @@ The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 h
 
 ## Music
 
-Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks one of ten bands, such as a felt piano with a long echo, a jazz trio with vibraphone, a Rhodes with a clean jazz guitar, a Wurlitzer with a kalimba and claps, a marimba over a ticking clock kit, or a music box and someone whistling, and its tunes change a little when a part comes back. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
+Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks one of ten bands, such as a felt piano with a long echo, a jazz trio with vibraphone, a Rhodes with a clean jazz guitar, a Wurlitzer with a kalimba and claps, a marimba over a ticking clock kit, or a music box and someone whistling, and its tunes change a little when a part comes back. Each song grows from a small musical gene, three moves that shape its melody, its chords and how its second part moves away from the first, so the same idea shows at every size, and the seed also picks the tempo, the chord colour and the order of the parts. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
 
 ## Alarms
 

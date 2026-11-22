@@ -866,6 +866,11 @@
        *   its leads, another one plays the solo section) and the bass, which drum kit plays the loop (KITS maps
        *   each drum row to a voice), and how much echo the chords and leads get. The sheet keeps that choice in
        *   band, voices, drums, hits and echo, so the Player only follows the sheet.
+       * Each song grows from a gene of three moves between scale degrees (sheet.motif). The moves walk the
+       *   melody inside a bar, the four chords of a section (sheet.chords), and B away from A (sheet.chordsB
+       *   starts on A's second chord), so the song has the same shape at every size. Each melody bar also
+       *   turns on where the last one ended. A chord colour (COLOURS), the tempo and the order of the
+       *   sections (FORMS) also come from the seed.
        * Melodies: A and B come back as A2 and B2 with their first and third bars kept and a new second bar and
        *   ending, and every song has a four-bar solo. Some songs add a ticking clock (CLICKS) under the drums.
        * To add a band, add a row to BANDS and, if it needs a new sound, write that voice as a Player method
@@ -1015,28 +1020,18 @@
         };
         const MAJOR = [0, 2, 4, 5, 7, 9, 11],
           MINOR = [0, 2, 3, 5, 7, 8, 10];
-        // four-bar loops as scale degrees (0 = I)
-        const PROGS = {
-          major: [
-            [1, 4, 0, 0],
-            [1, 4, 0, 5],
-            [0, 5, 1, 4],
-            [3, 2, 1, 0],
-            [3, 4, 2, 5],
-            [0, 3, 2, 5],
-            [2, 5, 1, 4],
-            [1, 4, 2, 5],
-          ],
-          minor: [
-            [0, 3, 6, 2],
-            [0, 5, 3, 4],
-            [5, 6, 0, 0],
-            [0, 6, 5, 4],
-            [3, 4, 0, 5],
-            [0, 3, 0, 6],
-            [1, 4, 0, 0],
-            [5, 1, 4, 0],
-          ],
+        // The song's gene: three moves between scale degrees (fourths and fifths twice as likely as steps
+        // and thirds). The same three moves walk the melody inside a bar, the chords inside a section, and
+        // the B section away from A, so the song repeats its own shape at every size, like a fractal.
+        const MOVES = [3, -3, 3, -3, 1, -1, 2, -2];
+        const STARTS = [0, 0, 1, 3, 5]; // loops start on I, ii, IV or vi
+        // chord colours, as scale degrees stacked over the chord's root
+        const COLOURS = {
+          ninth: [2, 4, 6, 8], // rootless 3-5-7-9, the classic lo-fi chord
+          seventh: [0, 2, 4, 6],
+          add9: [0, 2, 4, 8],
+          sus: [0, 1, 4, 7], // 1-2-5-8
+          fourths: [0, 3, 6, 9], // stacked fourths
         };
         // melody rhythms for one bar: [step, length in steps]
         const CELLS = [
@@ -1098,6 +1093,44 @@
             [8, 8],
           ],
         ];
+        CELLS.push(
+          [
+            [0, 2],
+            [2, 2],
+            [4, 2],
+            [6, 2],
+            [8, 8],
+          ],
+          [
+            [0, 8],
+            [10, 2],
+            [12, 4],
+          ],
+          [
+            [1, 2],
+            [3, 3],
+            [8, 2],
+            [11, 5],
+          ],
+          [
+            [0, 3],
+            [3, 3],
+            [6, 2],
+            [12, 4],
+          ],
+          [
+            [4, 2],
+            [6, 2],
+            [8, 2],
+            [10, 6],
+          ],
+          [
+            [0, 1],
+            [1, 1],
+            [2, 6],
+            [12, 4],
+          ],
+        );
         const ENDS = [
           [[0, 12]],
           [
@@ -1131,7 +1164,13 @@
           break: "chords bass clicks melA",
           outro: "chords",
         };
-        const MIDDLE = ["A", "B", "groove", "A2", "solo", "B2", "break", "A2", "B2"];
+        // the order of the sections after the intro; each has A2 and a solo in its first five
+        const FORMS = [
+          ["groove", "A", "B", "A2", "solo", "B2", "break", "A2", "B2"],
+          ["A", "A2", "B", "solo", "B2", "break", "A2", "B2", "groove"],
+          ["groove", "A", "B", "solo", "A2", "break", "B2", "A2", "B"],
+          ["A", "B", "solo", "A2", "B2", "groove", "A2", "break", "B2"],
+        ];
         const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
         function rngFrom(seed) {
           let a = seed >>> 0;
@@ -1152,35 +1191,53 @@
             scale = minor ? MINOR : MAJOR,
             key = Math.floor(r() * 12);
           const tone = (k) => key + scale[k % 7] + 12 * Math.floor(k / 7);
-          const bpm = Math.round(82 - 12 * night + r() * 8 - 4);
-          const chords = pick(PROGS[minor ? "minor" : "major"]).map((d) => {
-            // rootless 3-5-7-9 voicings, except where the 9th would clash (a flat 9th): then 1-3-5-7
+          // anywhere from 58 to 95, and the night tilts it slower
+          const bpm = Math.min(95, Math.round(58 + r() * 28 + 12 * (1 - night)));
+          const motif = [pick(MOVES), pick(MOVES), pick(MOVES)],
+            colourName = pick(Object.keys(COLOURS)),
+            colour = COLOURS[colourName];
+          const chordOn = (deg) => {
+            let d = ((deg % 7) + 7) % 7;
+            if (!minor && d === 6) d = 4; // the major key's diminished vii sounds wrong in a loop: V instead
+            // where the 2nd or 9th would clash (a half step over the root), a plain seventh chord instead
             const flat9 = (scale[(d + 1) % 7] - scale[d] + 12) % 12 === 1;
-            const keys = (flat9 ? [0, 2, 4, 6] : [2, 4, 6, 8]).map((k) => 48 + tone(d + k));
+            const keys = (flat9 && (colour.includes(1) || colour.includes(8)) ? COLOURS.seventh : colour).map(
+              (k) => 48 + tone(d + k),
+            );
             const lift = 12 * Math.ceil((52 - Math.min(...keys)) / 12); // lowest note in 52..63
             const pc = tone(d) % 12;
             return { root: pc < 7 ? 36 + pc : 24 + pc, keys: keys.map((n) => n + lift) };
-          });
+          };
+          // a four-bar loop unfolded from a degree: the degree, then the gene's three moves from it
+          const unfold = (deg) =>
+            [0, 1, 2, 3].map((i) => chordOn(deg + motif.slice(0, i).reduce((a, b) => a + b, 0)));
+          const start = pick(STARTS),
+            chords = unfold(start),
+            chordsB = unfold(start + motif[0]); // B starts where A's second chord is
           // melody: a walk on the pentatonic scale that lands on a chord tone at the start of each bar
           const pent = minor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9],
             pool = [];
           for (let n = 67; n <= 86; n++) if (pent.includes((n - key + 120) % 12)) pool.push(n);
           const nearest = (list, n) => list.reduce((b, p) => (Math.abs(p - n) < Math.abs(b - n) ? p : b));
           // keep[bar], when given, is a bar copied as it is (a returning phrase keeps its hook)
-          function phrase(from, cells, keep = []) {
+          function phrase(from, cells, keep = [], ch = chords) {
             let note = from;
             return cells.map((cell, bar) => {
+              // feedback: where the last bar ended turns this one (high goes down, low goes up)
+              const dir = note > 79 ? -1 : note < 73 ? 1 : bar % 2 ? -1 : 1;
               if (keep[bar]) {
                 note = keep[bar].at(-1)[1];
                 return keep[bar];
               }
-              const pcs = chords[bar].keys.concat(chords[bar].root).map((n) => n % 12),
+              const pcs = ch[bar].keys.concat(ch[bar].root).map((n) => n % 12),
                 landing = [];
               for (let n = 67; n <= 86; n++) if (pcs.includes(n % 12)) landing.push(n);
               return cell.map(([step, len], j) => {
                 if (j === 0) note = nearest(landing, note);
                 else {
-                  const i = pool.indexOf(nearest(pool, note)) + pick([-2, -1, -1, 0, 1, 1, 2]);
+                  const m = motif[(j - 1 + bar) % 3], // the gene again, at the size of notes
+                    move = r() < 0.2 ? pick([-1, 0, 1]) : dir * Math.sign(m) * Math.min(2, Math.abs(m)),
+                    i = pool.indexOf(nearest(pool, note)) + move;
                   note = pool[clamp(i, 0, pool.length - 1)];
                 }
                 return [step, note, len];
@@ -1189,16 +1246,16 @@
           }
           const other = (list, not) => pick(list.filter((x) => x !== not)) ?? not,
             busy = CELLS.filter((c) => c.length >= 4);
-          function tune(from) {
+          function tune(from, ch) {
             const c = pick(CELLS),
               end = pick(ENDS),
-              mel = phrase(from, [c, pick(CELLS), c, end]);
+              mel = phrase(from, [c, pick(CELLS), c, end], [], ch);
             // coming back: the same first and third bars, a new second bar and a different ending
-            const again = phrase(from, [c, other(CELLS, c), c, other(ENDS, end)], [mel[0], null, mel[2]]);
+            const again = phrase(from, [c, other(CELLS, c), c, other(ENDS, end)], [mel[0], null, mel[2]], ch);
             return [mel, again];
           }
-          const [melA, melA2] = tune(72),
-            [melB, melB2] = tune(81),
+          const [melA, melA2] = tune(72, chords),
+            [melB, melB2] = tune(81, chordsB),
             solo = phrase(79, [pick(busy), pick(busy), pick(busy), pick(ENDS)]);
           const bandName = pick(Object.keys(BANDS)),
             band = BANDS[bandName],
@@ -1208,8 +1265,9 @@
           const secLen = (4 * 240) / bpm,
             target = 120 + r() * 60;
           const count = clamp(Math.round(target / secLen), Math.ceil(120 / secLen), Math.floor(180 / secLen));
-          const form = ["intro", "groove"];
-          for (let i = 0; form.length < count - 1; i++) form.push(MIDDLE[i % MIDDLE.length]);
+          const middle = pick(FORMS),
+            form = ["intro"];
+          for (let i = 0; form.length < count - 1; i++) form.push(middle[i % middle.length]);
           form.push("outro");
           const swing = 0.1 + r() * 0.12;
           return {
@@ -1226,7 +1284,10 @@
             level: band.level,
             click: band.drums === "clicks" || r() < 0.35 ? pick(CLICKS) : "",
             loop,
+            motif,
+            colour: colourName,
             chords,
+            chordsB,
             melA,
             melB,
             melA2,
@@ -1433,7 +1494,7 @@
             src.start(t, Math.random() * 1.5);
             src.stop(t + long + 0.1);
           }
-          // A piece of filtered noise: the voices' syllables, the wheels' clacks and the train's rumble.
+          // A piece of filtered noise: the wheels' clacks and the train's rumble.
           noise(t, type, freq, q, peak, attack, len, endFreq) {
             const ctx = this.ctx,
               src = ctx.createBufferSource(),
@@ -1452,19 +1513,39 @@
             src.start(t, Math.random() * 1.5);
             src.stop(t + len + 0.05);
           }
-          // People talking nearby: one syllable of a murmur, a short vowel-like band of noise.
+          // Someone talking nearby: a short phrase of syllables, each a low hum (a person's pitch, gliding
+          // a little) through two vowel bands, so it murmurs instead of hissing.
           voice(t) {
-            const f = 380 + Math.random() * 900;
-            this.noise(
-              t,
-              "bandpass",
-              f,
-              4,
-              0.2 + Math.random() * 0.15,
-              0.03,
-              0.12 + Math.random() * 0.25,
-              f * (0.8 + Math.random() * 0.4),
-            );
+            const ctx = this.ctx,
+              pitch = 100 + Math.random() * 120,
+              out = ctx.createGain();
+            out.gain.value = 0.5 + Math.random() * 0.3;
+            out.connect(this.amb);
+            for (let n = 3 + Math.floor(Math.random() * 5), at = t; n > 0; n--) {
+              const len = 0.09 + Math.random() * 0.16,
+                o = ctx.createOscillator(),
+                g = ctx.createGain();
+              o.type = "sawtooth";
+              o.frequency.setValueAtTime(pitch * (0.9 + Math.random() * 0.25), at);
+              o.frequency.linearRampToValueAtTime(pitch * (0.85 + Math.random() * 0.2), at + len);
+              for (const [lo, hi] of [
+                [300, 800],
+                [900, 2000],
+              ]) {
+                const f = ctx.createBiquadFilter();
+                f.type = "bandpass";
+                f.frequency.value = lo + Math.random() * (hi - lo);
+                f.Q.value = 6;
+                o.connect(f).connect(g);
+              }
+              g.gain.setValueAtTime(0, at);
+              g.gain.linearRampToValueAtTime(0.25, at + 0.03);
+              g.gain.linearRampToValueAtTime(0, at + len);
+              g.connect(out);
+              o.start(at);
+              o.stop(at + len + 0.02);
+              at += len + 0.03 + Math.random() * 0.12;
+            }
           }
           // A train going past: a rumble that swells and fades, and the wheels clacking over each rail joint
           // (two bogies a car, ta-tak ... ta-tak), loudest as the middle of the train passes.
@@ -1509,7 +1590,7 @@
                 at = () => t + Math.random() * sd;
               if (Math.random() < 0.035 * this.s.birds) this.chirp(at());
               if (Math.random() < 0.3 * this.s.crickets) this.trill(at());
-              if (Math.random() < 0.8 * this.s.crowd) this.voice(at());
+              if (Math.random() < 0.06 * this.s.crowd) this.voice(at()); // a phrase every few seconds in a busy city
               if (this.s.trains && Math.random() < sd / 75) this.train(at()); // about one every 75 s
               if (Math.random() < 0.5 * this.s.rain) this.drop(at(), 0.02 + Math.random() * 0.03);
               if (this.s.thunder && Math.random() < sd / 25) this.thunder(at(), Math.random() < 0.25);
@@ -1521,7 +1602,9 @@
               sd = this.sd;
             const parts = (SECTIONS[s.form[Math.floor(bar / 4)]] || "").split(" "),
               has = (p) => parts.includes(p),
-              chord = s.chords[bar % 4],
+              chord = (s.chordsB && s.form[Math.floor(bar / 4)]?.startsWith("B") ? s.chordsB : s.chords)[
+                bar % 4
+              ],
               v = s.voices || { chords: "keys", lead: s.lead || "keys", bass: "bass" },
               hits = s.hits || [0, 8],
               human = () => 0.85 + Math.random() * 0.3;
@@ -5917,24 +6000,20 @@
         g.fillStyle = css(e.sh([190, 195, 205]));
         line(g, ecx, ecy, ecx - Math.round(R * 0.55), G);
         line(g, ecx, ecy, ecx - Math.round(R * 0.2), G);
-        g.fillStyle = css(eyeC, 0.45);
-        for (let i = 0; i < 12; i++) {
-          const a = (i / 12) * Math.PI * 2;
-          line(g, ecx, ecy, ecx + Math.cos(a) * R, ecy + Math.sin(a) * R);
-        }
         g.fillStyle = css(eyeC);
         ring(g, ecx, ecy, R);
         g.fillRect(ecx - 1, ecy - 1, 3, 3);
-        g.fillStyle = css(night ? [255, 150, 200] : e.sh([245, 248, 255]));
-        for (let i = 0; i < 16; i++) {
-          const a = (i / 16) * Math.PI * 2;
-          g.fillRect(
-            Math.round(ecx + Math.cos(a) * (R + 1)) - 1,
-            Math.round(ecy + Math.sin(a) * (R + 1)) - 1,
-            2,
-            2,
-          );
-        }
+        // the spokes and the 32 capsules turn, so they are drawn each frame (drawWheels)
+        e.wheels.push({
+          x: ecx,
+          y: ecy,
+          r: R,
+          cr: R + 1,
+          spokes: 12,
+          caps: 16,
+          spoke: css(eyeC, 0.45),
+          cap: css(night ? [255, 150, 200] : e.sh([245, 248, 255])),
+        });
         // Palace of Westminster
         const sand = [208, 186, 136],
           px0 = Math.round(W * 0.02),
@@ -6078,6 +6157,46 @@
         // the bats rise from under the Congress Avenue Bridge (or from the street on a short screen)
         const lake = ground(g, e, true);
         e.batsY = lake < e.H ? bridge(g, e, lake, [176, 170, 156], [96, 92, 86]) : lake;
+      }
+      // Ferris wheels turn once every two minutes (the real London Eye takes thirty, too slow to see).
+      function drawWheels(g, e, t) {
+        const turn = (t / 120000) * Math.PI * 2;
+        for (const w of e.wheels || []) {
+          g.fillStyle = w.spoke;
+          for (let i = 0; i < w.spokes; i++) {
+            const a = turn + (i / w.spokes) * Math.PI * 2;
+            line(g, w.x, w.y, w.x + Math.cos(a) * w.r, w.y + Math.sin(a) * w.r);
+          }
+          g.fillStyle = w.cap;
+          for (let i = 0; i < w.caps; i++) {
+            const a = turn + (i / w.caps) * Math.PI * 2;
+            g.fillRect(
+              Math.round(w.x + Math.cos(a) * w.cr) - 1,
+              Math.round(w.y + Math.sin(a) * w.cr) - 1,
+              2,
+              2,
+            );
+          }
+        }
+      }
+      // A lighthouse at night: its beam sweeps round every 10 s, seen from the side as a ray that swings
+      // out to one side, shrinks to the lamp and swings out to the other, and the lamp flares as it faces us.
+      function drawBeams(g, e, t) {
+        if (!e.beams?.length || e.pal.lit <= 0.2) return;
+        const a = (t / 10000) * Math.PI * 2,
+          reach = Math.cos(a),
+          facing = Math.abs(Math.sin(a));
+        for (const b of e.beams) {
+          const len = Math.round(b.len * Math.abs(reach)),
+            dir = reach < 0 ? -1 : 1;
+          for (let k = 1; k <= len; k++) {
+            const spread = Math.floor((k / b.len) * 3); // the ray widens as it goes
+            g.fillStyle = `rgba(255,236,170,${(0.5 * (1 - k / (len + 1))).toFixed(2)})`;
+            g.fillRect(b.x + dir * k, b.y - spread, 1, 1 + 2 * spread);
+          }
+          g.fillStyle = `rgba(255,244,200,${(0.5 + 0.5 * facing).toFixed(2)})`;
+          g.fillRect(b.x - 1, b.y - 1, 3, 3);
+        }
       }
       function animAustin(g, e, t) {
         // Congress Avenue bats around dusk
@@ -6238,393 +6357,1080 @@
       // 10 red, 11 glass, 12 deep gold, 13 pale stone, 14 rose.
       // prettier-ignore
       const CITY_LANDMARKS = {
+  "a-coruna-es": [["Tower of Hercules","belfry",{w:9,h:28,lan:5,top:"dome",c:13,t:13}]],
+  "aalborg-dk": [["Budolfi Cathedral","church",{w:17,nh:11,h:26,tw:5,top:"baroque",c:6,t:8}]],
   "abidjan-ci": [["St Paul’s Cathedral","church",{w:19,nh:8,h:34,tw:5,top:"needle",c:6,t:6}],["La Pyramide","pyramid",{w:11,h:22,steps:4,c:13,s:8}]],
+  "abomey-bj": [["Royal Palaces of Abomey","palace",{w:29,nh:7,top:"flat",c:1,rc:0}]],
   "abu-dhabi-ae": [["Sheikh Zayed Grand Mosque","zayed"],["Etihad Towers","sky",{n:3,w:7,gap:2,h:[36,44,32],top:"dome",c:11,t:6,rc:11}]],
   "abuja-ng": [["Abuja National Mosque","mosque",{w:21,r:7,dc:12,m:4,mh:30,c:6}],["National Christian Centre","church",{w:19,nh:12,h:34,tw:7,top:"spire",c:6,t:7}]],
   "accra-gh": [["Black Star Gate","arch",{w:23,h:16,ow:5,oh:12,top:"attic",c:6,t:2}],["Jamestown Lighthouse","light",{h:28,w:3,b:10,c:6}]],
   "adamstown-pn": [["Adamstown church","church",{w:15,nh:7,h:14,tw:5,top:"pyr",c:6,t:10}],["Adamstown courthouse","palace",{w:17,nh:7,top:"flat",c:6,rc:10}]],
+  "adana-tr": [["Sabancı Central Mosque","mosque",{w:25,r:8,sd:4,dc:8,m:6,mh:34,c:6}]],
   "addis-ababa-et": [["Holy Trinity Cathedral","cathedral",{w:23,nh:14,h:22,top:"dome",r:5,dh:20,dc:8,c:13,t:8}],["Tiglachin Monument","column",{h:36,s:2,taper:0.5,pw:5,ph:5,top:"star",c:13}]],
   "adelaide-au": [["Adelaide Oval","stadium",{w:31,h:10,c:6,t:8,rc:6,lights:1}],["Adelaide Town Hall","belfry",{w:7,h:30,clock:1,top:"spire",c:13,t:8,sp:6}]],
+  "aden-ye": [["Big Ben of Aden","belfry",{w:7,h:26,clock:1,top:"pyr",c:13}],["Sira Fortress","castle",{w:21,wh:9,n:2,th:13,tw:5,kh:18,kw:7,top:"crenel",c:0}]],
+  "afyonkarahisar-tr": [["Afyonkarahisar Castle","castle",{w:27,wh:10,n:3,th:14,tw:5,top:"crenel",c:8}]],
+  "agadez-ne": [["Agadez Grand Mosque minaret","mud",{w:15,wh:7,n:1,th:46,tw:9,taper:0.6,c:0}]],
+  "agadir-ma": [["Agadir Oufella","castle",{w:31,wh:8,n:3,th:10,tw:5,top:"crenel",c:0}]],
+  "agartala-in": [["Ujjayanta Palace","palace",{w:33,nh:11,r:5,dd:4,dc:6,wings:"pyr",c:6,t:6}]],
+  "aghdam-az": [["Aghdam Mosque","mosque",{w:17,nh:10,r:4,dc:1,m:2,mh:24,c:1,t:13}]],
   "agra-in": [["Taj Mahal","taj"],["Agra Fort","castle",{w:25,wh:12,n:3,th:15,tw:5,top:"dome",c:1,t:6}]],
+  "agrigento-it": [["Temple of Concordia","column",{n:6,h:12,s:1,pw:2,ph:3,top:"none",c:0}]],
   "ahmedabad-in": [["Jhulta Minar (Shaking Minarets)","mosque",{w:15,nh:12,r:0,m:2,mh:30,c:0,dc:0}],["Narendra Modi Stadium","stadium",{w:35,h:12,c:6,t:8,rc:6,lights:1}]],
+  "ahvaz-ir": [["White Bridge","span",{type:"suspension",w:22,h:22,dh:6,c:6}]],
+  "ajloun-jo": [["Ajloun Castle","castle",{w:27,wh:11,n:3,th:16,tw:5,kh:19,kw:9,top:"crenel",c:0}]],
+  "ajman-ae": [["Ajman Fort","castle",{w:23,wh:10,n:2,th:15,tw:5,top:"crenel",c:0}]],
+  "akhaltsikhe-ge": [["Rabati Castle","castle",{w:29,wh:10,n:3,th:14,tw:5,top:"crenel",c:0}],["Ahmadiyya Mosque","mosque",{w:13,nh:8,r:4,dc:12,m:1,mh:22,c:0}]],
+  "al-daayen-qa": [["Lusail Stadium","stadium",{w:33,h:12,c:12,t:3,rc:12}]],
+  "al-jahra-kw": [["Red Fort","castle",{w:29,wh:9,n:3,th:12,tw:5,top:"crenel",c:1}]],
+  "al-khums-ly": [["Arch of Septimius Severus","arch",{w:17,h:16,ow:4,oh:10,top:"attic",c:0}],["Leptis Magna basilica","column",{h:16,s:1,n:5,pw:2,ph:3,top:"none",c:0}]],
+  "alba-iulia-ro": [["Third Gate of Alba Carolina","arch",{w:21,h:20,ow:3,top:"attic",c:13,t:13}]],
+  "albany-us": [["Erastus Corning Tower","sky",{w:9,h:44,c:6,t:8}],["New York State Capitol","palace",{w:29,nh:12,top:"flat",wings:"pyr",c:13,t:2}]],
+  "albi-fr": [["Albi Cathedral","church",{w:31,nh:18,h:40,tw:9,tx:-10,top:"crenel",c:1,t:1}]],
+  "aleppo-sy": [["Citadel of Aleppo","castle",{w:35,wh:14,n:3,th:18,tw:7,top:"crenel",c:13}],["Bab al-Faraj Clock Tower","belfry",{w:7,h:26,clock:1,top:"pyr",c:13}]],
   "alexandria-eg": [["Citadel of Qaitbay","castle",{w:31,wh:8,n:2,th:12,tw:5,top:"crenel",kh:18,kw:11,ktop:"crenel",c:13}],["Pompey’s Pillar","column",{h:34,s:2,pw:5,ph:6,top:"none",c:5}]],
   "algiers-dz": [["Maqam Echahid","sky",{n:3,w:3,gap:0,h:[38,44,38],top:"point",ph:5,c:6}],["Djamaa el Djazaïr","mosque",{w:23,r:6,dc:6,m:1,sq:1,mh:52,c:6}]],
+  "alicante-es": [["Santa Bárbara Castle","castle",{w:31,wh:10,n:3,th:13,tw:5,top:"crenel",c:0}]],
   "almaty-kz": [["Almaty TV Tower","lattice",{h:44,w:9,band:6,c:10,t:6}],["Ascension Cathedral","onion",{w:17,r:4,n:4,mc:[9,12],c:13}]],
+  "almeria-es": [["Alcazaba of Almería","castle",{w:35,wh:10,n:4,th:14,tw:5,top:"crenel",kh:18,kw:7,c:0}]],
   "alofi-nu": [["Ekalesia church in Alofi","church",{w:15,nh:7,h:16,tw:5,top:"pyr",c:6,t:10}],["Niue Assembly building","palace",{w:19,nh:7,top:"flat",c:6,rc:9}]],
+  "alor-setar-my": [["Alor Setar Tower","tower",{h:40,s:1,pod:32,pw:5,ant:8,c:6,t:11}],["Zahir Mosque","mosque",{w:23,r:5,sd:3,dc:2,m:4,mh:26,c:6}]],
+  "amasya-tr": [["Tombs of the Kings of Pontus","rock",{w:36,h:28,niches:3,c:0}]],
+  "ambon-id": [["Merah Putih Bridge","span",{type:"cable",n:2,w:18,h:24,dh:8,c:6,t:10}]],
+  "amiens-fr": [["Amiens Cathedral","cathedral",{w:25,nh:16,h:32,tw:5,top:"flat",rose:1,c:13,t:13}]],
   "amman-jo": [["Roman Theatre","stadium",{w:29,h:12,c:13,t:0,rc:13}],["Temple of Hercules","column",{n:2,h:24,s:1,pw:2,ph:3,top:"none",c:13}]],
+  "amritsar-in": [["Golden Temple","palace",{w:21,nh:10,r:5,dd:2,dc:3,wings:"pyr",c:3,t:3,rc:3}]],
   "amsterdam-nl": [["Amsterdam canal houses","canal"],["Westerkerk","church",{w:17,nh:12,h:36,tw:5,tx:-5,top:"baroque",c:1,t:7}]],
   "anchorage-us": [["ConocoPhillips Building","sky",{w:9,h:30,c:8,t:11}],["Captain Cook statue","statue",{h:14,ph:8,pw:4,c:4}]],
   "andorra-la-vella-ad": [["Casa de la Vall","castle",{w:19,wh:12,n:1,th:16,tw:5,top:"pyr",c:13,t:1}],["Sant Esteve church","belfry",{w:7,h:20,top:"pyr",c:13,t:8}]],
+  "andria-it": [["Castel del Monte","castle",{w:29,wh:14,n:4,th:15,tw:5,top:"flat",c:0}]],
+  "angers-fr": [["Château d’Angers","castle",{w:35,wh:14,n:5,th:18,tw:5,top:"crenel",c:8,t:8}]],
   "ankara-tr": [["Anıtkabir","palace",{w:31,nh:12,top:"flat",cols:11,c:13}],["Kocatepe Mosque","mosque",{w:21,r:7,sd:3,dc:8,m:4,mh:34,c:6}]],
+  "annaba-dz": [["Basilica of St Augustine","cathedral",{w:23,nh:12,h:22,top:"dome",r:5,dh:22,dc:13,c:6,t:13}]],
+  "annapolis-us": [["Maryland State House","palace",{w:21,nh:10,top:"tower",th:30,tw:7,cap:"dome",c:1,t:6}]],
+  "antalya-tr": [["Yivli Minaret","column",{h:34,s:2,pw:4,ph:8,top:"point",c:1}],["Hadrian’s Gate","arch",{n:3,w:25,h:16,ow:3,oh:11,top:"attic",c:6}]],
   "antananarivo-mg": [["Rova of Antananarivo","castle",{w:21,wh:16,n:2,th:20,tw:5,top:"pyr",kh:18,kw:13,ktop:"pyr",c:1,t:2}],["Andohalo Cathedral","cathedral",{w:21,nh:13,h:24,top:"spire",c:13,t:8}]],
   "antwerp-be": [["Cathedral of Our Lady","church",{w:21,nh:13,h:44,tw:7,tx:-5,top:"gothic",c:13,t:13}],["Antwerp Central Station","palace",{w:23,nh:11,r:6,dc:4,c:13,wings:"pyr",rc:4}]],
+  "anuradhapura-lk": [["Ruwanwelisaya","stupa",{w:29,h:36,shape:"dome",c:6,t:12}],["Jetavanaramaya","stupa",{w:27,h:30,shape:"dome",c:1,t:1}]],
+  "aomori-jp": [["A-Factory ASPAM","pyramid",{w:15,h:30,glass:1,c:11,s:8,t:6}],["Aomori Bay Bridge","span",{type:"cable",w:18,h:22,dh:8,c:6}]],
+  "aosta-it": [["Arch of Augustus","arch",{w:19,h:18,ow:5,top:"attic",c:13,t:8}]],
   "apia-ws": [["Immaculate Conception Cathedral","cathedral",{w:21,nh:12,h:22,top:"pyr",c:6,t:6}],["Fale Fono (Parliament)","fale",{w:23,h:5,c:6,t:6}]],
+  "aqaba-jo": [["Aqaba Fort","castle",{w:21,wh:10,n:2,th:14,tw:5,top:"crenel",c:0}]],
+  "arequipa-pe": [["Basilica Cathedral of Arequipa","cathedral",{w:31,nh:12,h:26,top:"bulb",c:6,t:6}]],
+  "arica-cl": [["Cathedral of San Marcos","church",{w:15,nh:9,h:24,tw:5,top:"spire",sp:10,c:6,t:6}]],
+  "arnhem-nl": [["John Frost Bridge","span",{type:"arch",w:16,h:16,dh:8,c:8}],["Eusebius Church","church",{w:21,nh:14,h:40,tw:7,tx:-6,top:"pyr",c:13,t:8}]],
+  "arras-fr": [["Belfry of Arras","belfry",{w:7,h:38,lan:6,top:"bulb",c:13,t:12}]],
+  "arusha-tz": [["Arusha Clock Tower","belfry",{w:5,h:14,clock:1,top:"pyr",c:6,t:6}]],
   "ashgabat-tm": [["Independence Monument","column",{h:40,s:1,pw:9,ph:8,top:"ball",r:2,c:6,t:12,pc:6}],["Türkmenbaşy Ruhy Mosque","mosque",{w:23,r:7,dc:12,m:4,mh:30,c:6}]],
   "asmara-er": [["Cathedral of Asmara","church",{w:19,nh:12,h:40,tw:5,tx:6,top:"spire",c:1,t:1}],["Great Mosque of Asmara","mosque",{w:17,r:4,dc:6,m:1,mh:30,c:6}]],
   "astana-kz": [["Bayterek","tower",{h:30,s:1,pod:35,pw:5,ball:1,bc:12,ant:2,legs:12,c:6}],["Palace of Peace and Reconciliation","pyramid",{w:13,h:20,glass:1,c:13,s:8,t:11}]],
+  "astrakhan-ru": [["Astrakhan Kremlin","castle",{w:33,wh:10,n:3,th:16,tw:5,top:"cone",c:6,t:9}]],
   "asuncion-py": [["Palacio de López","palace",{w:29,nh:10,top:"tower",th:22,tw:5,cap:"dome",c:6,t:6}],["Panteón Nacional de los Héroes","palace",{w:13,nh:10,r:5,dd:3,cols:3,c:6,dc:6}]],
+  "aswan-eg": [["Temple of Philae","pylon",{w:33,h:18,gw:7,c:13}]],
   "atafu-tk": [["Village church","church",{w:15,nh:7,h:14,tw:5,top:"pyr",c:6,t:10}],["Fale fono (meeting house)","fale",{w:19,h:4,c:13,t:13}]],
   "athens-gr": [["Parthenon","parthenon"],["Panathenaic Stadium","stadium",{w:21,h:8,c:6,t:13,rc:6}]],
   "atlanta-us": [["Bank of America Plaza","sky",{w:9,h:40,top:"pyramid",ph:7,sp:6,rc:12,c:13,t:2}],["Georgia State Capitol","palace",{w:25,nh:10,r:5,dc:12,cols:4,c:13}]],
   "auckland-nz": [["Sky Tower","sky-tower"],["Auckland Harbour Bridge","span",{type:"truss",w:18,h:14,dh:9,c:8}]],
+  "augusta-us": [["Maine State House","palace",{w:27,nh:10,r:4,dd:6,dc:4,cols:3,c:6}]],
+  "aurangabad-in": [["Bibi Ka Maqbara","mosque",{w:17,nh:14,r:6,dd:3,dc:6,m:4,mh:30,c:6}]],
   "avarua-ck": [["Cook Islands Christian Church","church",{w:15,nh:8,h:16,tw:5,top:"pyr",c:6,t:10}],["Avarua courthouse","palace",{w:17,nh:7,top:"flat",c:6,rc:10}]],
+  "avignon-fr": [["Palais des Papes","castle",{w:35,wh:20,n:4,th:28,tw:7,top:"crenel",c:13,t:13}]],
+  "avila-es": [["Walls of Ávila","castle",{w:35,wh:12,n:6,th:15,tw:5,top:"crenel",c:13}]],
+  "ayutthaya-th": [["Wat Chaiwatthanaram","stupa",{w:21,h:36,shape:"prang",c:1,t:2}],["Wat Phra Si Sanphet","stupa",{w:17,h:32,c:13,t:0}]],
+  "baalbek-lb": [["Temple of Jupiter","column",{n:6,h:30,s:1,pw:2,ph:4,top:"none",c:0}]],
+  "badajoz-es": [["Alcazaba of Badajoz","castle",{w:27,wh:10,n:2,th:13,tw:5,top:"crenel",kh:20,kw:7,c:0}]],
   "baghdad-iq": [["Baghdad Tower","tower",{h:42,s:1,pod:36,pw:6,ant:8,c:13,t:11}],["Al-Kadhimiya Mosque","mosque",{w:19,r:5,dc:12,m:4,mh:28,c:7,t:12}]],
+  "bago-mm": [["Shwethalyaung Buddha","statue",{h:36,ph:4,pw:20,pose:"recline",c:12,t:3}],["Shwemawdaw Pagoda","stupa",{w:25,h:46,c:12,t:3}]],
+  "baguio-ph": [["Baguio Cathedral","cathedral",{w:21,nh:12,h:26,top:"pyr",c:14,t:10}]],
+  "baikonur-kz": [["Soyuz rocket monument","column",{h:36,s:2,pw:3,ph:4,top:"point",c:6}]],
   "baku-az": [["Flame Towers","sky",{n:3,w:7,gap:1,h:[28,36,28],taper:0.3,top:"point",ph:8,c:11,t:11}],["Maiden Tower","belfry",{w:9,h:22,top:"flat",c:13}]],
   "bamako-ml": [["Grand Mosque of Bamako","mosque",{w:21,r:5,dc:9,m:2,mh:28,c:0}],["BCEAO Tower","sky",{w:9,h:30,top:"pyramid",c:0,t:5}]],
+  "bamyan-af": [["Buddhas of Bamyan niches","rock",{w:40,h:30,niches:2,c:0}]],
+  "banda-aceh-id": [["Baiturrahman Grand Mosque","mosque",{w:25,r:6,sd:3,dc:2,m:2,mh:30,c:6}]],
   "bandar-seri-begawan-bn": [["Omar Ali Saifuddien Mosque","mosque",{w:21,r:7,dc:12,m:1,mh:34,c:6}],["Istana Nurul Iman","palace",{w:29,nh:8,r:5,dc:12,c:6}]],
   "bandung-id": [["Gedung Sate","palace",{w:27,nh:9,top:"tower",th:17,tw:5,cap:"pyr",c:6,t:2}],["Pasupati Bridge","span",{type:"cable",w:16,h:22,dh:8,c:6}]],
   "bangkok-th": [["Wat Arun","stupa",{w:21,h:44,shape:"prang",c:13,t:7}],["Grand Palace","tiers",{n:3,w:19,dw:4,th:6,base:4,rc:5,c:6,fin:8}]],
   "bangui-cf": [["Notre-Dame of Bangui Cathedral","church",{w:17,nh:10,h:26,tw:5,top:"pyr",c:1,t:1}],["Bokassa Arc de Triomphe","arch",{w:19,h:16,ow:4,c:6,t:13}]],
+  "banja-luka-ba": [["Ferhadija Mosque","mosque",{w:15,nh:9,r:5,m:1,mh:32,c:13,dc:8}]],
   "banjul-gm": [["Arch 22","arch",{w:21,h:24,ow:5,oh:18,top:"attic",c:6,t:13}],["King Fahad Mosque","mosque",{w:19,r:5,dc:6,m:2,mh:28,c:6}]],
+  "banska-bystrica-sk": [["Clock Tower","belfry",{w:7,h:30,clock:1,lan:4,top:"bulb",c:6,t:2}]],
   "barcelona-es": [["Sagrada Família","sagrada"],["Torre Glòries","sky",{w:11,h:34,top:"dome",c:11,t:10,rc:11}]],
+  "bari-it": [["Basilica of San Nicola","cathedral",{w:23,nh:14,h:22,tw:5,top:"pyr",c:6,t:6}],["Castello Svevo","castle",{w:27,wh:10,n:3,th:13,tw:5,top:"crenel",c:13}]],
+  "barquisimeto-ve": [["Obelisco de Barquisimeto","column",{h:44,s:2,taper:0.4,pw:4,ph:4,top:"point",c:6}]],
+  "basel-ch": [["Basel Minster","cathedral",{w:21,nh:14,h:36,tw:5,top:"gothic",c:14,t:14}]],
   "basseterre-kn": [["Berkeley Memorial clock","belfry",{w:5,h:14,clock:1,top:"pyr",c:9,t:9}],["St George’s Anglican Church","church",{w:17,nh:9,h:24,tw:7,top:"crenel",c:13,t:1}]],
+  "batam-id": [["Barelang Bridge","span",{type:"cable",n:2,w:18,h:24,dh:8,c:6}]],
+  "baton-rouge-us": [["Louisiana State Capitol","sky",{w:11,h:40,top:"steps",sp:3,c:13,t:13}],["Old Louisiana State Capitol","castle",{w:23,wh:12,n:2,th:16,tw:5,top:"crenel",c:6}]],
+  "batumi-ge": [["Alphabetic Tower","tower",{h:40,s:1,pod:38,pw:4,ball:1,bc:6,ant:3,c:8,t:8}],["Batumi Ferris wheel","wheel",{r:12,c:6,t:10}]],
   "beijing-cn": [["Temple of Heaven","temple-heaven"],["Tiananmen","tiers",{n:2,w:21,dw:4,th:6,base:8,gate:1,bc:10,rc:12,c:10}]],
   "beirut-lb": [["Mohammad Al-Amin Mosque","mosque",{w:21,r:6,dc:7,m:4,mh:30,c:12}],["St George Maronite Cathedral","church",{w:17,nh:12,h:26,tw:5,tx:7,top:"pyr",c:13,t:13}]],
+  "beja-pt": [["Beja Castle keep","castle",{w:23,wh:10,n:2,th:12,tw:5,top:"crenel",kh:26,kw:7,c:6}]],
+  "belem-br": [["Theatro da Paz","palace",{w:29,nh:11,top:"flat",cols:5,wings:1,c:6}]],
+  "belfast-gb": [["Samson and Goliath","crane",{n:2,w:18,h:34,c:12,t:2}],["Belfast City Hall","palace",{w:35,nh:12,r:6,dd:6,dc:4,c:13,t:4,wings:"pyr",rc:4}]],
   "belgrade-rs": [["Church of Saint Sava","mosque",{w:23,nh:14,r:8,dd:4,sd:4,dc:9,m:0,c:6}],["Victor Monument","column",{h:30,s:1,pw:3,ph:8,top:"statue",c:13,t:4}]],
+  "bellinzona-ch": [["Castelgrande","castle",{w:35,wh:12,n:2,th:24,tw:7,top:"crenel",c:13,t:13}]],
   "belmopan-bz": [["National Assembly building","pyramid",{w:13,h:14,steps:3,c:13,s:8}],["George Price Centre","palace",{w:17,nh:6,top:"flat",c:6,rc:10}]],
   "belo-horizonte-br": [["Church of Saint Francis of Assisi (Pampulha)","fale",{w:21,h:2,rh:9,c:6,t:6}],["Mineirão","stadium",{w:31,h:10,c:13,t:8,rc:6}]],
+  "bender-md": [["Bender Fortress","castle",{w:31,wh:10,n:3,th:16,tw:5,top:"cone",c:13,t:1}]],
+  "benevento-it": [["Arch of Trajan","arch",{w:17,h:22,ow:4,top:"attic",c:6,t:6}]],
   "bengaluru-in": [["Vidhana Soudha","palace",{w:31,nh:12,r:5,dc:13,cols:5,c:13}],["Bangalore Palace","castle",{w:21,wh:12,n:3,th:18,tw:5,top:"cone",c:13,t:2}]],
+  "bengkulu-id": [["Fort Marlborough","castle",{w:29,wh:10,n:2,th:12,tw:7,top:"crenel",c:6}]],
+  "berat-al": [["Berat Castle","castle",{w:31,wh:10,n:4,th:15,tw:5,top:"crenel",c:13}]],
+  "bergamo-it": [["Campanone","belfry",{w:7,h:36,lan:4,top:"dome",c:13,t:13}],["Bergamo Cathedral","palace",{w:21,nh:12,top:"dome",r:6,c:13,t:4}]],
+  "bergen-no": [["Bryggen","canal"]],
   "berlin-de": [["Brandenburg Gate","gate"],["Fernsehturm","tower",{h:42,s:1,pod:32,pw:5,ball:1,bc:8,ant:14,ac:10,c:6}]],
   "bern-ch": [["Zytglogge","belfry",{w:9,h:26,clock:1,top:"pyr",c:13,t:1}],["Bern Minster","church",{w:21,nh:13,h:42,tw:7,top:"gothic",c:13,t:13}]],
+  "besancon-fr": [["Citadel of Besançon","castle",{w:35,wh:12,n:2,th:14,tw:5,top:"crenel",c:13,t:13}]],
+  "bhopal-in": [["Taj-ul-Masajid","mosque",{w:25,r:6,sd:3,dc:6,m:2,mh:34,c:14}]],
+  "bhubaneswar-in": [["Lingaraj Temple","stupa",{w:17,h:36,shape:"prang",c:0,t:2}]],
+  "bialystok-pl": [["Branicki Palace","palace",{w:33,nh:12,top:"flat",wings:1,cols:3,c:6}]],
   "bilbao-es": [["Guggenheim Museum Bilbao","sail",{h:20,w:16,c:8,t:13}],["Iberdrola Tower","sky",{w:9,h:42,c:11,t:6,taper:0.15}]],
   "birmingham-gb": [["Old Joe (Chamberlain Tower)","belfry",{w:5,h:38,clock:1,top:"spire",c:1,t:1,sp:6}],["BT Tower","tower",{h:40,s:2,pod:34,pw:4,ant:6,c:13,t:8}]],
   "bishkek-kg": [["White House","palace",{w:29,nh:14,top:"flat",c:6}],["Erkindik statue","column",{h:26,s:1,pw:4,ph:6,top:"angel",c:13,t:8}]],
+  "bismarck-us": [["North Dakota State Capitol","sky",{w:11,h:36,c:13,t:2}]],
   "bissau-gw": [["Bissau Cathedral","church",{w:17,nh:12,h:26,tw:5,top:"pyr",c:6,t:6}],["Presidential Palace","palace",{w:23,nh:10,top:"flat",cols:4,c:6}]],
+  "bistrita-ro": [["Evangelical Church","church",{w:23,nh:15,h:44,tw:7,top:"gothic",c:13,t:1}]],
+  "bitola-mk": [["Bitola Clock Tower","belfry",{w:7,h:32,clock:1,lan:4,top:"pyr",c:13,t:8}]],
+  "blantyre-mw": [["St Michael and All Angels Church","cathedral",{w:23,nh:12,h:24,tw:5,top:"dome",r:5,dh:20,dc:1,c:1,t:1}]],
   "bloemfontein-za": [["Fourth Raadsaal","palace",{w:25,nh:10,top:"tower",th:22,tw:5,cap:"dome",c:1,t:4}],["National Women’s Monument","column",{h:30,s:2,taper:0.5,pw:5,ph:8,top:"point",c:13}]],
+  "bobo-dioulasso-bf": [["Grand Mosque of Bobo-Dioulasso","mud",{w:29,wh:10,n:2,th:24,tw:5,c:6,t:0}]],
+  "bogor-id": [["Bogor Palace","palace",{w:31,nh:10,r:4,dd:3,dc:6,cols:4,c:6}]],
   "bogota-co": [["Torre Colpatria","colpatria"],["Catedral Primada","cathedral",{w:21,nh:14,h:24,top:"dome",c:13,t:8}]],
+  "boise-us": [["Idaho State Capitol","palace",{w:29,nh:10,r:5,dd:5,dc:6,cols:4,c:13}]],
+  "bologna-it": [["Asinelli Tower","belfry",{w:5,h:52,top:"crenel",c:1}],["Garisenda Tower","belfry",{w:5,h:26,top:"crenel",c:1}]],
+  "bordeaux-fr": [["Place de la Bourse","palace",{w:35,nh:12,top:"flat",c:13,rc:2}],["Grosse Cloche","arch",{w:17,h:16,top:"towers",tc:"cone",c:13,t:2}]],
   "boston-us": [["Old North Church","church",{w:13,nh:10,h:30,tw:5,top:"needle",c:1,t:6}],["Bunker Hill Monument","column",{h:36,s:2,taper:0.3,pw:4,ph:3,top:"point",c:13}]],
+  "bourges-fr": [["Bourges Cathedral","cathedral",{w:25,nh:16,h:32,tw:5,top:"flat",rose:1,c:13,t:13}]],
+  "braga-pt": [["Bom Jesus do Monte","cathedral",{w:23,nh:14,h:28,tw:5,top:"baroque",sp:4,c:6,t:13}]],
+  "braganca-pt": [["Bragança Castle","castle",{w:27,wh:10,n:2,th:13,tw:5,top:"crenel",kh:24,kw:9,c:13}]],
   "brasilia-br": [["Cathedral of Brasília","brasilia"],["National Congress","sky",{n:2,w:5,gap:1,h:32,link:24,c:6,t:2}]],
+  "brasov-ro": [["Black Church","church",{w:25,nh:16,h:34,tw:7,tx:-8,top:"pyr",c:8,t:2}]],
   "bratislava-sk": [["Bratislava Castle","castle",{w:23,wh:14,n:2,th:20,tw:5,top:"pyr",c:6,t:5}],["Most SNP (UFO Bridge)","tower",{h:24,s:0,pod:24,pw:7,legs:20,ant:3,c:8,t:11}]],
   "brazzaville-cg": [["Basilica Sainte-Anne","church",{w:19,nh:10,h:32,tw:5,top:"spire",c:1,t:9,rc:9}],["Nabemba Tower","sky",{w:9,h:38,c:11,t:6}]],
+  "bregenz-at": [["Martinsturm","belfry",{w:9,h:18,top:"bulb",c:13,t:4}]],
+  "bremen-de": [["St. Peter’s Cathedral","cathedral",{w:21,nh:13,h:40,tw:5,top:"spire",c:13,t:4}],["Bremen Roland","statue",{h:18,pose:"sword",ph:6,pw:3,c:13}]],
+  "brest-by": [["Brest Fortress Bayonet","column",{h:52,s:2,taper:0.7,pw:4,ph:3,top:"point",c:8}]],
   "bridgetown-bb": [["Parliament Buildings","palace",{w:23,nh:10,top:"tower",th:24,tw:5,cap:"gothic",c:13,t:5}],["St Michael’s Cathedral","church",{w:17,nh:9,h:22,tw:5,top:"crenel",c:13,t:1}]],
   "brisbane-au": [["Story Bridge","span",{type:"truss",w:18,h:18,dh:9,c:8}],["Wheel of Brisbane","wheel",{r:13,c:6,t:3}]],
+  "brno-cz": [["Cathedral of St. Peter and Paul","cathedral",{w:19,nh:14,h:30,top:"needle",sp:20,c:13,t:2}],["Špilberk Castle","castle",{w:31,wh:10,n:2,th:13,tw:5,top:"crenel",kh:18,kw:5,ktop:"pyr",c:6,t:1}]],
   "brussels-be": [["Atomium","sphere",{r:14,atom:1,c:6}],["Brussels Town Hall","belfry",{w:7,h:30,top:"gothic",c:13,t:13,sp:16}]],
   "bucharest-ro": [["Palace of the Parliament","palace",{w:33,nh:14,top:"tower",th:22,tw:9,cap:"flat",cols:5,c:6,t:6}],["Arcul de Triumf","arch",{w:19,h:20,ow:4,top:"attic",c:13,t:13}]],
   "budapest-hu": [["Hungarian Parliament","parliament"],["Széchenyi Chain Bridge","span",{type:"stone",w:18,h:22,dh:7,c:8,tc:13}]],
+  "budva-me": [["Budva Citadel","castle",{w:27,wh:12,n:2,th:15,tw:5,top:"crenel",c:0}]],
   "buenos-aires-ar": [["Obelisco","obelisk"],["Casa Rosada","palace",{w:27,nh:11,top:"flat",cols:4,wings:1,c:14}]],
+  "bukhara-uz": [["Kalyan Minaret","column",{h:42,s:3,taper:0.3,pw:4,ph:4,top:"ball",r:2,c:0,t:0}],["Ark of Bukhara","castle",{w:33,wh:13,n:3,th:15,tw:5,top:"crenel",c:0}]],
+  "burgos-es": [["Burgos Cathedral","cathedral",{w:23,nh:16,h:34,tw:5,top:"spire",sp:16,c:6,t:6,rose:1}],["Arch of Santa María","arch",{w:21,h:22,ow:3,top:"towers",tc:"cone",c:13,t:13}]],
+  "bursa-tr": [["Bursa Grand Mosque","mosque",{w:31,nh:10,r:4,sd:3,dc:8,m:2,mh:28,c:13}],["Green Tomb","mosque",{w:13,nh:12,r:5,dd:2,dc:4,m:0,c:4}]],
   "busan-kr": [["Gwangan Bridge","span",{type:"suspension",w:20,h:22,dh:8,c:6}],["Busan Tower","tower",{h:30,s:1,pod:26,pw:4,ant:4,c:6,t:11}]],
+  "caceres-es": [["Bujaco Tower","castle",{w:25,wh:10,n:2,th:13,tw:5,top:"crenel",kh:20,kw:7,c:0}],["Co-cathedral of Santa María","church",{w:19,nh:12,h:30,tw:5,tx:6,top:"pyr",c:0,t:0}]],
+  "cadiz-es": [["Cádiz Cathedral","cathedral",{w:25,nh:14,h:30,tw:5,top:"dome",r:6,dh:24,dc:12,c:13,t:13}]],
+  "caen-fr": [["Abbaye aux Hommes","cathedral",{w:21,nh:13,h:36,tw:5,top:"needle",c:13,t:13}]],
+  "cagliari-it": [["Bastion of Saint Remy","arch",{w:27,h:20,ow:4,oh:15,n:3,top:"attic",c:6,t:6}],["Elephant Tower","belfry",{w:7,h:22,top:"crenel",c:13}]],
+  "cahors-fr": [["Pont Valentré","castle",{w:35,wh:8,n:3,th:22,tw:5,top:"pyr",c:13,t:2}]],
   "cairo-eg": [["Giza pyramids","pyramids"],["Cairo Tower","tower",{h:42,s:2,pod:38,pw:4,ant:2,c:6,t:9}]],
   "calgary-ca": [["Calgary Tower","tower",{h:36,s:2,pod:34,pw:5,ant:6,c:13,t:10}],["Scotiabank Saddledome","stadium",{w:27,h:10,c:13,t:8,rc:8}]],
   "cali-co": [["Cristo Rey","statue",{h:22,ph:8,pw:4,pose:"out",c:6}],["La Ermita church","church",{w:15,nh:10,h:30,tw:5,top:"gothic",c:6,t:6}]],
+  "campeche-mx": [["Campeche city walls","castle",{w:31,wh:8,n:3,th:11,tw:5,top:"crenel",c:13}],["Campeche Cathedral","cathedral",{w:21,nh:12,h:24,top:"bulb",c:13,t:13}]],
+  "campobasso-it": [["Castello Monforte","castle",{w:25,wh:10,n:2,th:14,tw:5,top:"crenel",c:13}]],
+  "can-tho-vn": [["Cần Thơ Bridge","span",{type:"cable",n:2,w:18,h:24,dh:8,c:6}]],
   "canberra-au": [["Parliament House","palace",{w:31,nh:6,top:"tower",th:20,tw:1,cap:"flat",c:6,t:8}],["Telstra Tower","tower",{h:40,s:1,pod:24,pw:5,pod2:28,pw2:4,ant:8,c:13,t:11}]],
+  "cape-coast-gh": [["Cape Coast Castle","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:6}]],
   "cape-town-za": [["Table Mountain","table"],["Cape Town Stadium","stadium",{w:27,h:10,c:6,t:6,rc:6,mesh:6}],["Green Point Lighthouse","light",{h:18,w:3,tw:2,band:3,b:10,c:6}]],
   "caracas-ve": [["Parque Central Towers","sky",{n:2,w:7,gap:3,h:44,c:8,t:2}],["Panteón Nacional","cathedral",{w:21,nh:12,h:24,top:"spire",c:6,t:6}]],
+  "carcassonne-fr": [["La Cité","castle",{w:35,wh:12,n:5,th:18,tw:5,top:"cone",kh:22,kw:9,ktop:"cone",c:13,t:2}]],
+  "cardiff-gb": [["Cardiff Castle","castle",{w:31,wh:12,n:2,th:16,tw:5,top:"crenel",kh:30,kw:7,ktop:"spire",c:13,t:2}],["Principality Stadium","stadium",{w:33,h:12,c:6,t:8,rc:6,lights:1}]],
+  "carson-city-us": [["Nevada State Capitol","palace",{w:21,nh:10,r:3,dd:5,dc:8,cols:2,c:13}]],
+  "cartagena-co": [["Castillo San Felipe de Barajas","castle",{w:33,wh:10,n:3,th:13,tw:5,top:"crenel",kh:16,kw:9,c:13}],["Torre del Reloj","belfry",{w:9,h:22,clock:1,lan:5,top:"dome",c:12,t:13}]],
   "casablanca-ma": [["Hassan II Mosque","mosque",{w:21,nh:8,r:0,m:1,sq:1,mh:52,c:13,dc:9}],["Casablanca Twin Center","sky",{n:2,w:7,gap:2,h:30,c:6,t:11}]],
+  "caserta-it": [["Royal Palace of Caserta","palace",{w:35,nh:16,top:"flat",cols:5,c:13}]],
+  "castellon-es": [["El Fadrí","belfry",{w:7,h:34,lan:4,top:"pyr",c:13,t:13}]],
   "castries-lc": [["Cathedral Basilica of the Immaculate Conception","church",{w:19,nh:10,h:24,tw:5,top:"pyr",c:13,t:10}],["Castries Market","palace",{w:21,nh:7,top:"flat",c:13,rc:5}]],
+  "catamarca-ar": [["Cathedral Basilica of Our Lady of the Valley","cathedral",{w:23,nh:13,h:26,top:"bulb",r:5,dc:14,c:14,t:6}]],
+  "catanzaro-it": [["Bisantis Bridge","span",{type:"arch",over:1,w:20,h:24,c:6}]],
   "cebu-city-ph": [["Magellan’s Cross","tiers",{n:2,w:13,dw:4,th:5,rc:1,c:13,fin:3}],["Basilica del Santo Niño","church",{w:19,nh:11,h:24,tw:5,tx:7,top:"pyr",c:13,t:1}]],
+  "celje-si": [["Celje Old Castle","castle",{w:29,wh:10,n:2,th:13,tw:5,top:"crenel",kh:20,kw:7,ktop:"crenel",c:13}]],
+  "ceske-budejovice-cz": [["Black Tower","belfry",{w:7,h:32,lan:5,top:"bulb",c:13,t:2}]],
+  "changsha-cn": [["Young Mao Zedong statue","bust",{h:24,ph:4,pw:12,c:13}]],
+  "changzhou-cn": [["Tianning Temple Pagoda","tiers",{n:9,w:19,dw:2,th:5,base:3,rc:12,c:13,fin:4}]],
+  "chanthaburi-th": [["Cathedral of the Immaculate Conception","cathedral",{w:21,nh:13,h:28,top:"spire",c:6,t:8}]],
+  "chaozhou-cn": [["Guangji Gate Tower","tiers",{n:2,w:19,dw:4,th:6,base:8,gate:1,bc:8,rc:2,c:10,fin:2}]],
+  "charleston-us": [["West Virginia State Capitol","palace",{w:31,nh:10,r:5,dd:6,dc:3,cols:4,c:13}]],
   "charlotte-amalie-vi": [["Fort Christian","castle",{w:21,wh:10,n:1,th:18,tw:5,top:"dome",c:10,t:6}],["Frederick Lutheran Church","church",{w:15,nh:10,h:22,tw:5,top:"pyr",c:12,t:2}]],
+  "charlottetown-ca": [["St. Dunstan’s Basilica","cathedral",{w:21,nh:13,h:30,top:"spire",sp:14,c:13,t:8}],["Province House","palace",{w:23,nh:10,top:"flat",cols:3,c:0}]],
+  "chartres-fr": [["Chartres Cathedral","cathedral",{w:23,nh:15,h:34,tw:5,top:"spire",rose:1,c:13,t:8}]],
   "chattogram-bd": [["Chittagong Court Building","palace",{w:27,nh:10,top:"tower",th:18,tw:5,cap:"dome",c:10,t:6}],["Shah Amanat Bridge","span",{type:"cable",w:16,h:22,dh:8,c:6}]],
+  "cheboksary-ru": [["Mother Patroness","statue",{h:28,ph:6,pw:5,pose:"out",c:8}]],
   "chengdu-cn": [["Wenshu Monastery pagoda","tiers",{n:5,w:15,dw:2,th:5,rc:2,c:13,fin:4}],["Tianfu Panda Tower","tower",{h:44,s:1,pod:36,pw:5,ant:6,c:6,t:11}]],
   "chennai-in": [["Kapaleeshwarar Temple gopuram","tiers",{n:7,w:19,dw:2,th:4,rc:5,c:12,fin:2}],["Chennai Central","palace",{w:27,nh:10,top:"tower",th:24,tw:5,cap:"pyr",c:10,t:6}]],
+  "chernivtsi-ua": [["Chernivtsi University","palace",{w:33,nh:12,top:"tower",th:28,tw:5,cap:"pyr",c:1,t:4}]],
+  "cheyenne-us": [["Wyoming State Capitol","palace",{w:29,nh:10,r:4,dd:6,dc:12,cols:3,c:13}]],
   "chiang-mai-th": [["Wat Phra That Doi Suthep","stupa",{w:21,h:36,c:12,t:3}],["Wat Chedi Luang","pyramid",{w:13,h:18,steps:3,c:1,s:2}]],
+  "chiang-rai-th": [["White Temple (Wat Rong Khun)","tiers",{n:3,w:21,dw:4,th:6,base:3,rc:6,c:6,t:6,fin:6}],["Chiang Rai Clock Tower","belfry",{w:7,h:20,clock:1,lan:4,top:"spire",c:12,t:3}]],
+  "chiba-jp": [["Chiba Port Tower","sky",{w:9,h:40,c:11,t:6}]],
   "chicago-us": [["Willis Tower","willis"],["John Hancock Center","sky",{w:9,h:44,taper:0.35,top:"spire",sp:10,c:2,t:8}]],
+  "chihuahua-mx": [["Chihuahua Cathedral","cathedral",{w:23,nh:13,h:30,top:"bulb",c:0,t:0}]],
   "chisinau-md": [["Arc de Triomphe","arch",{w:17,h:16,ow:3,n:3,top:"attic",c:13,t:13}],["Nativity Cathedral bell tower","belfry",{w:7,h:30,lan:6,top:"dome",c:13,t:9}]],
   "chongqing-cn": [["Raffles City Chongqing","sky",{n:4,w:5,gap:2,h:[36,40,40,36],link:30,c:11,t:6}],["Hongya Cave","tiers",{n:5,w:21,dw:2,th:5,rc:2,c:1,fin:2}]],
   "christchurch-nz": [["ChristChurch Cathedral","church",{w:19,nh:11,h:30,tw:5,top:"spire",c:13,t:8}],["Cardboard Cathedral","pyramid",{w:9,h:20,c:6,s:13}]],
+  "ciudad-bolivar-ve": [["Angostura Bridge","span",{type:"suspension",w:22,h:22,dh:8,c:8}]],
   "ciudad-de-la-paz-gq": [["Grand Hotel Djibloho","sky",{w:9,h:30,top:"dome",c:6,t:11}],["Presidential Palace","palace",{w:25,nh:9,r:4,dc:6,cols:3,c:6}]],
+  "ciudad-del-este-py": [["Friendship Bridge","span",{type:"arch",over:1,w:18,h:14,c:13}]],
+  "clermont-ferrand-fr": [["Clermont-Ferrand Cathedral","cathedral",{w:23,nh:14,h:42,tw:5,top:"spire",c:2,t:2}]],
+  "cluj-napoca-ro": [["St. Michael’s Church","church",{w:23,nh:15,h:44,tw:7,tx:-6,top:"spire",c:13,t:2}]],
+  "cochabamba-bo": [["Cristo de la Concordia","statue",{h:24,ph:8,pw:4,pose:"out",c:6}]],
+  "coimbra-pt": [["University of Coimbra tower","belfry",{w:7,h:34,clock:1,lan:4,top:"dome",c:6,t:6}]],
+  "colmar-fr": [["Petite Venise","canal"]],
   "cologne-de": [["Cologne Cathedral","cologne"],["Hohenzollern Bridge","span",{type:"arch",w:16,h:16,dh:8,c:8}]],
+  "colonia-del-sacramento-uy": [["Colonia lighthouse","light",{h:20,w:3,tw:2,c:6,rc:8}]],
+  "columbus-us": [["LeVeque Tower","sky",{w:9,h:36,top:"steps",sp:4,c:6,t:13}]],
+  "comayagua-hn": [["Comayagua Cathedral","church",{w:19,nh:10,h:24,tw:7,tx:6,clock:1,top:"dome",c:6,t:6}]],
   "conakry-gn": [["Grand Mosque of Conakry","mosque",{w:19,r:6,dc:6,m:1,mh:30,c:6}],["Sainte-Marie Cathedral","cathedral",{w:19,nh:12,h:22,top:"pyr",c:13,t:1}]],
+  "concord-us": [["New Hampshire State House","palace",{w:23,nh:10,r:3,dd:5,dc:3,cols:3,c:13}]],
+  "constanta-ro": [["Constanța Casino","palace",{w:27,nh:12,top:"dome",r:4,c:6,t:6}],["Carol I Mosque","mosque",{w:17,nh:10,r:6,m:1,mh:40,c:13,dc:8}]],
+  "constantine-dz": [["Sidi M’Cid Bridge","span",{type:"suspension",w:22,h:24,dh:10,c:8}],["Emir Abdelkader Mosque","mosque",{w:21,r:6,dc:6,m:2,sq:1,mh:42,c:13}]],
   "copenhagen-dk": [["Nyhavn waterfront","canal"],["Church of Our Saviour","church",{w:15,nh:12,h:28,tw:5,tx:-4,top:"needle",sp:18,c:1,t:2}]],
   "cordoba-ar": [["Córdoba Cathedral","cathedral",{w:23,nh:13,h:24,top:"bulb",r:5,dc:9,c:13,t:9}],["Faro del Bicentenario","column",{h:40,s:2,taper:0.4,pw:4,ph:3,top:"ball",r:2,c:6,t:3}]],
+  "cordoba-es": [["Mezquita bell tower","belfry",{w:9,h:30,lan:6,top:"dome",c:0,t:12}],["Mezquita-Catedral","palace",{w:35,nh:9,top:"flat",c:0,rc:5}]],
+  "corfu-gr": [["Bell tower of Saint Spyridon","belfry",{w:7,h:30,lan:5,top:"dome",c:6,t:10}],["Old Fortress","castle",{w:31,wh:12,n:2,th:15,tw:5,top:"crenel",c:0}]],
+  "corrientes-ar": [["General Belgrano Bridge","span",{type:"cable",n:2,w:18,h:22,dh:8,c:6}]],
+  "cotabato-ph": [["Grand Mosque of Cotabato","mosque",{w:23,r:7,sd:3,dc:12,m:4,mh:34,c:6}]],
+  "cremona-it": [["Torrazzo","belfry",{w:9,h:46,lan:8,top:"spire",c:1,t:13}]],
+  "cuenca-ec": [["New Cathedral of Cuenca","cathedral",{w:25,nh:14,h:24,top:"flat",r:6,dh:26,dc:7,c:14,t:14}]],
+  "cuernavaca-mx": [["Palacio de Cortés","castle",{w:29,wh:12,n:2,th:15,tw:5,top:"crenel",c:0}]],
+  "curitiba-br": [["Botanical Garden greenhouse","palace",{w:23,nh:8,top:"glass",r:6,wings:"pyr",c:6,rc:6,t:11}],["Torre Panorâmica","tower",{h:36,s:2,pod:30,pw:4,ant:6,c:13,t:11}]],
+  "cusco-pe": [["Cusco Cathedral","cathedral",{w:27,nh:14,h:26,top:"pyr",c:13,t:13}],["Church of the Society of Jesus","cathedral",{w:21,nh:13,h:28,top:"dome",r:4,dc:13,c:13,t:13}]],
+  "da-lat-vn": [["Da Lat Cathedral","church",{w:17,nh:10,h:34,tw:5,top:"spire",c:14,t:14}]],
   "da-nang-vn": [["Dragon Bridge","span",{type:"arch",w:16,h:16,dh:6,c:12}],["Lady Buddha (Linh Ung Pagoda)","statue",{h:24,ph:6,pw:4,c:6}]],
+  "daegu-kr": [["83 Tower","tower",{h:40,s:1,pod:32,pw:6,ant:8,c:6,t:11}]],
   "dakar-sn": [["African Renaissance Monument","statue",{h:30,ph:8,pw:6,pose:"torch",c:12}],["Mamelles Lighthouse","light",{h:14,w:3,c:6}]],
+  "dalian-cn": [["Xinghai Bay Bridge","span",{type:"suspension",w:20,h:22,dh:8,c:6}]],
   "dallas-us": [["Reunion Tower","tower",{h:30,s:2,pod:33,pw:5,ball:1,bc:8,ant:2,c:13}],["Bank of America Plaza","sky",{w:9,h:42,c:2,t:9}]],
   "damascus-sy": [["Umayyad Mosque","mosque",{w:27,nh:9,r:5,dc:8,m:2,sq:1,mh:26,c:13}],["Citadel of Damascus","castle",{w:23,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}]],
   "dar-es-salaam-tz": [["St Joseph’s Cathedral","church",{w:19,nh:11,h:30,tw:5,top:"spire",c:6,t:10}],["Azania Front Lutheran Church","church",{w:15,nh:9,h:22,tw:5,tx:4,top:"pyr",c:6,t:10}]],
+  "datong-cn": [["Datong City Wall","tiers",{n:3,w:19,dw:4,th:5,base:10,gate:1,bc:8,rc:2,c:10,fin:2}]],
   "davao-ph": [["San Pedro Cathedral","church",{w:19,nh:8,h:28,tw:3,top:"needle",c:6,t:6}],["Davao City Hall","palace",{w:25,nh:10,top:"flat",cols:5,c:6}]],
+  "debrecen-hu": [["Reformed Great Church","cathedral",{w:23,nh:14,h:30,top:"dome",c:0,t:9}]],
   "denpasar-id": [["Bajra Sandhi Monument","stupa",{w:23,h:30,c:13,t:12}],["Jagatnatha Temple padmasana","pyramid",{w:8,h:16,steps:3,c:6,s:13}]],
   "denver-us": [["Colorado State Capitol","palace",{w:25,nh:10,r:5,dd:5,dc:12,cols:4,c:13}],["Wells Fargo Center","sky",{w:9,h:36,top:"dome",c:5,t:2,rc:5}]],
+  "des-moines-us": [["Iowa State Capitol","palace",{w:29,nh:10,r:5,dd:5,dc:3,cols:4,wings:1,c:13}]],
   "detroit-us": [["Renaissance Center","sky",{n:3,w:7,gap:1,h:[30,40,30],c:11,t:6}],["Ambassador Bridge","span",{type:"suspension",w:20,h:22,dh:9,c:11}]],
   "dhaka-bd": [["National Parliament House","palace",{w:29,nh:16,top:"flat",c:13}],["Ahsan Manzil","palace",{w:21,nh:9,r:4,dd:3,dc:14,cols:3,c:14}]],
   "diego-garcia-io": [["East Point plantation chapel","church",{w:13,nh:7,h:12,tw:5,top:"pyr",c:13,t:2}],["Satellite station radome","sphere",{r:8,c:6,t:13}]],
+  "dijon-fr": [["Palace of the Dukes of Burgundy","palace",{w:31,nh:12,top:"tower",th:32,tw:7,cap:"crenel",clock:0,c:13,t:13}]],
   "dili-tl": [["Cristo Rei of Dili","statue",{h:18,ph:10,pw:4,pose:"out",c:6}],["Palácio do Governo","palace",{w:25,nh:10,top:"flat",cols:4,c:6}]],
+  "diyarbakr-tr": [["Walls of Diyarbakır","castle",{w:35,wh:12,n:4,th:16,tw:7,top:"crenel",c:8}],["Great Mosque of Diyarbakır","mosque",{w:21,nh:10,r:0,m:1,sq:1,mh:26,c:8,dc:8}]],
   "djibouti-dj": [["Hamoudi Mosque","mosque",{w:17,r:4,dc:6,m:1,sq:1,mh:28,c:6}],["Presidential Palace","palace",{w:25,nh:10,top:"flat",cols:3,c:6}]],
   "dodoma-tz": [["Parliament of Tanzania","palace",{w:27,nh:9,r:6,dc:13,c:6}],["Gaddafi Mosque","mosque",{w:19,r:5,dc:9,m:2,mh:26,c:6}]],
   "doha-qa": [["Doha Tower","sky",{w:9,h:38,top:"dome",c:11,t:6,rc:11}],["Aspire Tower","tower",{h:42,s:2,pod:40,pw:4,ant:6,c:8,t:11}]],
   "douala-cm": [["La Pagode (Manga Bell palace)","palace",{w:21,nh:9,top:"tower",th:17,tw:5,cap:"pyr",c:5,t:1}],["Bonaberi Bridge","span",{type:"truss",w:18,h:12,dh:8,c:8}]],
   "douglas-im": [["Tower of Refuge","castle",{w:15,wh:8,n:1,th:14,tw:5,top:"crenel",c:13}],["Douglas Head Lighthouse","light",{h:16,w:3,tw:2,c:6}]],
+  "dresden-de": [["Frauenkirche","palace",{w:19,nh:16,r:8,dd:6,dc:13,c:13,t:13}],["Hofkirche","church",{w:23,nh:14,h:40,tw:7,top:"baroque",c:13,t:13}]],
   "dubai-ae": [["Burj Khalifa","burj"],["Burj Al Arab","sail",{h:40,w:12,c:6,t:8}]],
   "dublin-ie": [["Spire of Dublin","column",{h:52,s:1,pw:2,ph:2,taper:1,top:"point",c:8}],["Samuel Beckett Bridge","span",{type:"cable",w:14,h:20,dh:6,c:6}]],
+  "dubrovnik-hr": [["City Walls and Minčeta Tower","castle",{w:33,wh:12,n:3,th:16,tw:5,top:"crenel",kh:22,kw:9,ktop:"crenel",c:13}],["Dubrovnik Bell Tower","belfry",{w:5,h:28,clock:1,lan:4,top:"dome",c:13,t:4}]],
+  "dunedin-nz": [["Dunedin Railway Station","palace",{w:31,nh:11,top:"tower",th:32,tw:5,cap:"pyr",c:8,t:6,rc:6}],["First Church of Otago","church",{w:17,nh:10,h:26,tw:5,top:"spire",sp:20,c:13,t:13}]],
   "durban-za": [["Moses Mabhida Stadium","stadium",{w:29,h:10,arch:16,c:6,t:8,rc:6}],["Durban City Hall","palace",{w:25,nh:11,r:5,dd:4,dc:4,cols:4,c:13}]],
+  "durres-al": [["Venetian Tower","castle",{w:15,wh:6,n:1,th:16,tw:11,top:"crenel",c:13}]],
   "dushanbe-tj": [["Palace of Nations","palace",{w:29,nh:11,r:5,dc:12,cols:5,c:6}],["Ismoili Somoni monument","arch",{w:15,h:24,ow:3,oh:16,top:"dome",r:4,dc:12,c:13,t:12}]],
+  "dusseldorf-de": [["Rheinturm","tower",{h:46,s:1,pod:36,pw:5,ant:10,c:13,t:11}]],
   "east-jerusalem-ps": [["Dome of the Rock","mosque",{w:19,nh:9,r:6,dd:3,dc:12,m:0,c:7}],["Damascus Gate","castle",{w:19,wh:14,n:2,th:16,tw:5,top:"crenel",c:13}]],
   "edinburgh-gb": [["Edinburgh Castle","castle",{w:31,wh:12,n:3,th:16,tw:5,top:"crenel",kh:20,kw:9,ktop:"pyr",c:8,t:8}],["Scott Monument","belfry",{w:7,h:24,top:"gothic",sp:20,c:2,t:2}]],
+  "edirne-tr": [["Selimiye Mosque","mosque",{w:25,r:8,sd:3,dc:8,m:4,mh:40,c:13}]],
+  "edmonton-ca": [["Alberta Legislature Building","palace",{w:29,nh:10,r:6,dd:5,dc:13,cols:4,c:0}],["Muttart Conservatory","pyramid",{w:11,h:16,glass:1,c:11,s:8,t:6}]],
+  "eger-hu": [["Minaret of Eger","column",{h:38,s:2,pw:3,ph:6,top:"point",c:0}],["Eger Castle","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}]],
   "el-aaiun-eh": [["Cathedral of St Francis of Assisi","palace",{w:17,nh:9,r:4,dc:6,c:6}],["Grand Mosque of Laayoune","mosque",{w:19,r:5,dc:9,m:1,sq:1,mh:28,c:13}]],
+  "elbasan-al": [["Elbasan Castle","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}]],
+  "elista-ru": [["Golden Abode of Buddha Shakyamuni","tiers",{n:3,w:25,dw:6,th:8,base:4,c:6,rc:12}]],
+  "enna-it": [["Castello di Lombardia","castle",{w:27,wh:10,n:3,th:15,tw:5,top:"crenel",c:0}]],
+  "erbil-iq": [["Erbil Citadel","castle",{w:35,wh:14,n:4,th:16,tw:5,top:"crenel",c:0}],["Mudhafaria Minaret","column",{h:26,s:2,pw:4,ph:5,top:"none",c:1}]],
+  "erfurt-de": [["Erfurt Cathedral","cathedral",{w:21,nh:14,h:32,tw:5,top:"spire",c:13,t:2}]],
+  "erzurum-tr": [["Twin Minaret Madrasa","mosque",{w:17,nh:14,r:0,m:2,mh:30,c:13,t:1,dc:1}]],
+  "evora-pt": [["Roman Temple of Évora","column",{n:6,h:14,s:1,pw:2,ph:6,top:"none",c:6}],["Évora Cathedral","cathedral",{w:23,nh:14,h:24,tw:5,top:"cone",c:13,t:13}]],
+  "faisalabad-pk": [["Clock Tower (Ghanta Ghar)","belfry",{w:7,h:26,clock:1,top:"dome",c:1,t:13}]],
+  "famagusta-cy": [["Lala Mustafa Pasha Mosque","cathedral",{w:23,nh:16,h:24,top:"flat",rose:1,c:0,t:0}],["Othello Castle","castle",{w:27,wh:10,n:2,th:12,tw:7,top:"crenel",c:0}]],
+  "ferrara-it": [["Castello Estense","castle",{w:29,wh:14,n:4,th:22,tw:7,top:"pyr",c:1,t:5}]],
+  "fes-ma": [["Bab Bou Jeloud","arch",{w:23,h:16,ow:3,oh:10,n:3,top:"attic",c:7,t:9}],["Al-Qarawiyyin minaret","belfry",{w:7,h:26,lan:5,top:"dome",c:6,t:9}]],
   "florence-it": [["Florence Cathedral","florence"],["Palazzo Vecchio","castle",{w:19,wh:20,n:1,th:40,tw:5,top:"crenel",c:13,t:13}]],
+  "florianopolis-br": [["Hercílio Luz Bridge","span",{type:"suspension",w:20,h:24,dh:8,c:8}]],
+  "fortaleza-br": [["Fortaleza Cathedral","cathedral",{w:23,nh:14,h:34,top:"spire",sp:16,c:8,t:8}],["Arena Castelão","stadium",{w:31,h:10,c:6,t:8,rc:6}]],
+  "frankfort-us": [["Kentucky State Capitol","palace",{w:31,nh:10,r:5,dd:6,dc:13,cols:4,c:13}]],
   "frankfurt-de": [["Commerzbank Tower","sky",{w:9,h:46,top:"spire",sp:6,c:11,t:6}],["Frankfurt Cathedral","belfry",{w:9,h:30,lan:5,top:"gothic",c:1,t:1}]],
+  "fredericton-ca": [["Christ Church Cathedral","church",{w:19,nh:10,h:28,tw:5,top:"spire",sp:16,c:13,t:8}]],
   "freetown-sl": [["State House","castle",{w:25,wh:12,n:2,th:15,tw:5,top:"crenel",c:6}],["St George’s Cathedral","church",{w:17,nh:10,h:24,tw:5,top:"crenel",c:13,t:1}]],
+  "fribourg-ch": [["Cathedral of St. Nicholas","church",{w:19,nh:12,h:40,tw:7,tx:-5,top:"crenel",c:13,t:13}]],
+  "fujairah-ae": [["Sheikh Zayed Mosque, Fujairah","mosque",{w:25,r:7,sd:3,dc:6,m:6,mh:30,c:6}],["Fujairah Fort","castle",{w:21,wh:10,n:2,th:15,tw:5,kh:17,kw:7,top:"crenel",c:0}]],
   "fukuoka-jp": [["Fukuoka Tower","sky",{w:7,h:46,top:"spire",sp:4,c:11,t:6}],["Hakata Port Tower","lattice",{h:30,w:7,c:10,t:6}]],
   "funafuti-tv": [["Fetu Ao Lima church","church",{w:15,nh:8,h:18,tw:5,top:"pyr",c:6,t:10}],["Tuvalu Government Building","palace",{w:21,nh:9,top:"flat",c:6}]],
+  "fuzhou-cn": [["White Pagoda","tiers",{n:7,w:15,dw:2,th:5,rc:2,c:6,fin:3}],["Black Pagoda","tiers",{n:7,w:13,dw:2,th:4,rc:2,c:8,fin:2}]],
   "gaborone-bw": [["Three Dikgosi Monument","statue",{h:16,ph:5,pw:7,c:8}],["Parliament of Botswana","palace",{w:25,nh:9,top:"tower",th:18,tw:5,cap:"pyr",c:13,t:1}]],
+  "galle-lk": [["Galle Lighthouse","light",{h:24,w:3,tw:2,c:6}],["Galle Fort Clock Tower","belfry",{w:5,h:20,clock:1,top:"pyr",c:6,t:6}]],
+  "galway-ie": [["Galway Cathedral","cathedral",{w:23,nh:13,h:22,tw:5,top:"dome",r:6,dh:24,dc:4,c:13,t:4}]],
+  "ganja-az": [["Shah Abbas Mosque","mosque",{w:21,r:6,dd:3,dc:1,m:2,mh:28,c:1,t:13}],["Nizami Mausoleum","column",{h:24,s:4,pw:6,ph:4,top:"none",c:1}]],
+  "gao-ml": [["Tomb of Askia","mud",{w:13,wh:6,n:1,th:20,tw:13,taper:0.7,c:0}]],
+  "gaziantep-tr": [["Gaziantep Castle","castle",{w:31,wh:12,n:4,th:15,tw:5,top:"crenel",c:13}]],
+  "gdansk-pl": [["St. Mary’s Church","church",{w:25,nh:16,h:36,tw:9,tx:-7,top:"crenel",c:1,t:1}],["Main Town Hall","belfry",{w:7,h:38,lan:6,top:"spire",c:1,t:2}]],
   "geneva-ch": [["Jet d’Eau","column",{h:46,s:2,pw:0,ph:1,taper:1,top:"point",c:6}],["St. Pierre Cathedral","cathedral",{w:23,nh:13,h:22,top:"flat",r:3,dh:24,dc:4,c:13,t:4}]],
+  "genoa-it": [["Lanterna of Genoa","light",{h:40,w:4,tw:3,c:13,rc:8}]],
   "george-town-ky": [["Elmslie Memorial Church","church",{w:15,nh:8,h:20,tw:3,top:"spire",c:6,t:6}],["Legislative Assembly","palace",{w:21,nh:8,top:"flat",c:6}]],
   "george-town-my": [["Komtar Tower","sky",{w:9,h:40,c:6,t:11}],["Kek Lok Si Pagoda","tiers",{n:6,w:15,dw:2,th:5,rc:12,c:6,fin:4}]],
   "georgetown-gy": [["St George’s Cathedral","church",{w:19,nh:11,h:36,tw:5,top:"spire",c:6,t:6}],["Stabroek Market clock tower","belfry",{w:7,h:22,clock:1,top:"pyr",c:8,t:8}]],
+  "ghardaia-dz": [["Ghardaïa Great Mosque minaret","column",{h:30,s:3,taper:0.5,pw:4,ph:3,top:"none",c:0}]],
+  "ghazni-af": [["Ghazni Citadel","castle",{w:31,wh:12,n:3,th:16,tw:5,top:"crenel",c:0}],["Minaret of Bahram Shah","column",{h:22,s:2,pw:3,ph:3,top:"none",c:1}]],
   "gibraltar-gi": [["Moorish Castle","belfry",{w:11,h:22,top:"crenel",c:13}],["Europa Point Lighthouse","light",{h:20,w:3,band:5,b:10,c:6}]],
+  "gifu-jp": [["Gifu Castle","tiers",{n:3,w:15,dw:4,th:5,base:6,rc:2,c:6,fin:2}]],
+  "girona-es": [["Girona Cathedral","church",{w:21,nh:16,h:32,tw:7,tx:6,top:"dome",c:13,t:13}],["Walls of Girona","castle",{w:27,wh:10,n:3,th:13,tw:5,top:"crenel",c:0}]],
   "gitega-bi": [["Christ the King Cathedral","church",{w:19,nh:11,h:24,tw:5,top:"pyr",c:1,t:1}],["Gishora Drum Sanctuary","fale",{w:17,h:4,c:0,t:0}]],
+  "gjirokaster-al": [["Gjirokastër Castle","castle",{w:33,wh:12,n:3,th:16,tw:5,top:"crenel",kh:24,kw:5,ktop:"pyr",c:13,t:2}]],
   "glasgow-gb": [["University of Glasgow tower","belfry",{w:7,h:28,top:"gothic",sp:12,c:13,t:13}],["Glasgow Tower","tower",{h:40,s:1,pod:34,pw:3,ant:2,c:8,t:11}]],
+  "gori-ge": [["Gori Fortress","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}]],
+  "gorizia-it": [["Gorizia Castle","castle",{w:25,wh:12,n:2,th:15,tw:5,top:"crenel",c:13}]],
+  "gothenburg-se": [["Lilla Bommen (The Lipstick)","sky",{w:9,h:30,top:"flat",c:10,t:6}],["Masthugget Church","church",{w:21,nh:12,h:30,tw:7,tx:6,top:"pyr",c:1,t:2}]],
+  "gqeberha-za": [["The Campanile","belfry",{w:7,h:34,lan:5,top:"dome",c:1,t:13}],["Nelson Mandela Bay Stadium","stadium",{w:29,h:10,c:6,t:8,rc:6}]],
+  "granada-es": [["Alhambra","castle",{w:35,wh:10,n:4,th:16,tw:7,top:"crenel",kh:20,kw:9,c:14}]],
+  "granada-ni": [["Granada Cathedral","cathedral",{w:23,nh:13,h:26,top:"dome",r:5,dc:10,c:12,t:10}]],
   "grand-turk-tc": [["Grand Turk Lighthouse","light",{h:20,w:3,tw:2,c:6,rc:2}],["St Thomas Anglican Church","church",{w:15,nh:8,h:16,tw:5,top:"pyr",c:6,t:1}]],
+  "graz-at": [["Graz Clock Tower","belfry",{w:9,h:16,clock:1,top:"pyr",c:6,t:2}]],
+  "groningen-nl": [["Martinitoren","belfry",{w:7,h:36,lan:8,top:"bulb",c:13,t:2}]],
+  "grozny-ru": [["Akhmad Kadyrov Mosque","mosque",{w:23,nh:10,r:7,m:4,mh:36,sd:3,c:6,dc:8}]],
   "guadalajara-mx": [["Guadalajara Cathedral","cathedral",{w:21,nh:13,h:22,top:"spire",c:13,t:12}],["Hospicio Cabañas","palace",{w:29,nh:9,r:5,dd:4,dc:13,cols:3,c:13}]],
+  "guanajuato-mx": [["Basilica of Our Lady of Guanajuato","cathedral",{w:21,nh:12,h:28,top:"bulb",r:5,dc:10,c:12,t:10}],["Teatro Juárez","palace",{w:25,nh:12,top:"flat",cols:5,c:13}]],
   "guangzhou-cn": [["Canton Tower","lattice",{h:46,w:7,waist:1,decks:[38],c:8,t:10}],["Zhenhai Tower","tiers",{n:5,w:17,dw:2,th:5,rc:9,c:10,fin:2}]],
   "guatemala-city-gt": [["Metropolitan Cathedral","cathedral",{w:23,nh:13,h:22,top:"dome",r:4,dc:13,c:13,t:13}],["Torre del Reformador","lattice",{h:34,w:9,c:8,t:3}]],
   "guayaquil-ec": [["Torre Morisca","belfry",{w:7,h:26,clock:1,lan:5,top:"dome",c:6,t:6}],["Cerro Santa Ana lighthouse","light",{h:18,w:3,b:7,band:4,c:6}]],
+  "guilin-cn": [["Sun Pagoda","tiers",{n:9,w:11,dw:0,th:4,rc:12,c:12,fin:3}]],
+  "guiyang-cn": [["Jiaxiu Pavilion","tiers",{n:3,w:13,dw:2,th:5,base:3,rc:2,c:10,fin:2}]],
   "gustavia-bl": [["Swedish bell tower","belfry",{w:7,h:14,top:"pyr",c:13,t:10}],["Fort Gustav lighthouse","light",{h:14,w:2,tw:2,c:6}]],
+  "gwalior-in": [["Gwalior Fort (Man Singh Palace)","castle",{w:31,wh:12,n:4,th:15,tw:5,top:"dome",c:0,t:7}]],
+  "gyor-hu": [["Győr Town Hall","palace",{w:31,nh:12,top:"tower",th:30,tw:7,cap:"bulb",c:0,t:4}]],
+  "gyumri-am": [["Church of the Holy Saviour","church",{w:17,nh:12,h:24,tw:7,top:"cone",c:1,t:2}]],
+  "ha-long-vn": [["Bãi Cháy Bridge","span",{type:"cable",n:2,w:18,h:22,dh:9,c:6}]],
   "hagatna-gu": [["Dulce Nombre de Maria Cathedral","church",{w:19,nh:11,h:28,tw:5,top:"spire",c:6,t:6}],["Plaza de España","palace",{w:21,nh:7,top:"flat",c:13}]],
+  "haifa-il": [["Shrine of the Báb","palace",{w:17,nh:9,r:5,dd:6,dc:12,cols:7,c:6}],["Sail Tower","sail",{h:40,w:11,c:11,t:6}]],
+  "haikou-cn": [["Haikou Bell Tower","belfry",{w:9,h:26,clock:1,top:"pyr",c:10,t:10}]],
+  "haiphong-vn": [["Haiphong Opera House","palace",{w:27,nh:11,top:"flat",cols:4,wings:1,c:0,t:6}]],
+  "halifax-ca": [["Old Town Clock","belfry",{w:7,h:14,clock:1,lan:5,top:"dome",c:6,t:6}],["Halifax Citadel","castle",{w:29,wh:8,n:2,th:10,tw:5,top:"crenel",c:13}]],
+  "hamah-sy": [["Norias of Hama","wheel",{r:14,leg:2,c:1,t:1}]],
   "hamburg-de": [["St. Michael’s Church","church",{w:19,nh:14,h:34,tw:7,top:"baroque",sp:8,c:1,t:4}],["Hamburg Rathaus","palace",{w:31,nh:12,top:"tower",th:32,tw:7,cap:"spire",sp:10,c:13,t:4}]],
+  "hameenlinna-fi": [["Häme Castle","castle",{w:29,wh:12,n:2,th:18,tw:5,top:"pyr",kh:22,kw:11,ktop:"pyr",c:1,t:2}]],
   "hamilton-bm": [["Cathedral of the Most Holy Trinity","church",{w:19,nh:12,h:30,tw:7,top:"crenel",c:13,t:13}],["Sessions House","palace",{w:23,nh:9,top:"tower",th:20,tw:5,cap:"pyr",c:5,t:1}]],
   "hangzhou-cn": [["Leifeng Pagoda","tiers",{n:5,w:17,dw:2,th:5,rc:12,c:10,fin:4,base:3}],["Liuhe Pagoda","tiers",{n:7,w:15,dw:2,th:4,rc:2,c:13,fin:3}]],
   "hanoi-vn": [["Ho Chi Minh Mausoleum","palace",{w:21,nh:12,top:"flat",cols:6,c:13}],["One Pillar Pagoda","tiers",{n:1,w:11,dw:2,th:6,base:6,bc:8,rc:2,c:1,fin:3}]],
+  "hanover-de": [["New Town Hall","palace",{w:35,nh:12,r:6,dd:8,dc:4,c:13,t:4}]],
+  "harar-et": [["Harar Gate","arch",{w:19,h:14,ow:4,oh:10,top:"attic",c:6,t:13}],["Harar Jamia Mosque","mosque",{w:19,r:4,dc:9,m:2,mh:24,c:6}]],
   "harare-zw": [["National Heroes’ Acre","column",{h:34,s:2,taper:0.6,pw:6,ph:6,top:"flame",c:13}],["Reserve Bank of Zimbabwe","sky",{w:9,h:38,c:8,t:11}]],
+  "harbin-cn": [["Saint Sophia Cathedral","onion",{w:19,nh:14,r:6,dd:6,n:2,mc:[9],c:1}],["Dragon Tower","tower",{h:46,s:2,pod:36,pw:6,pod2:28,pw2:4,ant:8,c:6,t:11}]],
   "hargeisa-so": [["Hargeisa Grand Mosque","mosque",{w:19,r:5,dc:9,m:2,mh:26,c:6}],["Hargeisa War Memorial","column",{h:14,s:3,pw:5,ph:4,top:"none",c:13}]],
+  "harrisburg-us": [["Pennsylvania State Capitol","palace",{w:31,nh:10,r:5,dd:6,dc:4,cols:3,c:13}]],
+  "hartford-us": [["Connecticut State Capitol","palace",{w:29,nh:11,r:4,dd:7,dc:3,c:6}],["Travelers Tower","sky",{w:9,h:38,top:"pyramid",ph:8,sp:4,c:13,t:13}]],
+  "haskovo-bg": [["Monument of the Virgin Mary","statue",{h:22,ph:10,pw:4,c:6}]],
   "havana-cu": [["El Capitolio","capitol"],["Morro lighthouse","light",{h:24,w:3,tw:2,c:13,rc:8}]],
+  "helena-us": [["Montana State Capitol","palace",{w:29,nh:10,r:5,dd:5,dc:4,cols:3,c:13}],["Cathedral of St. Helena","cathedral",{w:21,nh:13,h:30,top:"spire",sp:16,c:13,t:8}]],
   "helsinki-fi": [["Helsinki Cathedral","dome"],["Uspenski Cathedral","onion",{w:17,r:4,n:4,mc:[12],c:1}]],
+  "heraklion-gr": [["Koules Fortress","castle",{w:31,wh:10,n:0,c:0}]],
+  "herat-af": [["Citadel of Herat","castle",{w:33,wh:13,n:4,th:17,tw:5,top:"crenel",c:0}],["Friday Mosque of Herat","mosque",{w:21,nh:16,r:0,m:2,mh:30,c:7,t:4,dc:4}]],
+  "hillah-iq": [["Ishtar Gate replica, Babylon","castle",{w:19,wh:12,n:2,th:17,tw:5,top:"crenel",c:7,t:3}]],
+  "hillerod-dk": [["Frederiksborg Castle","castle",{w:33,wh:14,n:3,th:20,tw:5,top:"needle",kh:30,kw:7,ktop:"needle",c:1,t:4}]],
+  "hiroshima-jp": [["Atomic Bomb Dome","palace",{w:17,nh:12,top:"dome",r:4,dc:8,c:0}],["Hiroshima Castle","tiers",{n:5,w:19,dw:4,th:5,base:7,rc:8,c:2,fin:2}]],
   "ho-chi-minh-city-vn": [["Bitexco Financial Tower","sky",{w:9,h:44,taper:0.4,top:"point",ph:3,c:11,t:6}],["Saigon Notre-Dame Cathedral","cathedral",{w:21,nh:13,h:26,top:"spire",c:1,t:8}]],
+  "hobart-au": [["Tasman Bridge","span",{type:"girder",w:30,dh:12,n:7,c:8,pc:13}]],
+  "homs-sy": [["Khalid ibn al-Walid Mosque","mosque",{w:23,r:6,sd:3,dc:8,m:2,mh:30,c:13}]],
+  "homyel-by": [["Rumyantsev-Paskevich Palace","palace",{w:31,nh:11,top:"tower",th:26,tw:5,cap:"dome",cols:4,c:6,t:4}]],
   "hong-kong-hk": [["Bank of China Tower","sky",{w:11,h:40,taper:0.5,top:"spire",sp:8,c:11,t:6}],["International Finance Centre","sky",{w:9,h:46,top:"steps",sp:2,c:8,t:11}]],
   "honiara-sb": [["National Parliament House","fale",{w:23,h:6,rh:10,c:6,t:8}],["Holy Cross Cathedral","church",{w:17,nh:10,h:22,tw:5,top:"pyr",c:6,t:10}]],
   "honolulu-us": [["Aloha Tower","belfry",{w:7,h:30,clock:1,top:"pyr",c:6,t:8}],["ʻIolani Palace","palace",{w:25,nh:11,top:"tower",th:17,tw:5,cap:"pyr",wings:"pyr",c:13,t:2}]],
   "houston-us": [["JPMorgan Chase Tower","sky",{w:9,h:46,c:8,t:11}],["Williams Tower","sky",{w:9,h:40,top:"spire",sp:4,c:11,t:6}]],
+  "hpa-an-mm": [["Kyauk Kalap","rock",{w:14,h:26,top:"pagoda",c:8,t:6}]],
+  "hradec-kralove-cz": [["White Tower","belfry",{w:7,h:34,lan:4,top:"bulb",c:6,t:2}],["Cathedral of the Holy Spirit","cathedral",{w:19,nh:13,h:28,top:"spire",c:1,t:2}]],
+  "hrodna-by": [["Farny Cathedral","cathedral",{w:21,nh:13,h:32,top:"baroque",c:13,t:8}]],
+  "hue-vn": [["Ngọ Môn Gate","tiers",{n:2,w:19,dw:4,th:5,base:9,gate:1,bc:13,rc:12,c:10,fin:2}],["Thiên Mụ Pagoda","tiers",{n:7,w:11,dw:0,th:4,rc:2,c:14,fin:3}]],
+  "huizhou-cn": [["Sizhou Pagoda, West Lake","tiers",{n:7,w:15,dw:2,th:4,rc:2,c:13,fin:2}]],
   "hyderabad-in": [["Charminar","mosque",{w:17,nh:18,r:0,m:2,mh:34,c:13,dc:13}],["Golconda Fort","castle",{w:27,wh:10,n:3,th:14,tw:5,top:"crenel",kh:18,kw:7,ktop:"dome",c:0}]],
+  "iasi-ro": [["Palace of Culture","palace",{w:35,nh:14,top:"tower",th:36,tw:7,cap:"spire",c:13,t:8}],["Metropolitan Cathedral","cathedral",{w:23,nh:14,h:28,top:"dome",r:5,dc:8,c:13,t:8}]],
+  "ibadan-ng": [["Cocoa House","sky",{w:11,h:34,c:6,t:2}],["Bower’s Tower","belfry",{w:7,h:18,top:"crenel",c:13}]],
+  "ilorin-ng": [["Ilorin Central Mosque","mosque",{w:23,r:6,dc:12,m:4,mh:32,c:6}]],
+  "incheon-kr": [["Incheon Bridge","span",{type:"cable",w:18,h:24,dh:8,c:6}],["Northeast Asia Trade Tower","sky",{w:9,h:50,taper:0.3,c:11,t:6}]],
+  "indianapolis-us": [["Soldiers’ and Sailors’ Monument","column",{h:40,s:2,taper:0.3,pw:6,ph:8,top:"statue",c:13,t:8}],["Indiana Statehouse","palace",{w:29,nh:10,r:5,dd:5,dc:4,cols:3,c:13}]],
+  "innsbruck-at": [["Bergisel Ski Jump","skijump",{h:44,w:30,c:8,t:11,hc:6}],["Stadtturm","belfry",{w:7,h:28,lan:5,top:"bulb",c:13,t:4}]],
+  "invercargill-nz": [["Invercargill Water Tower","belfry",{w:9,h:30,lan:5,top:"dome",c:1,t:1}]],
+  "ioannina-gr": [["Aslan Pasha Mosque","mosque",{w:13,nh:8,r:5,m:1,mh:24,c:13,dc:8}]],
+  "ipoh-my": [["Ipoh Railway Station","palace",{w:35,nh:10,r:4,dd:3,dc:6,wings:1,c:6,t:6}]],
+  "iquique-cl": [["Torre Reloj de Iquique","belfry",{w:7,h:22,clock:1,lan:4,top:"pyr",c:6,t:6}]],
+  "isfahan-ir": [["Shah Mosque","mosque",{w:25,r:7,dd:4,dc:4,m:2,mh:30,c:7,t:4}],["Sheikh Lotfollah Mosque","mosque",{w:15,nh:9,r:6,dd:3,dc:0,m:0,c:7}]],
   "islamabad-pk": [["Faisal Mosque","mosque",{w:19,nh:6,r:0,tent:12,m:4,mh:36,c:6,dc:6}],["Centaurus towers","sky",{n:3,w:5,gap:1,h:[26,30,26],c:11,t:6}]],
   "istanbul-tr": [["Hagia Sophia","mosque",{w:23,r:8,sd:4,dc:8,m:4,mh:30,c:14}],["Galata Tower","belfry",{w:9,h:24,top:"cone",c:13,t:8}]],
   "izmir-tr": [["İzmir Clock Tower","belfry",{w:5,h:24,clock:1,lan:4,top:"dome",c:6,t:6}],["Konak Yalı Mosque","mosque",{w:9,nh:6,r:4,dc:7,m:1,mh:18,c:7}]],
+  "jaen-es": [["Jaén Cathedral","cathedral",{w:27,nh:16,h:30,tw:5,top:"dome",r:6,dc:13,c:0,t:0}],["Castle of Santa Catalina","castle",{w:25,wh:10,n:2,th:14,tw:5,top:"crenel",c:0}]],
+  "jaffna-lk": [["Nallur Kandaswamy Temple","tiers",{n:5,w:19,dw:2,th:5,rc:12,c:12,fin:2}],["Jaffna Fort","castle",{w:29,wh:8,n:2,th:10,tw:5,top:"flat",c:13}]],
   "jaipur-in": [["Hawa Mahal","pyramid",{w:13,h:18,steps:3,c:14,s:5}],["Albert Hall Museum","palace",{w:25,nh:9,top:"tower",th:16,tw:5,cap:"dome",wings:"pyr",c:0,t:6}]],
   "jakarta-id": [["National Monument","monas"],["Istiqlal Mosque","mosque",{w:21,r:7,dc:6,m:1,mh:34,c:6}]],
   "jamestown-sh": [["St James’ Church","church",{w:15,nh:9,h:24,tw:5,top:"spire",c:13,t:8}],["The Castle","castle",{w:21,wh:10,n:2,th:12,tw:5,top:"crenel",c:13}]],
+  "janakpur-np": [["Janaki Mandir","palace",{w:33,nh:11,r:5,dd:4,dc:6,wings:"pyr",c:6,t:6}]],
+  "jarash-jo": [["Arch of Hadrian","arch",{n:3,w:25,h:18,ow:3,oh:12,top:"attic",c:0}],["Colonnade of Jerash","column",{n:5,h:22,s:1,pw:2,ph:3,top:"none",c:0}]],
+  "jayapura-id": [["Youtefa Bridge","span",{type:"arch",w:18,h:22,dh:8,c:10}]],
   "jeddah-sa": [["King Fahd’s Fountain","column",{h:50,s:2,pw:0,ph:1,taper:1,top:"point",c:6}],["Al Rahma Mosque","mosque",{w:17,r:5,dc:7,m:1,mh:24,c:6}]],
+  "jefferson-city-us": [["Missouri State Capitol","palace",{w:31,nh:10,r:5,dd:6,dc:13,cols:4,c:13}]],
+  "jelgava-lv": [["Jelgava Palace","palace",{w:35,nh:12,top:"flat",wings:1,c:5}]],
+  "jeonju-kr": [["Jeondong Cathedral","church",{w:21,nh:12,h:30,tw:7,top:"dome",c:1,t:8}]],
   "jerusalem-il": [["Tower of David","belfry",{w:7,h:28,lan:5,top:"dome",c:13,t:13}],["Chords Bridge","span",{type:"cable",w:14,h:26,dh:6,c:6}]],
+  "jingzhou-cn": [["Jingzhou Ancient City Wall","tiers",{n:2,w:19,dw:4,th:6,base:9,gate:1,bc:8,rc:2,c:10,fin:2}]],
+  "jining-cn": [["Dacheng Hall, Temple of Confucius","tiers",{n:2,w:29,dw:6,th:7,base:4,rc:12,c:10,fin:2}]],
+  "jinja-ug": [["Source of the Nile Bridge","span",{type:"cable",w:18,h:24,dh:7,c:6}]],
+  "jinzhong-cn": [["Pingyao City Wall","tiers",{n:3,w:17,dw:4,th:5,base:10,gate:1,bc:8,rc:2,c:10,fin:2}]],
+  "jodhpur-in": [["Mehrangarh Fort","castle",{w:33,wh:16,n:4,th:20,tw:5,top:"crenel",c:1}],["Umaid Bhawan Palace","palace",{w:31,nh:10,r:5,dd:6,dc:0,wings:"pyr",c:0,t:0}]],
   "johannesburg-za": [["Hillbrow Tower","tower",{h:44,s:2,pod:38,pw:4,ant:6,c:13,t:11}],["Ponte City","sky",{w:11,h:34,c:6,t:10}]],
+  "johor-bahru-my": [["Sultan Abu Bakar State Mosque","mosque",{w:23,nh:10,r:5,dc:7,m:4,sq:1,mh:28,c:6}],["Sultan Ibrahim Building","palace",{w:29,nh:10,top:"tower",th:28,tw:5,cap:"pyr",c:13,t:7}]],
   "juba-ss": [["St Theresa Cathedral","church",{w:19,nh:10,h:22,tw:5,top:"pyr",c:6,t:10}],["John Garang Mausoleum","palace",{w:17,nh:8,top:"dome",r:4,dd:2,dc:6,c:6}]],
   "kabul-af": [["Darul Aman Palace","palace",{w:29,nh:12,r:5,dd:4,dc:9,wings:1,c:13}],["Shah-Do Shamshira Mosque","cathedral",{w:17,nh:12,h:20,tw:3,top:"dome",r:4,dh:16,dc:6,c:12,t:6}]],
+  "kaesong-kp": [["Namdaemun of Kaesong","tiers",{n:2,w:17,dw:4,th:5,base:8,gate:1,bc:13,rc:2,c:10,fin:2}]],
+  "kagoshima-jp": [["Saigō Takamori statue","statue",{h:20,ph:8,pw:5,c:2}]],
+  "kaifeng-cn": [["Iron Pagoda","tiers",{n:11,w:11,dw:0,th:4,rc:1,c:1,fin:3}],["Dragon Pavilion","tiers",{n:2,w:21,dw:4,th:6,base:8,rc:12,c:10,fin:2}]],
+  "kairouan-tn": [["Great Mosque of Kairouan","belfry",{w:11,h:22,lan:7,top:"dome",c:0,t:0}]],
+  "kaliningrad-ru": [["Königsberg Cathedral","church",{w:25,nh:15,h:34,tw:9,tx:-8,top:"spire",c:1,t:4}]],
+  "kalmar-se": [["Kalmar Castle","castle",{w:33,wh:14,n:4,th:20,tw:5,top:"cone",c:13,t:2}]],
   "kampala-ug": [["Gaddafi National Mosque","mosque",{w:19,r:6,dc:9,m:1,sq:1,mh:36,c:6}],["Kasubi Tombs","fale",{w:19,h:2,rh:12,c:0,t:0}]],
+  "kanazawa-jp": [["Kanazawa Castle","tiers",{n:2,w:23,dw:4,th:6,base:7,rc:13,c:6,fin:2}]],
+  "kanchanaburi-th": [["Bridge on the River Kwai","span",{type:"truss",w:18,h:14,dh:9,c:2}]],
+  "kandahar-af": [["Mausoleum of Ahmad Shah Durrani","mosque",{w:15,nh:10,r:5,dd:4,dc:7,m:0,c:6}]],
+  "kandy-lk": [["Temple of the Tooth","tiers",{n:2,w:19,dw:6,th:6,base:3,rc:10,c:6,fin:3}]],
   "kano-ng": [["Kano Central Mosque","mosque",{w:21,r:6,dc:9,m:2,mh:28,c:6}],["Emir’s Palace","castle",{w:25,wh:12,n:3,th:14,tw:5,top:"crenel",c:5}]],
   "kaohsiung-tw": [["85 Sky Tower","sky",{n:2,w:7,gap:1,h:[30,30],link:30,c:11,t:6}],["Dragon and Tiger Pagodas","tiers",{n:7,w:11,dw:0,th:4,rc:10,c:12,fin:3}]],
   "karachi-pk": [["Mazar-e-Quaid","mosque",{w:17,nh:10,r:7,dd:2,dc:6,m:0,c:6}],["Empress Market","belfry",{w:7,h:28,clock:1,top:"gothic",c:13,t:13}]],
+  "karak-jo": [["Kerak Castle","castle",{w:35,wh:13,n:4,th:17,tw:5,top:"crenel",c:13}]],
+  "karakol-kg": [["Dungan Mosque","tiers",{n:3,w:21,dw:6,th:6,c:10,rc:9}],["Holy Trinity Cathedral","onion",{w:17,n:4,r:3,mc:[8],c:1}]],
+  "karbala-iq": [["Imam Husayn Shrine","mosque",{w:23,r:7,dc:12,m:2,mh:32,c:7,t:12}],["Al-Abbas Shrine","mosque",{w:19,r:6,dc:12,m:2,mh:28,c:7,t:12}]],
+  "karlovy-vary-cz": [["Mill Colonnade","column",{n:6,h:12,s:1,pw:2,ph:3,top:"none",c:6}]],
+  "kars-tr": [["Kars Castle","castle",{w:29,wh:11,n:3,th:15,tw:5,top:"crenel",c:8}],["Church of the Holy Apostles","church",{w:15,nh:11,h:22,tw:7,top:"cone",c:8,t:2}]],
   "kathmandu-np": [["Boudhanath Stupa","stupa",{w:27,h:34,shape:"dome",c:6,t:12}],["Dharahara","belfry",{w:5,h:40,top:"dome",c:6,t:12}]],
+  "katowice-pl": [["Spodek","stadium",{w:31,h:9,c:8,t:8,rc:6,mesh:2}]],
+  "katsina-ng": [["Gobarau Minaret","mud",{w:0,n:1,th:26,tw:9,taper:0.35,c:1}]],
+  "kaunas-lt": [["Kaunas Castle","castle",{w:21,wh:10,n:1,th:18,tw:7,top:"cone",c:1,t:10}],["Kaunas Town Hall","belfry",{w:7,h:36,lan:6,top:"spire",c:6,t:6}]],
+  "kayseri-tr": [["Kayseri Castle","castle",{w:31,wh:11,n:4,th:15,tw:5,top:"crenel",c:8}]],
+  "kazan-ru": [["Kul Sharif Mosque","mosque",{w:23,nh:10,r:6,m:4,mh:34,c:6,dc:7}],["Söyembikä Tower","belfry",{w:9,h:28,lan:6,top:"spire",c:1,t:9}]],
+  "kendari-id": [["Kendari Bay Bridge","span",{type:"cable",n:2,w:18,h:22,dh:8,c:6}]],
+  "kermanshah-ir": [["Taq-e Bostan","rock",{w:32,h:22,niches:2,c:13}]],
+  "khabarovsk-ru": [["Transfiguration Cathedral","onion",{w:21,nh:14,r:5,n:4,mc:[12],c:6}]],
   "kharkiv-ua": [["Derzhprom","sky",{n:3,w:7,gap:2,h:[26,32,26],link:18,c:13,t:11}],["Annunciation Cathedral","onion",{w:17,r:4,n:2,mc:[8],c:10}]],
   "khartoum-sd": [["Corinthia Hotel","sky",{w:13,h:22,top:"dome",c:11,t:11,rc:11}],["Al-Mahdi’s Tomb","mosque",{w:15,nh:8,r:6,dc:8,m:0,c:13}]],
+  "khon-kaen-th": [["Phra Mahathat Kaen Nakhon","tiers",{n:6,w:17,dw:2,th:4,base:3,rc:12,c:6,fin:6}]],
+  "khorramabad-ir": [["Falak-ol-Aflak","castle",{w:29,wh:14,n:4,th:18,tw:5,top:"crenel",c:0}]],
+  "khujand-tj": [["Khujand Fortress","castle",{w:31,wh:11,n:3,th:15,tw:5,top:"crenel",c:0}]],
   "kigali-rw": [["Kigali Convention Centre","sky",{w:13,h:14,top:"dome",c:11,t:5,rc:11}],["Kigali City Tower","sky",{w:9,h:32,c:11,t:6}]],
   "king-edward-point-gs": [["Grytviken Church","church",{w:13,nh:8,h:20,tw:3,top:"spire",c:6,t:2}],["Shackleton’s grave","column",{h:8,s:1,pw:2,ph:3,top:"cross",c:6,t:6}]],
   "kingston-jm": [["Devon House","palace",{w:23,nh:10,top:"flat",cols:4,c:6,rc:10}],["Redemption Song statue","statue",{h:16,ph:6,pw:4,pose:"torch",c:8}]],
   "kingston-nf": [["All Saints Church (Commissariat Store)","palace",{w:19,nh:11,top:"flat",cols:3,c:13}],["Old Military Barracks","castle",{w:23,wh:9,n:2,th:11,tw:5,top:"flat",c:13}]],
   "kingstown-vc": [["St George’s Anglican Cathedral","church",{w:17,nh:10,h:22,tw:5,top:"crenel",c:13,t:1}],["St Mary’s Catholic Cathedral","cathedral",{w:21,nh:12,h:22,top:"gothic",c:8,t:8}]],
   "kinshasa-cd": [["Limete Tower","tower",{h:40,s:2,pod:36,pw:4,ant:4,c:13,t:2}],["Palais du Peuple","palace",{w:29,nh:10,top:"flat",cols:6,c:6}]],
+  "kirkuk-iq": [["Kirkuk Citadel","castle",{w:33,wh:12,n:3,th:15,tw:5,top:"crenel",c:0}]],
+  "kobe-jp": [["Kobe Port Tower","lattice",{h:36,w:7,waist:1,decks:[30],c:10,t:6}],["Akashi Kaikyō Bridge","span",{type:"suspension",w:20,h:26,dh:8,c:6}]],
+  "kochi-jp": [["Kōchi Castle","tiers",{n:4,w:17,dw:4,th:5,base:7,rc:2,c:6,fin:2}]],
   "kolkata-in": [["Howrah Bridge","span",{type:"truss",w:20,h:22,dh:7,c:8}],["Victoria Memorial","palace",{w:25,nh:10,r:6,dd:3,dc:6,wings:"pyr",c:6}]],
+  "konya-tr": [["Mevlana Museum","belfry",{w:7,h:20,top:"cone",c:4,t:4}],["Selimiye Mosque","mosque",{w:21,r:6,dc:8,m:2,mh:28,c:13}]],
+  "koper-si": [["Koper Cathedral Bell Tower","belfry",{w:7,h:32,lan:5,top:"pyr",c:6,t:6}]],
+  "korce-al": [["Resurrection Cathedral","cathedral",{w:23,nh:13,h:28,top:"dome",r:5,dc:8,c:13,t:8}]],
+  "kosice-sk": [["St. Elisabeth Cathedral","church",{w:25,nh:16,h:40,tw:7,tx:-8,top:"gothic",c:13,t:2,rc:9}]],
+  "kota-kinabalu-my": [["Kota Kinabalu City Mosque","mosque",{w:23,r:7,sd:3,dc:7,m:4,mh:30,c:6}]],
   "krakow-pl": [["St. Mary’s Basilica","church",{w:19,nh:13,h:36,tw:7,tx:-5,top:"gothic",c:1,t:4}],["Wawel Castle","castle",{w:27,wh:12,n:3,th:16,tw:5,top:"cone",c:13,t:1}]],
+  "krasnoyarsk-ru": [["Chapel of Paraskeva Pyatnitsa","onion",{w:9,nh:8,r:2,tent:12,mc:[12],c:6}]],
   "kuala-lumpur-my": [["Petronas Towers","twins"],["KL Tower","tower",{h:40,s:1,pod:34,pw:5,ant:10,c:6,t:11}]],
+  "kuala-terengganu-my": [["Crystal Mosque","mosque",{w:21,r:6,dc:11,m:4,mh:28,c:8,t:6}]],
+  "kuantan-my": [["Sultan Ahmad Shah State Mosque","mosque",{w:23,r:6,sd:3,dc:7,m:4,mh:30,c:6}]],
+  "kuching-my": [["Fort Margherita","castle",{w:17,wh:10,n:1,th:16,tw:7,top:"crenel",c:6}]],
+  "kumamoto-jp": [["Kumamoto Castle","tiers",{n:4,w:23,dw:4,th:5,base:9,rc:8,c:2,fin:2}]],
+  "kunming-cn": [["East Temple Pagoda","tiers",{n:7,w:15,dw:2,th:4,base:2,rc:2,c:6,fin:3}]],
+  "kuopio-fi": [["Puijo Tower","tower",{h:30,s:1,pod:26,pw:4,ant:4,c:13,t:11}]],
+  "kutaisi-ge": [["Bagrati Cathedral","church",{w:23,nh:13,h:24,tw:7,top:"cone",c:13,t:8}]],
   "kuwait-city-kw": [["Kuwait Towers","tower",{h:42,s:1,pod:24,pw:6,pod2:34,pw2:3,ball:1,bc:7,ant:4,c:6}],["Al Hamra Tower","sky",{w:11,h:44,top:"slant",sl:0.9,c:13,t:11}]],
   "kyiv-ua": [["Motherland Monument","statue",{h:34,ph:10,pw:5,pose:"sword",c:8,t:8}],["St Michael’s Golden-Domed Monastery","onion",{w:17,r:4,n:4,mc:[12],c:7}]],
   "kyoto-jp": [["Yasaka Pagoda","pagoda"],["Kinkaku-ji","tiers",{n:3,w:19,dw:4,th:6,rc:2,c:12,fin:3}]],
   "la-paz-bo": [["Basilica of San Francisco","church",{w:19,nh:11,h:24,tw:5,tx:7,top:"dome",c:13,t:13}],["Casa Grande del Pueblo","sky",{w:9,h:34,c:11,t:6}]],
+  "la-plata-ar": [["La Plata Cathedral","cathedral",{w:23,nh:14,h:36,top:"spire",sp:18,c:1,t:1}],["Estadio Ciudad de La Plata","stadium",{w:31,h:10,c:6,t:8,rc:6,arch:4}]],
+  "la-rochelle-fr": [["Tour Saint-Nicolas","castle",{w:13,wh:16,n:1,th:24,tw:7,top:"crenel",c:13,t:13}],["Tour de la Lanterne","belfry",{w:7,h:24,top:"spire",c:13,t:13}]],
+  "la-serena-cl": [["El Faro Monumental","light",{h:20,w:4,tw:3,c:6,rc:10}]],
   "lagos-ng": [["Lekki-Ikoyi Link Bridge","span",{type:"cable",w:16,h:24,dh:7,c:6}],["National Theatre","stadium",{w:25,h:8,c:6,t:6,rc:2}]],
   "lahore-pk": [["Badshahi Mosque","mosque",{w:23,r:6,sd:3,dc:6,m:4,mh:28,c:1}],["Minar-e-Pakistan","column",{h:44,s:2,taper:0.5,pw:7,ph:5,top:"ball",r:1,c:6,t:6}]],
+  "lahti-fi": [["Lahti ski jumps","skijump",{h:40,w:34,c:6,t:7}]],
+  "lampang-th": [["Wat Phra That Lampang Luang","stupa",{w:19,h:32,c:12,t:3}]],
+  "lamu-ke": [["Lamu Fort","castle",{w:25,wh:12,n:2,th:14,tw:5,top:"crenel",c:0}]],
+  "lansing-us": [["Michigan State Capitol","palace",{w:29,nh:10,r:4,dd:7,dc:6,cols:3,c:13}]],
+  "lanzhou-cn": [["Zhongshan Bridge","span",{type:"truss",w:18,h:12,dh:8,c:8}],["White Pagoda","tiers",{n:7,w:13,dw:2,th:4,rc:2,c:6,fin:2}]],
+  "larnaca-cy": [["Church of Saint Lazarus","church",{w:19,nh:10,h:30,tw:5,top:"baroque",sp:4,c:0,t:0}]],
+  "las-palmas-es": [["Santa Ana Cathedral","cathedral",{w:23,nh:14,h:28,tw:5,top:"dome",r:5,dc:8,c:13,t:13}]],
   "las-vegas-us": [["The Strat","tower",{h:46,s:2,pod:40,pw:5,ant:8,c:6,t:11}],["Luxor pyramid","pyramid",{w:14,h:20,glass:1,c:2,s:2,t:8}]],
+  "lashkar-gah-af": [["Arch of Qala-e Bost","arch",{w:17,h:26,ow:4,oh:20,top:"peak",c:0}]],
+  "lausanne-ch": [["Lausanne Cathedral","church",{w:23,nh:13,h:36,tw:7,tx:-6,top:"spire",c:13,t:8}]],
+  "le-puy-en-velay-fr": [["Notre-Dame de France","statue",{h:22,ph:8,pw:3,c:10,pc:2}]],
+  "leeuwarden-nl": [["Oldehove","belfry",{w:9,h:28,top:"flat",c:1,t:1}]],
+  "leiria-pt": [["Leiria Castle","castle",{w:25,wh:10,n:2,th:13,tw:5,top:"crenel",kh:18,kw:7,c:13}]],
+  "leon-de-los-aldama-mx": [["Arco de la Calzada","arch",{w:23,h:18,ow:3,n:3,top:"attic",c:14,t:14}]],
+  "leon-es": [["León Cathedral","cathedral",{w:25,nh:16,h:32,tw:5,top:"spire",sp:14,c:13,t:13,rose:1}]],
+  "leon-ni": [["León Cathedral","cathedral",{w:27,nh:13,h:24,top:"dome",r:5,dc:6,c:6,t:6}]],
+  "lhasa-cn": [["Potala Palace","tiers",{n:2,w:17,dw:2,th:7,base:14,bc:6,rc:12,c:10,fin:2}],["Jokhang Temple","tiers",{n:2,w:17,dw:4,th:5,base:6,rc:12,c:6,fin:3}]],
+  "liaocheng-cn": [["Guangyue Tower","tiers",{n:4,w:19,dw:2,th:5,base:9,gate:1,bc:13,rc:2,c:10,fin:2}]],
+  "liberec-cz": [["Ještěd Tower","column",{h:28,s:5,taper:0.9,pw:6,ph:3,top:"point",c:8}],["Liberec Town Hall","palace",{w:29,nh:12,top:"tower",th:32,tw:5,cap:"needle",c:13,t:4}]],
   "libreville-ga": [["Presidential Palace","palace",{w:29,nh:10,top:"flat",c:6}],["Saint-Michel de Nkembo church","church",{w:17,nh:10,h:18,tw:5,top:"pyr",c:6,t:1}]],
+  "lille-fr": [["Belfry of Lille","belfry",{w:7,h:40,lan:6,top:"pyr",c:1,t:13}]],
+  "lillehammer-no": [["Lysgårdsbakken ski jump","skijump",{h:36,w:34,dir:-1,c:8,t:10}]],
   "lilongwe-mw": [["Bingu National Stadium","stadium",{w:29,h:10,c:6,t:8,rc:6}],["Kamuzu Mausoleum","palace",{w:15,nh:8,r:4,dd:3,dc:6,cols:4,c:6}]],
   "lima-pe": [["Cathedral of Lima","cathedral",{w:23,nh:13,h:24,top:"spire",c:0,t:13}],["Government Palace","palace",{w:29,nh:10,top:"flat",cols:5,c:12}]],
+  "limassol-cy": [["Limassol Castle","castle",{w:21,wh:12,n:1,th:14,tw:7,top:"crenel",c:0}]],
+  "limoges-fr": [["Limoges-Bénédictins station","palace",{w:31,nh:10,top:"tower",th:34,tw:7,cap:"dome",c:6,t:4}]],
+  "lincoln-us": [["Nebraska State Capitol","palace",{w:29,nh:8,top:"tower",th:40,tw:9,cap:"dome",c:13,t:12}]],
+  "linkoping-se": [["Linköping Cathedral","church",{w:21,nh:13,h:38,tw:7,tx:-6,top:"spire",c:13,t:4}]],
+  "linz-at": [["New Cathedral (Mariendom)","church",{w:21,nh:14,h:44,tw:7,tx:0,top:"spire",c:13,t:13}]],
   "lisbon-pt": [["25 de Abril Bridge","bridge"],["Belém Tower","belfry",{w:9,h:24,lan:5,top:"crenel",c:6}]],
+  "livorno-it": [["Fortezza Vecchia","castle",{w:27,wh:10,n:3,th:14,tw:5,top:"crenel",c:1}]],
   "ljubljana-si": [["Ljubljana Castle","castle",{w:25,wh:10,n:2,th:13,tw:5,top:"crenel",kh:18,kw:5,ktop:"crenel",c:13}],["Ljubljana Cathedral","cathedral",{w:21,nh:13,h:22,top:"bulb",r:4,dc:9,c:13,t:9}]],
+  "lleida-es": [["La Seu Vella","church",{w:23,nh:14,h:40,tw:7,tx:7,top:"crenel",c:0,t:0}]],
   "lobamba-sz": [["Somhlolo National Stadium","stadium",{w:27,h:9,c:6,t:8,rc:6}],["King Sobhuza II Memorial","statue",{h:16,ph:6,pw:4,c:8}]],
+  "logrono-es": [["Co-cathedral of La Redonda","cathedral",{w:23,nh:14,h:34,tw:5,top:"baroque",sp:6,c:0,t:0}]],
   "lome-tg": [["Independence Monument","column",{h:30,s:3,pw:6,ph:4,top:"none",c:6}],["Lomé Cathedral","cathedral",{w:21,nh:12,h:28,top:"spire",c:6,t:6}]],
+  "longyan-cn": [["Hakka tulou","tulou",{w:34,h:12,c:0,t:1,rc:2}]],
   "longyearbyen-sj": [["Svalbard Church","church",{w:15,nh:8,h:18,tw:3,top:"spire",c:10,t:2}],["Svalbard Global Seed Vault","sky",{w:7,h:6,top:"slant",sl:1,c:8,t:11}]],
+  "lop-buri-th": [["Phra Prang Sam Yot","stupa",{w:19,h:28,shape:"prang",c:13,t:0}]],
   "los-angeles-us": [["Griffith Observatory","palace",{w:29,nh:8,r:6,dc:8,wings:1,c:6}],["U.S. Bank Tower","sky",{w:9,h:46,top:"steps",sp:2,c:13,t:11}]],
+  "lovech-bg": [["Covered Bridge","span",{type:"arch",over:1,w:18,h:6,roof:1,rc:1,c:13}]],
   "luanda-ao": [["Agostinho Neto Mausoleum","column",{h:42,s:3,taper:0.7,pw:6,ph:6,top:"point",c:13}],["Fortress of São Miguel","castle",{w:27,wh:10,n:2,th:12,tw:5,top:"crenel",c:13}]],
+  "luang-prabang-la": [["Wat Xieng Thong","tiers",{n:3,w:23,dw:4,th:4,rc:2,c:12,fin:2}],["That Chomsi (Mount Phousi)","stupa",{w:13,h:22,c:12,t:3}]],
+  "lubango-ao": [["Cristo Rei of Lubango","statue",{h:22,ph:8,pw:4,pose:"out",c:6}]],
+  "lublin-pl": [["Lublin Castle","castle",{w:27,wh:12,n:2,th:16,tw:5,top:"crenel",kh:20,kw:7,ktop:"crenel",c:6}],["Kraków Gate","belfry",{w:9,h:28,lan:5,top:"bulb",c:1,t:4}]],
+  "lubumbashi-cd": [["Gécamines chimney","column",{h:44,s:2,taper:0.3,pw:4,ph:4,top:"none",c:1}]],
+  "lucca-it": [["Guinigi Tower","belfry",{w:7,h:30,top:"crenel",c:1}]],
+  "lucknow-in": [["Rumi Darwaza","arch",{w:23,h:26,ow:5,top:"towers",tc:"dome",cap:"dome",c:0,t:0}],["Husainabad Clock Tower","belfry",{w:7,h:36,clock:1,top:"gothic",c:1,t:1}]],
+  "lugo-es": [["Roman Walls of Lugo","castle",{w:35,wh:10,n:5,th:12,tw:5,top:"crenel",c:8}]],
+  "luoyang-cn": [["Vairocana Buddha, Longmen Grottoes","statue",{h:26,ph:6,pw:9,pose:"seated",c:13,t:13}],["Qiyun Pagoda, White Horse Temple","tiers",{n:7,w:15,dw:2,th:4,rc:13,c:13,fin:2}]],
   "lusaka-zm": [["Freedom Statue","statue",{h:16,ph:8,pw:4,pose:"torch",c:8}],["Cathedral of the Holy Cross","pyramid",{w:11,h:16,c:6,s:13}]],
+  "lutsk-ua": [["Lubart’s Castle","castle",{w:29,wh:12,n:3,th:18,tw:5,top:"crenel",c:1}]],
   "luxembourg-lu": [["Adolphe Bridge","span",{type:"arch",over:1,w:16,h:16,c:13,pc:13}],["Notre-Dame Cathedral","church",{w:19,nh:12,h:30,tw:5,tx:-6,top:"needle",c:13,t:2}]],
+  "luxor-eg": [["Luxor Temple","pylon",{w:37,h:20,gw:7,obelisk:-1,c:0}]],
+  "luzern-ch": [["Chapel Bridge and Water Tower","span",{type:"girder",w:22,dh:5,n:6,roof:1,rc:1,c:1,pc:1}],["Hofkirche","cathedral",{w:19,nh:12,h:30,tw:5,top:"needle",c:13,t:4}]],
+  "lviv-ua": [["Lviv Town Hall","belfry",{w:9,h:40,clock:1,lan:6,top:"dome",c:6,t:9}],["Lviv Opera House","palace",{w:31,nh:12,top:"dome",r:5,dc:4,cols:4,c:13}]],
   "lyon-fr": [["Basilica of Notre-Dame de Fourvière","cathedral",{w:23,nh:16,h:22,tw:5,top:"crenel",c:6,t:6}],["Tour Part-Dieu","sky",{w:9,h:36,top:"pyramid",c:5,t:13}]],
+  "ma-rib-ye": [["Temple of Bar’an","column",{n:5,h:22,s:1,pw:2,ph:3,top:"none",c:0}]],
+  "maastricht-nl": [["St. John’s Church","church",{w:17,nh:12,h:36,tw:7,tx:-5,top:"spire",c:10,t:2}],["Basilica of Saint Servatius","cathedral",{w:21,nh:13,h:28,tw:5,top:"pyr",c:13,t:2}]],
+  "macapa-br": [["Fortaleza de São José de Macapá","castle",{w:29,wh:8,n:3,th:10,tw:5,top:"crenel",c:13}]],
   "macau-mo": [["Macau Tower","tower",{h:44,s:2,pod:36,pw:6,ant:10,c:6,t:11}],["Ruins of St. Paul’s","palace",{w:13,nh:22,top:"flat",cols:3,c:13}]],
+  "madinah-sa": [["Prophet’s Mosque","mosque",{w:31,nh:10,r:5,dc:9,m:4,mh:34,c:6,t:3}]],
+  "madison-us": [["Wisconsin State Capitol","palace",{w:29,nh:10,r:6,dd:6,dc:6,cols:4,c:6}]],
+  "madurai-in": [["Meenakshi Temple gopuram","tiers",{n:9,w:19,dw:2,th:4,rc:5,c:14,fin:2}]],
+  "magdeburg-de": [["Magdeburg Cathedral","cathedral",{w:23,nh:14,h:42,tw:5,top:"spire",c:13,t:2}]],
+  "magway-mm": [["Mya Tha Lun Pagoda","stupa",{w:19,h:32,c:12,t:3}]],
+  "mainz-de": [["Mainz Cathedral","church",{w:23,nh:14,h:36,tw:7,top:"baroque",c:14,t:14}]],
   "majuro-mh": [["Nitijeļā (Capitol building)","palace",{w:23,nh:9,top:"flat",c:6}],["Majuro Bridge","span",{type:"arch",w:14,h:10,dh:6,c:6}]],
+  "makassar-id": [["Fort Rotterdam","castle",{w:31,wh:9,n:3,th:12,tw:5,top:"pyr",c:13,t:10}],["Amirul Mukminin Floating Mosque","mosque",{w:19,nh:8,r:6,dc:10,m:2,mh:26,c:6}]],
+  "malabo-gq": [["Malabo Cathedral","cathedral",{w:23,nh:13,h:34,tw:5,top:"spire",c:6,t:8}]],
+  "malacca-my": [["Christ Church Melaka","church",{w:17,nh:10,h:18,tw:5,top:"pyr",c:10,t:10}],["A Famosa (Porta de Santiago)","arch",{w:15,h:12,ow:3,top:"attic",c:13,t:13}]],
+  "malaga-es": [["Alcazaba of Málaga","castle",{w:29,wh:10,n:3,th:14,tw:5,top:"crenel",c:0}],["Málaga Cathedral","church",{w:23,nh:16,h:34,tw:7,tx:-6,top:"dome",c:13,t:13}]],
   "male-mv": [["Grand Friday Mosque","mosque",{w:19,r:6,dc:12,m:1,mh:28,c:6}],["Sinamalé Bridge","span",{type:"cable",w:16,h:20,dh:7,c:6}]],
+  "malmo-se": [["Turning Torso","sky",{w:9,h:50,top:"flat",c:6,t:11}],["Øresund Bridge","span",{type:"cable",n:2,w:16,h:24,dh:8,c:13}]],
+  "manado-id": [["Jesus Blessing statue","statue",{h:24,ph:12,pw:3,pose:"out",c:6}]],
   "managua-ni": [["Old Cathedral of Managua","cathedral",{w:21,nh:13,h:24,top:"pyr",c:13,t:13}],["Metropolitan Cathedral","palace",{w:25,nh:8,r:3,dd:2,dc:6,c:6}]],
   "manama-bh": [["Bahrain World Trade Center","sky",{n:2,w:9,gap:5,h:42,taper:0.5,top:"point",link:20,c:11,t:6}],["Bab Al Bahrain","arch",{w:19,h:14,ow:3,top:"attic",c:13,t:13}]],
   "manaus-br": [["Teatro Amazonas","palace",{w:23,nh:10,r:5,dd:3,dc:9,cols:4,c:14}],["Rio Negro Bridge","span",{type:"cable",w:16,h:22,dh:9,c:6}]],
   "manchester-gb": [["Beetham Tower","sky",{w:7,h:42,c:11,t:6}],["Manchester Town Hall","belfry",{w:7,h:32,clock:1,top:"spire",sp:8,c:13,t:8}]],
+  "mandalay-mm": [["Mandalay Palace","tiers",{n:7,w:17,dw:2,th:4,base:3,rc:12,c:10,fin:3}],["Kuthodaw Pagoda","stupa",{w:19,h:30,c:12,t:3}]],
   "manila-ph": [["Manila Cathedral","cathedral",{w:21,nh:13,h:22,tw:5,top:"dome",r:5,dc:4,c:13,t:13}],["Rizal Monument","column",{h:26,s:2,taper:0.6,pw:5,ph:8,top:"point",c:13}]],
+  "manizales-co": [["Cathedral Basilica of Manizales","church",{w:19,nh:12,h:40,tw:7,top:"gothic",sp:14,c:8,t:8}]],
+  "mantua-it": [["Castle of Saint George","castle",{w:29,wh:14,n:4,th:18,tw:5,top:"crenel",c:1}],["Basilica of Sant’Andrea","palace",{w:21,nh:14,top:"dome",r:6,dc:13,c:1,t:13}]],
   "maputo-mz": [["Maputo Railway Station","palace",{w:27,nh:10,r:5,dd:2,dc:9,wings:1,c:6}],["Cathedral of Our Lady of the Immaculate Conception","church",{w:15,nh:9,h:34,tw:5,top:"needle",c:6,t:6}]],
   "maracaibo-ve": [["General Rafael Urdaneta Bridge","span",{type:"cable",n:2,w:20,h:20,dh:8,c:6}],["Basílica de la Chiquinquirá","cathedral",{w:21,nh:12,h:22,top:"dome",r:4,dc:12,c:12,t:12}]],
   "mariehamn-ax": [["St. Göran’s Church","church",{w:17,nh:9,h:22,tw:5,top:"spire",c:13,t:1}],["Mariehamn Town Hall","palace",{w:21,nh:9,top:"tower",th:20,tw:5,cap:"pyr",c:13,t:1}]],
   "marigot-mf": [["Fort Louis","castle",{w:25,wh:8,n:2,th:11,tw:5,top:"crenel",c:13}],["Marigot Catholic church","church",{w:15,nh:9,h:18,tw:5,top:"pyr",c:6,t:10}]],
   "marrakesh-ma": [["Koutoubia Mosque","belfry",{w:7,h:34,lan:6,top:"dome",c:0,t:9}],["Menara pavilion","belfry",{w:11,h:9,top:"pyr",c:0,t:9}]],
   "marseille-fr": [["Notre-Dame de la Garde","column",{h:30,s:3,pw:9,ph:12,top:"statue",fh:8,c:13,t:12}],["Marseille Cathedral","cathedral",{w:23,nh:12,h:20,top:"dome",r:5,dc:1,c:13,t:1}]],
+  "mary-tm": [["Mausoleum of Sultan Sanjar, Merv","mosque",{w:19,nh:16,r:7,dd:4,dc:1,m:0,c:1}]],
   "maseru-ls": [["Basotho Hat building","pyramid",{w:11,h:12,c:0,s:0}],["Our Lady of Victories Cathedral","cathedral",{w:21,nh:12,h:24,top:"spire",c:1,t:8}]],
+  "mashhad-ir": [["Imam Reza Shrine","mosque",{w:25,r:7,dc:12,m:2,mh:30,c:7,t:12}],["Goharshad Mosque","mosque",{w:21,r:6,dd:4,dc:4,m:2,mh:28,c:7,t:4}]],
+  "masvingo-zw": [["Great Zimbabwe","castle",{w:31,wh:9,n:0,kh:16,kw:5,ktop:"none",plain:1,round:1,c:13,t:13}]],
   "mata-utu-wf": [["Cathedral of Our Lady of the Assumption","cathedral",{w:21,nh:12,h:20,top:"flat",c:8,t:8}],["Lavelua’s Royal Palace","palace",{w:21,nh:8,top:"flat",c:6,rc:10}]],
+  "matadi-cd": [["Matadi Bridge","span",{type:"suspension",w:22,h:26,dh:8,c:10}]],
+  "matsue-jp": [["Matsue Castle","tiers",{n:4,w:19,dw:4,th:5,base:7,rc:8,c:2,fin:2}]],
+  "matsuyama-jp": [["Matsuyama Castle","tiers",{n:3,w:19,dw:4,th:5,base:8,rc:2,c:6,fin:2}]],
+  "mawlamyine-mm": [["Kyaikthanlan Pagoda","stupa",{w:19,h:32,c:12,t:3}]],
+  "mazar-i-sharif-af": [["Blue Mosque (Shrine of Ali)","mosque",{w:25,nh:10,r:6,sd:3,dd:3,dc:4,m:4,mh:28,c:7,t:4}]],
   "mbabane-sz": [["Our Lady of the Assumption Cathedral","church",{w:17,nh:10,h:22,tw:5,top:"pyr",c:13,t:1}],["Sibebe Rock","sphere",{r:13,c:8}]],
+  "mbombela-za": [["Mbombela Stadium","stadium",{w:29,h:10,c:6,t:8,rc:6,lights:1}]],
   "mecca-sa": [["Abraj Al-Bait Clock Tower","belfry",{w:11,h:44,clock:1,lan:5,top:"needle",sp:8,c:13,t:12}],["Masjid al-Haram","mosque",{w:31,nh:9,r:0,m:4,mh:30,c:6,dc:6}]],
   "medan-id": [["Great Mosque of Medan","mosque",{w:21,r:6,sd:3,dc:2,m:1,mh:26,c:12}],["Maimun Palace","palace",{w:29,nh:9,r:3,dd:2,dc:2,wings:1,c:12}]],
   "medellin-co": [["Coltejer Building","sky",{w:7,h:38,top:"point",ph:12,c:6,t:11}],["Metropolitan Cathedral","cathedral",{w:23,nh:13,h:22,top:"pyr",r:4,dc:1,c:1,t:1}]],
+  "mek-ele-et": [["Martyrs’ Memorial Monument","column",{h:40,s:2,pw:5,ph:5,top:"ball",r:3,c:13,t:12}]],
   "melbourne-au": [["Flinders Street Station","palace",{w:29,nh:9,r:5,dd:3,dc:9,wings:1,c:12}],["Eureka Tower","sky",{w:9,h:48,c:11,t:12}]],
+  "melilla-es": [["Melilla la Vieja","castle",{w:31,wh:10,n:3,th:13,tw:5,top:"crenel",c:0}]],
+  "mendoza-ar": [["Cerro de la Gloria monument","statue",{h:16,ph:12,pw:7,pose:"out",c:8,pc:13}]],
+  "merida-es": [["Roman Theatre of Mérida","column",{n:6,h:18,s:1,pw:2,ph:4,top:"none",c:6}],["Los Milagros Aqueduct","arcade",{n:5,w:6,h:18,tiers:2,c:1,t:13}]],
+  "merida-mx": [["Mérida Cathedral","cathedral",{w:25,nh:14,h:24,top:"dome",c:13,t:13}]],
+  "messina-it": [["Messina Cathedral bell tower","belfry",{w:9,h:36,clock:1,lan:5,top:"spire",c:13,t:13}],["Madonna della Lettera","column",{h:30,s:2,pw:4,ph:6,top:"statue",c:13,t:12}]],
+  "metz-fr": [["Metz Cathedral","church",{w:25,nh:20,h:38,tw:7,tx:6,top:"spire",c:0,t:2}],["Porte des Allemands","castle",{w:21,wh:10,n:2,th:16,tw:5,top:"cone",c:13,t:2}]],
   "mexico-city-mx": [["Angel of Independence","column",{h:36,s:1,pw:5,ph:6,top:"angel",c:13,t:12}],["Metropolitan Cathedral","cathedral",{w:25,nh:14,h:26,tw:5,top:"bulb",r:4,dc:13,c:13,t:13}]],
   "miami-us": [["Freedom Tower","belfry",{w:7,h:30,lan:5,top:"dome",c:6,t:12}],["Miami Tower","sky",{w:9,h:38,top:"steps",sp:2,c:6,t:7}]],
+  "middelburg-nl": [["Lange Jan","belfry",{w:7,h:34,lan:6,top:"bulb",c:13,t:2}]],
   "milan-it": [["Milan Cathedral","milan"],["UniCredit Tower","sky",{w:9,h:36,taper:0.3,top:"spire",sp:14,c:11,t:6}]],
   "minneapolis-us": [["IDS Center","sky",{w:9,h:44,top:"steps",sp:1,c:11,t:6}],["Foshay Tower","column",{h:34,s:3,taper:0.3,pw:4,ph:2,top:"point",c:13}]],
   "minsk-by": [["Holy Spirit Cathedral","cathedral",{w:21,nh:13,h:24,top:"bulb",c:6,t:4}],["Minsk Hero City Obelisk","column",{h:44,s:2,taper:0.5,pw:5,ph:4,top:"star",c:13}]],
+  "miskolc-hu": [["Diósgyőr Castle","castle",{w:27,wh:12,n:4,th:18,tw:5,top:"crenel",c:13}]],
+  "modena-it": [["Ghirlandina","belfry",{w:7,h:40,lan:6,top:"spire",c:6,t:6}],["Modena Cathedral","church",{w:21,nh:14,h:14,tw:3,top:"pyr",c:6,t:6}]],
   "mogadishu-so": [["Mosque of Islamic Solidarity","mosque",{w:19,r:5,dc:6,m:1,mh:30,c:6}],["Mogadishu Cathedral ruins","cathedral",{w:19,nh:12,h:22,top:"crenel",c:13,t:13}]],
+  "mogilev-by": [["Mogilev Town Hall","belfry",{w:7,h:30,clock:1,lan:5,top:"spire",c:6,t:8}]],
   "mombasa-ke": [["Fort Jesus","castle",{w:27,wh:10,n:3,th:12,tw:5,top:"crenel",c:0}],["Mombasa Tusks","span",{type:"arch",bare:1,w:7,h:20,dh:0,c:6}]],
   "monaco-mc": [["Monte Carlo Casino","cathedral",{w:23,nh:11,h:18,tw:5,top:"dome",c:13,t:4}],["Prince’s Palace","castle",{w:25,wh:10,n:2,th:14,tw:5,top:"crenel",kh:16,kw:5,c:12}]],
+  "monastir-tn": [["Ribat of Monastir","castle",{w:27,wh:10,n:2,th:12,tw:5,kh:22,kw:7,ktop:"crenel",c:0}],["Bourguiba Mausoleum","mosque",{w:21,r:5,dc:12,m:2,sq:1,mh:26,c:6}]],
   "monrovia-lr": [["Ducor Hotel","sky",{w:15,h:22,c:6,t:2}],["Capitol Building","palace",{w:25,nh:9,r:5,dc:6,cols:4,c:6}]],
   "monterrey-mx": [["Faro del Comercio","sky",{w:3,h:40,c:5,t:5}],["Monterrey Cathedral","church",{w:19,nh:11,h:26,tw:5,tx:6,top:"dome",c:12,t:12}]],
   "montevideo-uy": [["Palacio Salvo","belfry",{w:9,h:36,lan:8,top:"dome",c:13,t:13}],["Legislative Palace","palace",{w:29,nh:11,top:"flat",cols:6,wings:1,c:13}]],
+  "montgomery-us": [["Alabama State Capitol","palace",{w:27,nh:10,r:4,dd:6,dc:6,cols:4,c:6}]],
+  "montpellier-fr": [["Arc de Triomphe of Montpellier","arch",{w:19,h:20,top:"attic",c:13,t:13}]],
   "montreal-ca": [["Notre-Dame Basilica","cathedral",{w:21,nh:13,h:30,tw:5,top:"flat",rose:1,c:13,t:13}],["Biosphère","sphere",{r:12,geo:1,c:11,t:8}]],
+  "monywa-mm": [["Laykyun Sekkya","statue",{h:40,ph:6,pw:5,c:12}],["Bodhi Tataung pagoda","stupa",{w:19,h:30,c:12,t:3}]],
+  "mopti-ml": [["Great Mosque of Mopti","mud",{w:29,wh:11,n:3,th:22,tw:5,c:0}]],
+  "morelia-mx": [["Morelia Cathedral","cathedral",{w:25,nh:14,h:38,top:"bulb",r:5,dc:14,c:14,t:14}]],
   "moroni-km": [["Old Friday Mosque","mosque",{w:15,nh:6,r:0,m:1,mh:22,c:6,dc:6}],["New Friday Mosque","mosque",{w:19,r:6,dc:6,m:2,mh:26,c:6}]],
   "moscow-ru": [["Saint Basil’s Cathedral","onion",{w:21,nh:10,r:4,n:4,tent:16,mc:[12,10,9,7,12],c:10}],["Spasskaya Tower","belfry",{w:9,h:30,clock:1,lan:6,top:"star",c:10,t:9}]],
+  "mosul-iq": [["Al-Hadba Minaret","column",{h:40,s:2,pw:3,ph:6,top:"ball",r:2,c:1,t:6}]],
+  "multan-pk": [["Tomb of Shah Rukn-e-Alam","mosque",{w:19,nh:14,r:7,dd:6,dc:6,m:0,c:1}]],
   "mumbai-in": [["Gateway of India","arch",{w:21,h:20,ow:5,top:"towers",tc:"dome",c:0,t:0}],["Chhatrapati Shivaji Terminus","palace",{w:29,nh:11,r:5,dd:4,dc:8,wings:"pyr",c:13,t:1}]],
   "munich-de": [["Frauenkirche","cathedral",{w:21,nh:14,h:32,tw:7,top:"dome",c:1,t:9}],["Allianz Arena","stadium",{w:31,h:11,c:10,t:6,rc:6,mesh:6}]],
+  "murcia-es": [["Murcia Cathedral tower","belfry",{w:9,h:40,lan:6,top:"dome",c:0,t:0}]],
+  "murmansk-ru": [["Alyosha Monument","statue",{h:28,ph:8,pw:5,c:13}]],
   "muscat-om": [["Sultan Qaboos Grand Mosque","mosque",{w:25,r:7,dc:12,m:4,mh:32,c:13}],["Al Alam Palace","palace",{w:23,nh:9,top:"flat",cols:8,c:7,rc:12}]],
   "n-djamena-td": [["King Faisal Mosque","mosque",{w:21,r:6,dc:6,m:2,mh:30,c:6}],["Our Lady of Peace Cathedral","church",{w:19,nh:10,h:22,tw:5,top:"pyr",c:1,t:1}]],
+  "nagano-jp": [["Zenkō-ji Main Hall","tiers",{n:2,w:29,dw:6,th:7,base:3,rc:2,c:1,fin:2}]],
+  "nagasaki-jp": [["Ōura Church","church",{w:17,nh:9,h:24,tw:5,top:"spire",c:6,t:8}]],
   "nagoya-jp": [["Nagoya Castle","tiers",{n:5,w:21,dw:4,th:5,base:7,rc:4,c:6,fin:3}],["Nagoya TV Tower","lattice",{h:40,w:9,decks:[24],c:8,t:6}]],
+  "nagpur-in": [["Deekshabhoomi","stupa",{w:25,h:28,shape:"dome",c:6,t:6}]],
+  "naha-jp": [["Shuri Castle","tiers",{n:2,w:25,dw:6,th:7,base:5,rc:10,c:10,fin:2}]],
   "nairobi-ke": [["Kenyatta International Convention Centre","sky",{w:9,h:30,top:"pyramid",ph:6,c:5,t:6,rc:5}],["Kenya Parliament","belfry",{w:7,h:30,clock:1,top:"pyr",c:13,t:13}]],
+  "najaf-iq": [["Imam Ali Shrine","mosque",{w:23,r:7,dc:12,m:2,mh:30,c:7,t:12}]],
+  "nakhchivan-az": [["Momine Khatun Mausoleum","column",{h:30,s:4,pw:5,ph:3,top:"none",c:1}]],
+  "nakhon-pathom-th": [["Phra Pathommachedi","stupa",{w:29,h:44,c:5,t:12}]],
+  "nakhon-ratchasima-th": [["Thao Suranari Monument","statue",{h:16,ph:10,pw:4,c:2}]],
+  "nakhon-si-thammarat-th": [["Wat Phra Mahathat","stupa",{w:23,h:40,c:6,t:3}]],
+  "namp-o-kp": [["West Sea Barrage","dam",{w:46,h:10,gates:8,c:8}]],
+  "nampula-mz": [["Nampula Cathedral","cathedral",{w:25,nh:13,h:28,tw:5,top:"dome",r:5,dh:22,dc:6,c:6,t:6}]],
+  "namur-be": [["Citadel of Namur","castle",{w:35,wh:12,n:2,th:16,tw:5,top:"crenel",c:13,t:13}]],
+  "nanchang-cn": [["Pavilion of Prince Teng","tiers",{n:3,w:23,dw:4,th:6,base:6,rc:9,c:10,fin:3}],["Star of Nanchang","wheel",{r:16,leg:4,c:6,t:10}]],
+  "nancy-fr": [["Arc Héré","arch",{w:21,h:20,n:3,top:"attic",c:13,t:12}]],
   "nanjing-cn": [["Sun Yat-sen Mausoleum","tiers",{n:2,w:21,dw:4,th:6,base:6,rc:7,c:6,fin:2}],["Zifeng Tower","sky",{w:9,h:46,taper:0.3,top:"spire",sp:10,c:11,t:6}]],
+  "nantes-fr": [["Château des ducs de Bretagne","castle",{w:33,wh:12,n:4,th:16,tw:5,top:"crenel",c:6,t:6}]],
   "naples-it": [["Castel Nuovo","castle",{w:27,wh:14,n:3,th:20,tw:7,top:"crenel",c:13}],["Galleria Umberto I","palace",{w:21,nh:11,top:"glass",r:6,dd:2,c:13}]],
+  "nara-jp": [["Tōdai-ji Daibutsuden","tiers",{n:2,w:31,dw:6,th:8,base:3,rc:2,c:1,fin:2}],["Kōfuku-ji Five-storied Pagoda","tiers",{n:5,w:15,dw:2,th:5,rc:2,c:1,fin:6}]],
+  "nashville-us": [["The Parthenon","column",{n:9,h:12,s:0,pw:17,ph:3,top:"none",c:13}],["AT&T Building","sky",{w:9,h:36,top:"point",sp:10,c:2,t:11}]],
+  "nasiriyah-iq": [["Ziggurat of Ur","pyramid",{w:20,h:12,steps:4,c:0,s:1}]],
   "nassau-bs": [["Atlantis Royal Towers","sky",{n:2,w:7,gap:3,h:32,top:"pyramid",link:24,c:14,t:13}],["Parliament Square","palace",{w:23,nh:9,top:"flat",cols:4,c:5,rc:6}]],
+  "natal-br": [["Newton Navarro Bridge","span",{type:"cable",n:2,w:18,h:22,dh:9,c:6}],["Forte dos Reis Magos","castle",{w:27,wh:8,n:2,th:10,tw:5,top:"crenel",c:6}]],
   "naypyidaw-mm": [["Uppatasanti Pagoda","stupa",{w:25,h:40,c:12,t:3}],["Hluttaw (Assembly)","tiers",{n:5,w:23,dw:4,th:4,base:4,rc:12,c:6,fin:4}]],
+  "nazareth-il": [["Basilica of the Annunciation","church",{w:23,nh:14,h:22,tw:9,top:"cone",c:13,t:8}]],
+  "neuchatel-ch": [["Collegiate Church of Neuchâtel","cathedral",{w:21,nh:12,h:26,tw:5,top:"spire",c:0,t:1}]],
+  "nevsehir-tr": [["Fairy chimneys of Cappadocia","rock",{w:34,h:24,chimneys:6,c:0,t:1}]],
   "new-delhi-in": [["India Gate","arch",{w:19,h:28,ow:4,top:"dome",r:3,dc:13,c:0,t:13}],["Qutub Minar","column",{h:46,s:3,taper:0.6,pw:4,ph:1,top:"ball",r:1,c:1,t:13}]],
   "new-orleans-us": [["St. Louis Cathedral","cathedral",{w:21,nh:13,h:26,top:"spire",c:6,t:2}],["Crescent City Connection","span",{type:"truss",w:20,h:20,dh:9,c:8}]],
   "new-york-us": [["Statue of Liberty","liberty"],["Empire State Building","sky",{w:9,h:38,top:"steps",sp:8,c:13,t:11}]],
   "ngerulmud-pw": [["Palau National Capitol","palace",{w:29,nh:11,r:6,dc:6,cols:4,c:6}],["Bai ra Melekeok","pyramid",{w:10,h:12,c:0,s:1}]],
+  "nha-trang-vn": [["Po Nagar Cham Towers","stupa",{w:17,h:28,shape:"prang",c:1,t:2}],["Long Sơn Pagoda Buddha","statue",{h:20,ph:8,pw:7,pose:"seated",c:6}]],
   "niamey-ne": [["Grand Mosque of Niamey","mosque",{w:21,r:6,dc:9,m:1,mh:30,c:13}],["Niamey Cathedral","church",{w:17,nh:10,h:22,tw:5,top:"pyr",c:6,t:1}]],
+  "nice-fr": [["Hotel Negresco","palace",{w:27,nh:14,r:5,dd:2,dc:14,c:6,t:14}],["St. Nicholas Orthodox Cathedral","onion",{w:17,r:4,n:4,mc:[4],c:14}]],
   "nicosia-cy": [["Famagusta Gate","castle",{w:23,wh:10,n:1,th:10,tw:9,top:"flat",c:13}],["Liberty Monument","statue",{h:12,ph:10,pw:8,pose:"out",c:6}]],
+  "niigata-jp": [["Toki Messe Bandaijima Building","sky",{w:9,h:46,c:11,t:6}]],
+  "nimes-fr": [["Arena of Nîmes","stadium",{w:33,h:12,c:0,t:2,rc:0}],["Maison Carrée","palace",{w:15,nh:10,top:"flat",cols:6,c:0}]],
+  "ningbo-cn": [["Tianfeng Pagoda","tiers",{n:7,w:15,dw:2,th:4,rc:2,c:13,fin:3}]],
+  "niort-fr": [["Donjon de Niort","castle",{w:21,wh:16,n:2,th:24,tw:7,top:"crenel",c:13,t:13}]],
+  "nitra-sk": [["Nitra Castle","castle",{w:31,wh:12,n:2,th:16,tw:5,top:"crenel",kh:24,kw:5,ktop:"spire",c:6,t:2}]],
+  "nizhny-novgorod-ru": [["Nizhny Novgorod Kremlin","castle",{w:33,wh:12,n:4,th:18,tw:5,top:"cone",c:1,t:9}]],
+  "nizwa-om": [["Nizwa Fort","castle",{w:25,wh:10,n:0,kh:20,kw:15,round:1,ktop:"crenel",c:0}],["Nizwa Mosque","mosque",{w:15,nh:8,r:5,dc:7,m:1,mh:22,c:0}]],
   "north-nicosia-cy": [["Selimiye Mosque","mosque",{w:21,nh:18,r:0,m:2,mh:34,c:13,dc:13}],["Büyük Han","castle",{w:25,wh:10,n:2,th:11,tw:5,top:"flat",kh:13,kw:5,ktop:"dome",c:13}]],
   "nouakchott-mr": [["Saudi Mosque","mosque",{w:21,r:6,dc:6,m:2,mh:28,c:6}],["Ibn Abbas Mosque","mosque",{w:17,r:4,dc:9,m:1,sq:1,mh:24,c:6}]],
   "noumea-nc": [["Tjibaou Cultural Centre","sail",{h:26,w:9,c:1,t:13}],["St. Joseph’s Cathedral","cathedral",{w:21,nh:12,h:26,top:"spire",c:6,t:6}]],
+  "novi-sad-rs": [["Name of Mary Church","church",{w:21,nh:13,h:42,tw:7,top:"spire",c:13,t:9}],["Petrovaradin Clock Tower","belfry",{w:7,h:20,clock:1,lan:4,top:"pyr",c:6,t:2}]],
   "novosibirsk-ru": [["Novosibirsk Opera and Ballet Theatre","palace",{w:29,nh:10,r:8,dd:2,dc:8,cols:4,c:13}],["Alexander Nevsky Cathedral","onion",{w:15,r:4,n:4,mc:[12],c:1}]],
   "nuku-alofa-to": [["Royal Palace","palace",{w:25,nh:9,top:"tower",th:16,tw:5,cap:"pyr",c:6,t:10,rc:10}],["Centenary Church","church",{w:19,nh:10,h:18,tw:5,top:"pyr",c:6,t:10}]],
   "nuuk-gl": [["Nuuk Cathedral","church",{w:15,nh:8,h:20,tw:3,top:"spire",c:10,t:2}],["Hans Egede statue","statue",{h:14,ph:10,pw:4,c:8}]],
+  "oaxaca-mx": [["Templo de Santo Domingo de Guzmán","cathedral",{w:23,nh:13,h:24,top:"dome",r:5,dc:13,c:13,t:12}]],
   "odesa-ua": [["Odesa Opera and Ballet Theatre","palace",{w:27,nh:11,r:5,dd:3,dc:4,wings:1,c:13}],["Vorontsov Lighthouse","light",{h:24,w:2,tw:2,c:6,rc:8}]],
+  "ohrid-mk": [["Samuel’s Fortress","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}]],
+  "okayama-jp": [["Okayama Castle","tiers",{n:4,w:19,dw:4,th:5,base:7,rc:8,c:2,fin:3}]],
+  "oklahoma-city-us": [["Devon Tower","sky",{w:9,h:48,c:11,t:6}]],
+  "olomouc-cz": [["Holy Trinity Column","column",{h:32,s:2,pw:5,ph:10,top:"statue",c:13,t:12}],["St. Wenceslas Cathedral","church",{w:21,nh:14,h:40,tw:7,top:"needle",sp:22,c:13,t:2}]],
+  "olympia-us": [["Washington State Capitol","palace",{w:29,nh:10,r:5,dd:8,dc:6,cols:4,c:6}]],
+  "omsk-ru": [["Dormition Cathedral","onion",{w:19,r:4,n:4,mc:[12,7],c:10}]],
+  "onitsha-ng": [["Niger Bridge","span",{type:"truss",w:20,h:14,dh:8,c:8}]],
+  "oran-dz": [["Santa Cruz Fort","castle",{w:29,wh:10,n:2,th:13,tw:5,top:"crenel",c:13}]],
   "oranjestad-aw": [["Fort Zoutman","castle",{w:21,wh:9,n:1,th:10,tw:7,top:"crenel",c:12}],["Willem III Tower","belfry",{w:7,h:24,clock:1,top:"pyr",c:12,t:10}]],
+  "ordos-cn": [["Mausoleum of Genghis Khan","palace",{w:27,nh:8,top:"dome",r:6,dc:12,wings:"pyr",c:6,rc:7}]],
+  "orebro-se": [["Örebro Castle","castle",{w:31,wh:14,n:4,th:18,tw:5,top:"dome",c:6,t:2}],["Svampen","tower",{h:22,s:1,pod:20,pw:8,ant:0,c:6,t:13}]],
+  "orleans-fr": [["Orléans Cathedral","cathedral",{w:23,nh:15,h:34,tw:5,top:"crenel",rose:1,c:13,t:13}]],
+  "oruro-bo": [["Virgen del Socavón","statue",{h:24,ph:8,pw:5,c:6}]],
   "osaka-jp": [["Osaka Castle","tiers",{n:5,w:21,dw:4,th:5,base:8,rc:4,c:6,fin:3}],["Tsūtenkaku","tower",{h:34,s:3,pod:30,pw:5,ant:4,legs:6,c:8,t:12}]],
+  "osijek-hr": [["Co-cathedral of St. Peter and Paul","church",{w:21,nh:14,h:46,tw:7,tx:-6,top:"needle",sp:22,c:1,t:2}]],
   "oslo-no": [["Oslo City Hall","sky",{n:2,w:9,gap:5,h:[32,28],c:1,t:2}],["Akershus Fortress","castle",{w:25,wh:10,n:2,th:16,tw:5,top:"pyr",kh:18,kw:7,ktop:"pyr",c:13,t:4}]],
+  "ostrava-cz": [["New City Hall","belfry",{w:7,h:40,lan:4,top:"pyr",c:13,t:8}]],
   "ottawa-ca": [["Parliament Hill","parliament"],["Château Laurier","castle",{w:21,wh:16,n:3,th:22,tw:5,top:"pyr",c:13,t:4}]],
   "ouagadougou-bf": [["National Heroes Monument","tower",{h:36,s:2,pod:32,pw:5,ball:1,bc:13,ant:3,c:13}],["Ouagadougou Cathedral","cathedral",{w:21,nh:12,h:26,top:"pyr",c:1,t:1}]],
+  "oviedo-es": [["Oviedo Cathedral","church",{w:21,nh:13,h:42,tw:7,tx:-5,top:"gothic",c:13,t:13}]],
+  "pachuca-de-soto-mx": [["Reloj Monumental de Pachuca","belfry",{w:7,h:30,clock:1,lan:5,top:"dome",c:6,t:13}]],
+  "padua-it": [["Basilica of Saint Anthony","cathedral",{w:25,nh:14,h:36,tw:3,top:"needle",r:6,dc:8,c:1,t:13}]],
   "pago-pago-as": [["American Samoa Fono","fale",{w:23,h:5,c:6,t:10}],["High Court of American Samoa","palace",{w:21,nh:8,top:"flat",cols:4,c:6}]],
+  "palembang-id": [["Ampera Bridge","span",{type:"lift",w:24,h:30,dh:7,lift:26,c:10,tc:10,t:10}],["Great Mosque of Palembang","tiers",{n:3,w:19,dw:4,th:5,base:3,rc:4,c:6,fin:3}]],
+  "palencia-es": [["Cristo del Otero","statue",{h:24,ph:6,pw:4,pose:"stand",c:6}]],
+  "palermo-it": [["Palermo Cathedral","cathedral",{w:29,nh:14,h:28,tw:5,top:"spire",r:5,dc:9,c:0,t:0}],["Teatro Massimo","palace",{w:31,nh:12,top:"dome",r:7,cols:5,c:0,t:8}]],
   "palikir-fm": [["FSM Capitol","tiers",{n:2,w:21,dw:6,th:6,rc:2,c:6,fin:1}],["Sokehs Rock","pyramid",{w:14,h:16,c:9,s:2}]],
+  "palma-es": [["La Seu","cathedral",{w:31,nh:22,h:30,tw:5,top:"gothic",c:0,t:0,rose:1}],["Bellver Castle","castle",{w:21,wh:10,n:2,th:13,tw:5,top:"crenel",kh:17,kw:7,c:0}]],
+  "pamplona-es": [["Pamplona Cathedral","cathedral",{w:23,nh:14,h:30,tw:5,top:"dome",c:13,t:13}]],
   "panama-city-pa": [["Bridge of the Americas","span",{type:"arch",w:20,h:20,dh:10,c:9}],["F&F Tower","sky",{w:9,h:42,taper:0.15,c:11,t:6}]],
+  "panjim-in": [["Our Lady of the Immaculate Conception","cathedral",{w:21,nh:12,h:22,tw:5,top:"dome",c:6,t:6}]],
   "papeete-pf": [["Notre-Dame Cathedral of Papeete","church",{w:17,nh:10,h:24,tw:5,top:"pyr",c:6,t:10}],["Papeete Market","palace",{w:25,nh:7,top:"flat",c:13,rc:10}]],
+  "paphos-cy": [["Paphos Castle","castle",{w:15,wh:14,n:0,c:0}]],
   "paramaribo-sr": [["St. Peter and Paul Cathedral","cathedral",{w:21,nh:12,h:24,top:"spire",c:13,t:8}],["Presidential Palace","palace",{w:27,nh:10,top:"flat",cols:3,c:6}]],
+  "parana-ar": [["Paraná Cathedral","cathedral",{w:23,nh:13,h:26,top:"dome",r:6,dc:13,c:13,t:13}]],
+  "pardubice-cz": [["Green Gate","belfry",{w:9,h:28,lan:5,top:"bulb",c:13,t:2}]],
   "paris-fr": [["Eiffel Tower","eiffel"],["Arc de Triomphe","arch",{w:21,h:22,ow:4,top:"attic",c:13,t:13}]],
+  "parma-it": [["Parma Cathedral","church",{w:21,nh:14,h:38,tw:5,tx:7,top:"spire",c:14,t:13}],["Baptistery of Parma","belfry",{w:11,h:24,top:"pyr",c:14,t:14}]],
+  "pathein-mm": [["Shwemokhtaw Pagoda","stupa",{w:21,h:34,c:12,t:3}]],
+  "patras-gr": [["Rio–Antirrio Bridge","span",{type:"cable",n:2,w:22,h:26,dh:8,c:6}],["Saint Andrew of Patras","mosque",{w:23,nh:12,r:7,dd:4,sd:3,m:0,dc:8,c:6}]],
+  "pau-fr": [["Château de Pau","castle",{w:29,wh:14,n:3,th:22,tw:5,top:"pyr",c:13,t:2}]],
+  "pecs-hu": [["Pécs Cathedral","cathedral",{w:25,nh:14,h:30,top:"pyr",c:13,t:2}],["Mosque of Pasha Qasim","mosque",{w:19,nh:10,r:7,m:0,dc:4,c:0}]],
+  "pekanbaru-id": [["Grand An-Nur Mosque","mosque",{w:23,r:7,sd:3,dc:9,m:4,mh:30,c:6}]],
+  "perigueux-fr": [["Saint-Front Cathedral","mosque",{w:25,nh:10,r:6,sd:3,m:0,c:6,dc:6}]],
+  "perpignan-fr": [["Le Castillet","castle",{w:17,wh:16,n:1,th:26,tw:9,top:"crenel",c:14,t:14}]],
   "perth-au": [["Bell Tower","belfry",{w:7,h:30,top:"needle",sp:16,c:11,t:4}],["Central Park tower","sky",{w:9,h:44,top:"spire",sp:6,c:11,t:6}]],
+  "pesaro-it": [["Sfera Grande","sphere",{r:7,c:12}]],
+  "pescara-it": [["Ponte del Mare","span",{type:"cable",w:20,h:24,dh:6,c:6}]],
+  "peshawar-pk": [["Mahabat Khan Mosque","mosque",{w:23,r:5,sd:3,dc:6,m:2,mh:26,c:6}],["Bala Hisar Fort","castle",{w:33,wh:13,n:3,th:16,tw:5,top:"crenel",c:1}]],
+  "phan-rang-thap-cham-vn": [["Po Klong Garai Towers","stupa",{w:17,h:28,shape:"prang",c:1,t:2}]],
   "philadelphia-us": [["Philadelphia City Hall","belfry",{w:9,h:34,clock:1,lan:6,top:"dome",c:13,t:12}],["Comcast Technology Center","sky",{w:9,h:46,c:11,t:6}]],
   "philipsburg-sx": [["Philipsburg Courthouse","palace",{w:19,nh:9,top:"tower",th:15,tw:5,cap:"dome",c:6,t:6}],["Fort Amsterdam","castle",{w:21,wh:6,n:2,th:8,tw:5,top:"crenel",c:13}]],
+  "phitsanulok-th": [["Wat Phra Si Rattana Mahathat","stupa",{w:19,h:34,shape:"prang",c:6,t:12}]],
   "phnom-penh-kh": [["Royal Palace Throne Hall","tiers",{n:3,w:21,dw:4,th:5,rc:12,c:12,fin:10}],["Independence Monument","stupa",{w:17,h:30,shape:"prang",c:5,t:13}]],
   "phoenix-us": [["Arizona State Capitol","palace",{w:25,nh:10,r:5,dc:5,cols:4,c:13}],["Chase Tower","sky",{w:9,h:38,c:8,t:11}]],
+  "phuket-th": [["Big Buddha","statue",{h:26,ph:8,pw:8,pose:"seated",c:6}]],
+  "pietermaritzburg-za": [["Pietermaritzburg City Hall","palace",{w:29,nh:11,top:"tower",th:32,tw:5,cap:"dome",c:1,t:6}]],
+  "pilsen-cz": [["St. Bartholomew’s Cathedral","church",{w:21,nh:14,h:44,tw:7,tx:-6,top:"spire",c:13,t:9}]],
+  "pisa-it": [["Leaning Tower of Pisa","belfry",{w:9,h:28,lan:4,top:"flat",c:6,lean:0.1}],["Pisa Cathedral","cathedral",{w:23,nh:14,h:14,tw:3,top:"pyr",r:5,dc:8,c:6,t:6}]],
+  "pleven-bg": [["St George the Conqueror Mausoleum","mosque",{w:15,nh:10,r:5,dd:3,m:0,dc:8,c:13}]],
+  "plovdiv-bg": [["Alyosha Monument","statue",{h:18,ph:12,pw:5,c:13}],["Roman Theatre of Philippopolis","column",{n:4,h:14,s:1,pw:2,ph:3,top:"none",c:6}]],
   "plymouth-ms": [["Soufrière Hills volcano","pyramid",{w:20,h:16,c:8,s:2}],["Plymouth war memorial clock tower","belfry",{w:5,h:16,clock:1,top:"pyr",c:13,t:13}]],
   "podgorica-me": [["Millennium Bridge","span",{type:"cable",w:14,h:22,dh:7,c:6}],["Cathedral of the Resurrection","cathedral",{w:21,nh:13,h:20,top:"dome",r:5,dc:12,c:13,t:12}]],
+  "poitiers-fr": [["Notre-Dame-la-Grande","cathedral",{w:19,nh:14,h:20,tw:5,top:"cone",c:13,t:13}]],
+  "pokhara-np": [["World Peace Pagoda","stupa",{w:25,h:30,shape:"dome",c:6,t:12}]],
+  "ponce-pr": [["Parque de Bombas","palace",{w:19,nh:9,top:"flat",c:10,rc:2,wings:"pyr",t:2}],["Cathedral of Our Lady of Guadalupe","cathedral",{w:21,nh:12,h:24,top:"dome",c:6,t:8}]],
+  "ponta-delgada-pt": [["Portas da Cidade","arch",{w:21,h:20,ow:3,oh:15,n:3,top:"attic",c:6,t:2}]],
+  "pontianak-id": [["Equator Monument","column",{h:16,s:2,pw:4,ph:4,top:"ball",r:3,c:1,t:1}]],
+  "popayan-co": [["Torre del Reloj","belfry",{w:7,h:22,clock:1,top:"pyr",c:1,t:1}]],
   "port-au-prince-ht": [["Iron Market","castle",{w:25,wh:10,n:4,th:16,tw:3,top:"dome",c:10,t:9}],["Neg Mawon statue","statue",{h:12,ph:6,pw:4,pose:"torch",c:2}]],
   "port-aux-francais-tf": [["Notre-Dame des Oiseaux chapel","church",{w:13,nh:6,h:12,tw:5,top:"pyr",c:6,t:10}],["Station radio mast","lattice",{h:30,w:4,c:10,t:6,band:6}]],
+  "port-blair-in": [["Cellular Jail","palace",{w:31,nh:9,top:"tower",th:20,tw:5,cap:"pyr",c:1,t:1}]],
   "port-louis-mu": [["Fort Adelaide","castle",{w:27,wh:10,n:2,th:12,tw:5,top:"crenel",c:13}],["Jummah Mosque","mosque",{w:17,r:4,dc:6,m:2,mh:22,c:6}]],
   "port-moresby-pg": [["Parliament House","pyramid",{w:12,h:22,c:5,s:2}],["St Mary’s Cathedral","church",{w:17,nh:10,h:20,tw:5,top:"pyr",c:6,t:10}]],
   "port-of-spain-tt": [["Red House","palace",{w:27,nh:10,r:5,dd:3,dc:10,c:10}],["Stollmeyer’s Castle","castle",{w:19,wh:12,n:2,th:18,tw:5,top:"cone",c:6,t:10}]],
+  "port-said-eg": [["Suez Canal House","palace",{w:29,nh:12,r:5,dd:2,dc:9,c:6}],["Port Said Lighthouse","light",{h:28,w:3,tw:2,band:4,b:2,c:6}]],
   "port-vila-vu": [["Chief’s Nakamal","fale",{w:21,h:3,rh:9,c:0,t:0}],["Parliament of Vanuatu","palace",{w:23,nh:9,top:"flat",c:6}]],
+  "porto-alegre-br": [["Metropolitan Cathedral of Porto Alegre","cathedral",{w:23,nh:13,h:26,top:"bulb",r:6,dh:24,dc:4,c:13,t:4}],["Usina do Gasômetro","column",{h:40,s:2,taper:0.2,pw:5,ph:8,top:"none",c:1}]],
   "porto-novo-bj": [["Great Mosque of Porto-Novo","cathedral",{w:21,nh:12,h:20,top:"dome",c:5,t:9}],["Royal Palace of King Toffa","palace",{w:21,nh:7,top:"flat",c:0,rc:1}]],
   "porto-pt": [["Dom Luís I Bridge","span",{type:"arch",over:1,w:18,h:18,c:8}],["Clérigos Tower","belfry",{w:7,h:36,lan:6,top:"baroque",c:13,t:13}]],
+  "posadas-ar": [["San Roque González de Santa Cruz Bridge","span",{type:"cable",n:2,w:18,h:20,dh:8,c:6}],["Andresito Monument","statue",{h:22,ph:6,pw:4,c:8}]],
+  "potosi-bo": [["Potosí Cathedral","cathedral",{w:23,nh:13,h:26,top:"dome",c:6,t:6}]],
+  "potsdam-de": [["Sanssouci Palace","palace",{w:35,nh:10,r:5,dd:2,dc:4,c:0,t:4}]],
+  "poznan-pl": [["Poznań Town Hall","palace",{w:23,nh:14,top:"tower",th:36,tw:5,cap:"spire",c:6,t:12}],["Poznań Cathedral","cathedral",{w:21,nh:14,h:30,top:"baroque",c:1,t:4}]],
   "prague-cz": [["St. Vitus Cathedral","church",{w:23,nh:16,h:42,tw:7,tx:5,top:"bulb",c:8,t:4}],["Týn Church","cathedral",{w:19,nh:12,h:28,top:"gothic",sp:12,c:13,t:2}]],
   "praia-cv": [["Nossa Senhora da Graça church","church",{w:17,nh:10,h:22,tw:5,top:"pyr",c:6,t:6}],["Dona Maria Pia Lighthouse","light",{h:20,w:3,tw:2,c:6}]],
+  "prayagraj-in": [["New Yamuna Bridge","span",{type:"cable",n:2,w:18,h:22,dh:8,c:6}]],
   "pretoria-za": [["Union Buildings","cathedral",{w:33,nh:12,h:24,tw:5,top:"dome",c:13,t:10}],["Voortrekker Monument","sky",{w:13,h:22,c:13,t:8}]],
   "pristina-ko": [["National Library of Kosovo","palace",{w:25,nh:9,top:"dome",r:4,dd:1,dc:6,c:13}],["Cathedral of Saint Mother Teresa","church",{w:17,nh:12,h:34,tw:5,tx:5,top:"pyr",c:6,t:6}]],
+  "prizren-xk": [["Sinan Pasha Mosque","mosque",{w:15,nh:9,r:6,m:1,mh:30,c:13,dc:8}],["Prizren Fortress","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}]],
+  "providence-us": [["Rhode Island State House","palace",{w:29,nh:10,r:5,dd:6,dc:6,cols:3,c:6}]],
+  "pskov-ru": [["Trinity Cathedral","onion",{w:19,nh:14,r:4,n:4,mc:[12],c:6}],["Pskov Krom","castle",{w:31,wh:10,n:3,th:15,tw:5,top:"cone",c:13,t:2}]],
+  "ptuj-si": [["Ptuj Castle","castle",{w:29,wh:14,n:2,th:18,tw:5,top:"pyr",c:6,t:1}]],
+  "puducherry-in": [["Basilica of the Sacred Heart","cathedral",{w:21,nh:12,h:24,top:"spire",c:14,t:6}]],
+  "puebla-mx": [["Puebla Cathedral","cathedral",{w:25,nh:14,h:36,top:"bulb",r:5,dc:12,c:8,t:12}],["Estrella de Puebla","wheel",{r:16,c:6,t:3}]],
+  "puerto-plata-do": [["Fortaleza San Felipe","castle",{w:23,wh:8,n:2,th:11,tw:5,top:"crenel",c:13}]],
+  "punakha-bt": [["Punakha Dzong","castle",{w:29,wh:12,n:2,th:16,tw:5,top:"pyr",kh:22,kw:9,ktop:"pyr",kc:12,c:6,t:10}]],
   "pune-in": [["Shaniwar Wada","castle",{w:27,wh:12,n:3,th:15,tw:5,top:"crenel",c:13}],["Aga Khan Palace","palace",{w:27,nh:9,top:"flat",cols:8,c:6}]],
+  "putian-cn": [["Mazu statue, Meizhou Island","statue",{h:22,ph:8,pw:5,c:6,pc:13}]],
   "putrajaya-my": [["Putra Mosque","mosque",{w:21,r:7,dc:14,m:1,sq:1,mh:36,c:14}],["Perdana Putra","palace",{w:27,nh:11,r:5,dd:4,dc:9,c:6}]],
   "pyongyang-kp": [["Juche Tower","obelisk"],["Ryugyong Hotel","pyramid",{w:13,h:44,glass:1,c:11,s:8,t:6}]],
   "qingdao-cn": [["Zhanqiao Pier Huilan Pavilion","tiers",{n:2,w:15,dw:4,th:5,base:2,rc:12,c:10,fin:2}],["St. Michael’s Cathedral","cathedral",{w:21,nh:13,h:26,top:"pyr",c:13,t:10}]],
+  "qom-ir": [["Fatima Masumeh Shrine","mosque",{w:23,r:7,dc:12,m:4,mh:30,c:7,t:12}]],
+  "quanzhou-cn": [["Zhenguo Pagoda, Kaiyuan Temple","tiers",{n:5,w:15,dw:2,th:6,base:2,rc:13,c:13,fin:3}],["Renshou Pagoda, Kaiyuan Temple","tiers",{n:5,w:15,dw:2,th:6,base:2,rc:13,c:13,fin:3}]],
+  "quebec-ca": [["Château Frontenac","castle",{w:27,wh:16,n:2,th:20,tw:5,top:"pyr",kh:30,kw:9,ktop:"pyr",kc:4,c:1,t:4}],["Parliament Building","palace",{w:29,nh:11,top:"tower",th:30,tw:7,cap:"pyr",wings:"pyr",c:13,t:4}]],
+  "qui-nhon-vn": [["Twin Towers (Tháp Đôi)","stupa",{w:17,h:24,shape:"prang",c:1,t:2}]],
+  "quimper-fr": [["Quimper Cathedral","cathedral",{w:21,nh:13,h:36,tw:5,top:"spire",c:13,t:13}]],
   "quito-ec": [["Basílica del Voto Nacional","cathedral",{w:23,nh:14,h:32,top:"spire",c:8,t:8}],["Virgin of El Panecillo","column",{h:14,s:3,pw:6,ph:6,top:"angel",fh:16,c:13,t:8}]],
   "rabat-ma": [["Hassan Tower","belfry",{w:11,h:30,top:"flat",c:0,t:0}],["Mausoleum of Mohammed V","belfry",{w:13,h:12,top:"pyr",c:6,t:9}]],
   "ramallah-ps": [["Yasser Arafat Mausoleum","palace",{w:15,nh:9,top:"flat",c:13}],["Al-Manara Square monument","column",{h:16,s:1,pw:6,ph:5,top:"ball",r:1,c:13,t:13}]],
+  "rangpur-bd": [["Tajhat Palace","palace",{w:29,nh:11,r:4,dd:3,dc:6,cols:4,c:6,t:6}]],
+  "rasht-ir": [["Rasht Municipality","palace",{w:25,nh:11,top:"tower",tw:5,th:24,cap:"pyr",c:6,t:10}]],
+  "ravenna-it": [["Sant’Apollinare bell tower","belfry",{w:5,h:30,top:"cone",c:1,t:1}]],
   "recife-br": [["Torre de Cristal","column",{h:28,s:2,pw:3,ph:2,top:"point",c:0}],["Madre de Deus Church","cathedral",{w:19,nh:12,h:22,top:"bulb",c:6,t:6}]],
+  "regina-ca": [["Saskatchewan Legislative Building","palace",{w:31,nh:10,r:5,dd:6,dc:13,cols:4,wings:1,c:13}]],
   "reykjavik-is": [["Hallgrímskirkja","hallgrim"],["Harpa","sky",{w:21,h:12,top:"slant",sl:0.4,c:11,t:6}]],
   "riga-lv": [["St. Peter’s Church","church",{w:19,nh:13,h:30,tw:7,top:"baroque",sp:10,c:1,t:9}],["Freedom Monument","column",{h:32,s:1,pw:4,ph:10,top:"statue",c:13,t:4}]],
+  "rijeka-hr": [["City Clock Tower","belfry",{w:7,h:24,clock:1,lan:3,top:"dome",c:0,t:8}]],
+  "rimini-it": [["Arch of Augustus","arch",{w:19,h:20,ow:5,top:"attic",c:13,t:13}]],
   "rio-de-janeiro-br": [["Christ the Redeemer","redeemer"],["Maracanã","stadium",{w:27,h:10,c:6,t:8,rc:6}]],
   "riyadh-sa": [["Kingdom Centre","kingdom"],["Al Faisaliyah Center","sky",{w:11,h:40,taper:0.9,top:"ball",r:3,rc:12,c:11,t:6}]],
   "road-town-vg": [["Old Government House","palace",{w:21,nh:8,top:"flat",cols:3,c:6,rc:10}],["St. George’s Episcopal Church","church",{w:15,nh:8,h:16,tw:5,top:"pyr",c:6,t:10}]],
   "rome-it": [["Colosseum","colosseum"],["Altare della Patria","palace",{w:27,nh:14,top:"flat",cols:11,c:6}]],
   "rosario-ar": [["National Flag Memorial","belfry",{w:7,h:36,top:"flat",c:13}],["Rosario-Victoria Bridge","span",{type:"cable",n:2,w:16,h:20,dh:8,c:6}]],
   "roseau-dm": [["Roseau Cathedral","church",{w:17,nh:10,h:24,tw:5,top:"spire",c:13,t:8}],["Old Market","palace",{w:19,nh:6,top:"flat",c:13,rc:10}]],
+  "rostov-on-don-ru": [["Cathedral of the Nativity","onion",{w:19,r:4,n:4,mc:[12],c:6}]],
   "rotterdam-nl": [["Erasmus Bridge","span",{type:"cable",w:16,h:30,dh:8,c:6}],["Euromast","tower",{h:40,s:1,pod:24,pw:5,ant:8,c:13,t:11}]],
+  "rouen-fr": [["Rouen Cathedral","church",{w:25,nh:16,h:34,tw:7,top:"spire",sp:30,c:13,t:2}],["Gros-Horloge","arch",{w:15,h:14,top:"attic",c:13,t:12}]],
+  "ruse-bg": [["Monument of Liberty","column",{h:30,s:1,pw:4,ph:8,top:"statue",c:13,t:8}]],
+  "ryazan-ru": [["Ryazan Kremlin Bell Tower","belfry",{w:9,h:36,lan:6,top:"spire",c:6,t:12}],["Assumption Cathedral","onion",{w:21,nh:14,r:4,n:4,mc:[12],c:6}]],
+  "s-hertogenbosch-nl": [["St. John’s Cathedral","church",{w:23,nh:15,h:34,tw:7,tx:-6,top:"spire",c:13,t:2}]],
+  "sacramento-us": [["Tower Bridge","span",{type:"lift",w:22,h:26,dh:6,c:12,tc:12,t:12}],["California State Capitol","palace",{w:29,nh:10,r:5,dd:6,dc:6,cols:4,c:6}]],
   "saint-george-s-gd": [["Fort George","castle",{w:25,wh:9,n:2,th:11,tw:5,top:"crenel",c:13}],["St George’s Anglican Church","church",{w:15,nh:9,h:22,tw:5,top:"crenel",c:13,t:10}]],
   "saint-helier-je": [["Elizabeth Castle","castle",{w:27,wh:9,n:2,th:13,tw:5,top:"crenel",kh:16,kw:7,c:13}],["St Helier Parish Church","church",{w:17,nh:9,h:22,tw:5,top:"crenel",c:13,t:8}]],
   "saint-john-s-ag": [["St. John’s Cathedral","cathedral",{w:21,nh:12,h:24,top:"dome",c:6,t:8}],["Fort James","castle",{w:23,wh:8,n:2,th:10,tw:5,top:"crenel",c:13}]],
+  "saint-louis-sn": [["Faidherbe Bridge","span",{type:"truss",w:22,h:14,dh:8,c:8}]],
   "saint-peter-port-gg": [["Castle Cornet","castle",{w:27,wh:10,n:2,th:13,tw:5,top:"crenel",kh:17,kw:7,c:13}],["Victoria Tower","belfry",{w:7,h:26,top:"crenel",c:8}]],
   "saint-petersburg-ru": [["Peter and Paul Cathedral","church",{w:19,nh:12,h:30,tw:5,tx:-5,top:"needle",sp:24,c:12,t:12}],["Church of the Savior on Spilled Blood","onion",{w:19,r:4,n:4,mc:[12,7,9,10,12],c:1}]],
   "saint-pierre-pm": [["Saint-Pierre Cathedral","church",{w:17,nh:10,h:26,tw:5,top:"spire",c:13,t:8}],["Pointe aux Canons Lighthouse","light",{h:14,w:2,tw:2,band:3,b:10,c:6}]],
   "saipan-mp": [["Our Lady of Mount Carmel Cathedral","church",{w:19,nh:10,h:22,tw:5,top:"pyr",c:6,t:10}],["Last Japanese Command Post","castle",{w:19,wh:7,n:1,th:7,tw:9,top:"flat",c:8}]],
+  "salamanca-es": [["Salamanca Cathedral","church",{w:23,nh:16,h:44,tw:7,tx:6,top:"baroque",sp:6,c:0,t:0}]],
+  "salt-lake-city-us": [["Salt Lake Temple","cathedral",{w:25,nh:13,h:30,top:"spire",c:13,t:13}],["Utah State Capitol","palace",{w:29,nh:10,r:5,dd:5,dc:4,cols:4,c:13}]],
+  "salta-ar": [["San Francisco Church","belfry",{w:9,h:44,lan:6,top:"spire",sp:6,c:10,t:12}],["Salta Cathedral","cathedral",{w:23,nh:13,h:26,top:"bulb",r:5,dc:14,c:14,t:6}]],
   "salvador-br": [["Elevador Lacerda","sky",{w:9,h:30,c:6,t:13}],["Farol da Barra","light",{h:22,w:3,band:4,b:2,c:6}]],
+  "salvaleon-de-higuey-do": [["Basílica de Nuestra Señora de la Altagracia","arch",{w:21,h:34,ow:4,oh:20,top:"peak",c:13}]],
+  "salzburg-at": [["Hohensalzburg Fortress","castle",{w:33,wh:12,n:3,th:16,tw:5,top:"pyr",kh:22,kw:9,ktop:"pyr",c:6,t:1}],["Salzburg Cathedral","cathedral",{w:23,nh:14,h:26,tw:5,top:"bulb",r:6,dh:24,dc:4,c:13,t:4}]],
+  "samara-ru": [["Glory Monument","column",{h:30,s:2,pw:4,ph:8,top:"angel",c:13,t:8}]],
+  "samarinda-id": [["Islamic Center Samarinda","mosque",{w:23,r:7,sd:3,dc:12,m:6,mh:40,c:6}]],
   "samarkand-uz": [["Registan","mosque",{w:25,nh:16,r:5,dc:7,m:2,mh:30,c:0,t:7}],["Gur-e-Amir","mosque",{w:15,nh:9,r:5,dd:6,dc:7,m:0,c:0}]],
+  "san-antonio-us": [["The Alamo","palace",{w:21,nh:9,top:"flat",c:0}],["Tower of the Americas","tower",{h:40,s:2,pod:38,pw:6,ant:6,c:13,t:8}]],
   "san-diego-us": [["California Tower","belfry",{w:7,h:30,lan:5,top:"dome",c:13,t:7}],["Point Loma Lighthouse","light",{h:20,w:3,tw:2,c:6,rc:2}]],
   "san-francisco-us": [["Golden Gate Bridge","bridge"],["Transamerica Pyramid","sky",{w:11,h:44,taper:0.8,top:"point",ph:8,c:6,t:13}]],
   "san-jose-cr": [["Teatro Nacional","palace",{w:25,nh:10,top:"flat",cols:4,c:13}],["Metropolitan Cathedral","cathedral",{w:21,nh:12,h:20,top:"dome",c:6,t:8}]],
   "san-juan-pr": [["Castillo San Felipe del Morro","castle",{w:29,wh:9,n:3,th:12,tw:5,top:"dome",c:13,t:13}],["Capitol of Puerto Rico","palace",{w:25,nh:10,r:5,dc:6,cols:4,c:6}]],
   "san-marino-sm": [["Guaita Tower","castle",{w:21,wh:10,n:1,th:26,tw:7,top:"crenel",c:13}],["Basilica di San Marino","palace",{w:19,nh:12,top:"tower",th:20,tw:5,cap:"pyr",cols:4,c:6,t:1}]],
+  "san-miguel-de-tucuman-ar": [["Casa Histórica de la Independencia","palace",{w:19,nh:7,top:"flat",cols:2,c:6,rc:10}],["Casa de Gobierno de Tucumán","palace",{w:27,nh:11,r:4,dd:4,dc:8,wings:1,c:0}]],
   "san-salvador-sv": [["Monumento al Divino Salvador del Mundo","column",{h:28,s:2,pw:4,ph:6,top:"statue",c:6,t:6}],["Metropolitan Cathedral","cathedral",{w:23,nh:12,h:22,top:"dome",r:6,dc:6,c:6,t:6}]],
+  "san-sebastian-es": [["Buen Pastor Cathedral","church",{w:19,nh:13,h:44,tw:7,top:"spire",c:13,t:13}],["Sacred Heart of Monte Urgull","statue",{h:14,ph:14,pw:4,pose:"out",c:6}]],
   "sanaa-ye": [["Al Saleh Mosque","mosque",{w:23,r:6,dc:6,m:6,mh:34,c:13}],["Bab al-Yaman","castle",{w:21,wh:12,n:2,th:14,tw:5,top:"crenel",c:13}]],
+  "sankt-gallen-ch": [["Abbey Cathedral of St. Gall","cathedral",{w:23,nh:14,h:34,tw:5,top:"baroque",c:6,t:4}]],
+  "sanliurfa-tr": [["Urfa Castle","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:0}],["Pillars of Nimrod","column",{n:2,h:24,s:1,pw:2,ph:3,top:"none",c:0}]],
+  "santa-ana-sv": [["Santa Ana Cathedral","church",{w:21,nh:12,h:32,tw:7,top:"gothic",c:6,t:6}]],
+  "santa-clara-cu": [["Che Guevara Mausoleum","statue",{h:20,ph:12,pw:7,c:8}]],
   "santa-cruz-de-la-sierra-bo": [["Cathedral Basilica of St. Lawrence","cathedral",{w:23,nh:13,h:24,top:"pyr",c:1,t:1}],["Cristo Redentor","statue",{h:16,ph:10,pw:4,pose:"out",c:6}]],
+  "santa-cruz-de-tenerife-es": [["Auditorio de Tenerife","sail",{h:20,w:16,c:6,t:6}],["Torres de Santa Cruz","sky",{n:2,w:9,h:36,c:11,t:6}]],
+  "santa-fe-ar": [["Puente Colgante","span",{type:"suspension",w:20,h:22,dh:8,c:6}]],
+  "santa-fe-us": [["Cathedral Basilica of St. Francis of Assisi","cathedral",{w:21,nh:12,h:20,top:"flat",rose:1,c:0,t:0}]],
+  "santander-es": [["Magdalena Palace","palace",{w:31,nh:12,top:"flat",wings:"pyr",c:6,rc:8}]],
   "santiago-cl": [["Gran Torre Santiago","sky",{w:11,h:52,taper:0.3,top:"spire",sp:4,c:11,t:6}],["Virgin of San Cristóbal Hill","statue",{h:14,ph:10,pw:4,c:6}]],
+  "santiago-de-compostela-es": [["Santiago de Compostela Cathedral","cathedral",{w:25,nh:16,h:40,tw:5,top:"baroque",sp:6,c:13,t:13}]],
+  "santiago-de-cuba-cu": [["Castillo del Morro","castle",{w:31,wh:10,n:3,th:13,tw:5,top:"crenel",c:13}],["Santiago de Cuba Cathedral","cathedral",{w:21,nh:12,h:24,top:"dome",c:12,t:6}]],
+  "santiago-do": [["Monument to the Heroes of the Restoration","column",{h:44,s:4,taper:0.3,pw:8,ph:8,top:"statue",fh:9,c:6,t:6}]],
   "santo-domingo-do": [["Catedral Primada de América","church",{w:19,nh:11,h:16,tw:5,tx:6,top:"flat",c:0,t:0}],["Alcázar de Colón","palace",{w:25,nh:10,top:"flat",cols:6,c:0}]],
+  "sanya-cn": [["Guanyin of Nanshan","statue",{h:34,ph:8,pw:6,c:6,pc:6}]],
   "sao-paulo-br": [["Altino Arantes Building","sky",{w:9,h:36,top:"steps",sp:8,c:13,t:11}],["Octávio Frias de Oliveira Bridge","span",{type:"cable",w:14,h:26,dh:7,c:6}]],
   "sao-tome-st": [["Cathedral of Our Lady of Grace","cathedral",{w:21,nh:12,h:20,top:"pyr",c:6,t:10}],["Presidential Palace","palace",{w:25,nh:9,top:"flat",cols:3,c:5}]],
   "sapporo-jp": [["Sapporo Clock Tower","belfry",{w:9,h:18,clock:1,top:"pyr",c:6,t:10}],["Sapporo TV Tower","lattice",{h:36,w:8,decks:[24],c:10,t:6}]],
   "sarajevo-ba": [["Gazi Husrev-beg Mosque","mosque",{w:17,r:6,dc:8,m:1,mh:28,c:13}],["Sacred Heart Cathedral","cathedral",{w:21,nh:12,h:28,top:"spire",c:13,t:2}]],
+  "savannakhet-la": [["St. Teresa Church","church",{w:17,nh:9,h:24,tw:5,top:"pyr",c:6,t:10}],["That Inghang","stupa",{w:17,h:28,c:12,t:3}]],
+  "schaffhausen-ch": [["Munot","castle",{w:29,wh:12,n:1,th:24,tw:5,top:"pyr",c:13,t:1}]],
+  "schwerin-de": [["Schwerin Castle","castle",{w:33,wh:14,n:4,th:22,tw:5,top:"bulb",kh:28,kw:9,ktop:"dome",kc:12,c:13,t:8}]],
   "seattle-us": [["Space Needle","needle"],["Columbia Center","sky",{w:11,h:48,c:2,t:8}]],
+  "segovia-es": [["Aqueduct of Segovia","arcade",{n:7,w:6,h:20,tiers:2,c:13,t:13}],["Alcázar of Segovia","castle",{w:25,wh:12,n:3,th:18,tw:5,top:"cone",kh:24,kw:9,ktop:"crenel",c:13,t:8}]],
+  "seinajoki-fi": [["Lakeuden Risti bell tower","column",{h:40,s:2,pw:4,ph:3,top:"cross",c:6,t:6}]],
+  "semarang-id": [["Lawang Sewu","palace",{w:31,nh:12,top:"flat",wings:1,c:6,rc:10}],["Sam Poo Kong","tiers",{n:3,w:19,dw:4,th:5,base:2,rc:10,c:10,fin:2}]],
+  "sendai-jp": [["Sendai Daikannon","statue",{h:36,ph:6,pw:5,c:6,pc:6}]],
   "seoul-kr": [["N Seoul Tower","n-seoul"],["Lotte World Tower","sky",{w:9,h:50,taper:0.7,top:"point",ph:6,c:11,t:6}]],
+  "serang-id": [["Great Mosque of Banten","tiers",{n:5,w:21,dw:4,th:4,rc:2,c:6,fin:2}],["Banten minaret","column",{h:24,s:2,pw:3,ph:3,taper:0.3,top:"point",c:6}]],
   "seville-es": [["Giralda","belfry",{w:7,h:34,lan:6,top:"bulb",c:0,t:12}],["Torre del Oro","belfry",{w:11,h:16,lan:5,top:"dome",c:12,t:12}]],
+  "sfax-tn": [["Sfax City Hall","palace",{w:25,nh:10,top:"tower",th:30,tw:5,cap:"dome",c:6,t:6}],["Medina walls of Sfax","castle",{w:29,wh:10,n:3,th:13,tw:5,top:"crenel",c:0}]],
+  "shamakhi-az": [["Juma Mosque of Shamakhi","mosque",{w:25,r:6,sd:3,dc:8,m:2,mh:26,c:13}]],
   "shanghai-cn": [["Oriental Pearl Tower","pearl"],["Shanghai Tower","sky",{w:11,h:52,taper:0.5,top:"slant",sl:0.4,c:11,t:6}]],
+  "sheki-az": [["Palace of Shaki Khans","palace",{w:19,nh:12,top:"flat",c:13,rc:7}]],
+  "shenyang-cn": [["Phoenix Tower, Mukden Palace","tiers",{n:3,w:19,dw:4,th:6,base:5,rc:12,c:10,fin:2}]],
   "shenzhen-cn": [["Ping An Finance Center","sky",{w:11,h:50,taper:0.4,top:"spire",sp:8,c:8,t:11}],["Kingkey 100","sky",{w:9,h:42,top:"dome",c:11,t:6}]],
+  "shimla-in": [["Christ Church","church",{w:17,nh:9,h:24,tw:5,top:"crenel",c:0,t:6}]],
+  "shiraz-ir": [["Arg of Karim Khan","castle",{w:29,wh:12,n:2,th:17,tw:7,top:"crenel",c:1}],["Shah Cheragh","mosque",{w:21,r:6,dd:4,dc:4,m:2,mh:26,c:7,t:4}]],
+  "shkoder-al": [["Rozafa Castle","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:13}],["Ebu Bekr Mosque","mosque",{w:17,nh:9,r:6,m:1,mh:30,c:6,dc:8}]],
+  "shumen-bg": [["Tombul Mosque","mosque",{w:15,nh:9,r:6,m:1,mh:28,c:13,dc:8}]],
+  "shusha-az": [["Yukhari Govhar Agha Mosque","mosque",{w:17,nh:10,r:0,m:2,mh:24,c:1,t:13}],["Ghazanchetsots Cathedral","church",{w:17,nh:13,h:26,tw:7,top:"cone",c:6,t:8}]],
+  "siauliai-lt": [["Cathedral of Sts. Peter and Paul","church",{w:17,nh:12,h:44,tw:7,top:"needle",c:6,t:6}]],
+  "sibenik-hr": [["Cathedral of St. James","palace",{w:17,nh:14,top:"dome",r:5,dc:13,c:6}]],
+  "sibiu-ro": [["Council Tower","belfry",{w:7,h:30,top:"gothic",c:13,t:1}],["Lutheran Cathedral","church",{w:25,nh:16,h:44,tw:7,tx:-8,top:"gothic",c:13,t:1}]],
+  "sidon-lb": [["Sidon Sea Castle","castle",{w:25,wh:10,n:2,th:16,tw:7,top:"crenel",c:13}]],
+  "siem-reap-kh": [["Angkor Wat","stupa",{w:23,h:36,shape:"prang",c:13,t:0}]],
+  "siena-it": [["Torre del Mangia","belfry",{w:5,h:50,lan:5,top:"pyr",c:1,t:6}],["Siena Cathedral","church",{w:21,nh:14,h:36,tw:5,tx:7,top:"pyr",c:6,t:2}]],
   "singapore-sg": [["Marina Bay Sands","marina"],["Singapore Flyer","wheel",{r:14,c:6,t:11}]],
+  "sinuiju-kp": [["Sino-Korean Friendship Bridge","span",{type:"truss",w:18,h:12,dh:8,c:8}]],
+  "sitten-ch": [["Valère Basilica","church",{w:17,nh:11,h:20,tw:5,tx:4,top:"pyr",c:13,t:1}],["Tourbillon Castle","castle",{w:25,wh:10,n:2,th:16,tw:5,top:"crenel",c:13,t:13}]],
+  "sivas-tr": [["Gök Medrese","mosque",{w:15,nh:14,r:0,m:2,mh:26,c:13,t:4,dc:4}]],
   "skopje-mk": [["Stone Bridge","span",{type:"arch",over:1,w:14,h:8,c:13,pc:13}],["Skopje Fortress","castle",{w:25,wh:10,n:3,th:13,tw:5,top:"crenel",c:13}]],
+  "smolensk-ru": [["Smolensk Fortress Wall","castle",{w:33,wh:12,n:3,th:18,tw:5,top:"cone",c:1,t:2}]],
   "sofia-bg": [["Alexander Nevsky Cathedral","onion",{w:21,nh:12,r:6,n:4,dd:5,mc:[12,9],c:13}],["Statue of Sveta Sofia","column",{h:30,s:2,pw:4,ph:8,top:"statue",c:2,t:8}]],
+  "sohar-om": [["Sohar Fort","castle",{w:23,wh:10,n:2,th:13,tw:5,kh:20,kw:7,top:"crenel",c:6}]],
+  "solothurn-ch": [["St. Ursus Cathedral","church",{w:21,nh:14,h:36,tw:7,top:"dome",c:13,t:13}]],
+  "songjiang-cn": [["Square Pagoda of Xingshengjiao Temple","tiers",{n:9,w:11,dw:0,th:4,rc:2,c:13,fin:3}]],
+  "soroca-md": [["Soroca Fortress","castle",{w:25,wh:14,n:3,th:18,tw:5,top:"crenel",c:13}]],
+  "sousse-tn": [["Ribat of Sousse","castle",{w:27,wh:10,n:2,th:12,tw:5,kh:24,kw:7,ktop:"crenel",top:"crenel",c:0}]],
+  "split-hr": [["Bell tower of St. Domnius","belfry",{w:7,h:38,lan:6,top:"pyr",c:6,t:6}]],
+  "springfield-us": [["Illinois State Capitol","palace",{w:29,nh:10,r:5,dd:8,dc:8,cols:4,c:13}]],
   "sri-jayawardenepura-kotte-lk": [["Parliament of Sri Lanka","tiers",{n:2,w:23,dw:6,th:6,base:3,rc:4,c:6,fin:2}],["Kotte Raja Maha Viharaya","stupa",{w:19,h:26,c:6,t:13}]],
+  "srinagar-in": [["Hazratbal Shrine","mosque",{w:21,nh:9,r:6,dc:6,m:1,mh:28,c:6}]],
+  "st-john-s-ca": [["Cabot Tower","belfry",{w:9,h:20,top:"crenel",c:13}]],
   "stanley-fk": [["Christ Church Cathedral","church",{w:19,nh:9,h:20,tw:5,tx:7,top:"crenel",c:1,t:9,rc:9}],["Whalebone Arch","span",{type:"arch",bare:1,w:5,h:12,dh:0,c:6}]],
   "stockholm-se": [["Stockholm City Hall","belfry",{w:9,h:38,lan:5,top:"pyr",c:1,t:12}],["Riddarholmen Church","church",{w:17,nh:11,h:24,tw:5,tx:-5,top:"needle",sp:16,c:1,t:8}]],
+  "strasbourg-fr": [["Strasbourg Cathedral","church",{w:23,nh:16,h:46,tw:7,tx:-5,top:"gothic",sp:22,c:14,t:14}]],
+  "stuttgart-de": [["Fernsehturm Stuttgart","tower",{h:42,s:1,pod:34,pw:4,ant:12,ac:10,c:13,t:11}]],
+  "suceava-ro": [["Seat Fortress of Suceava","castle",{w:31,wh:12,n:3,th:15,tw:5,top:"crenel",c:13}]],
   "sucre-bo": [["Metropolitan Cathedral of Sucre","church",{w:19,nh:11,h:26,tw:5,tx:7,top:"dome",clock:1,c:6,t:6}],["Casa de la Libertad","palace",{w:23,nh:9,top:"flat",cols:3,c:6}]],
+  "sukhothai-th": [["Wat Mahathat Buddha","statue",{h:20,ph:6,pw:7,pose:"seated",c:13}],["Wat Mahathat lotus-bud chedi","stupa",{w:15,h:28,c:13,t:0}]],
   "surabaya-id": [["Suramadu Bridge","span",{type:"cable",n:2,w:18,h:22,dh:8,c:6}],["Heroes Monument","column",{h:32,s:3,taper:0.7,pw:5,ph:4,top:"point",c:6}]],
   "surat-in": [["Surat Castle","castle",{w:25,wh:10,n:2,th:12,tw:5,top:"crenel",c:13}],["Sardar Bridge","span",{type:"truss",w:16,h:12,dh:8,c:8}]],
   "suva-fj": [["Government Buildings","palace",{w:29,nh:10,top:"tower",th:22,tw:5,cap:"pyr",c:6,t:8}],["Sacred Heart Cathedral","church",{w:17,nh:11,h:24,tw:5,top:"pyr",c:13,t:8}]],
+  "suwon-kr": [["Paldalmun Gate, Hwaseong Fortress","tiers",{n:2,w:19,dw:4,th:5,base:8,gate:1,bc:13,rc:2,c:10,fin:2}]],
   "suzhou-cn": [["Gate to the East","sky",{n:2,w:5,gap:5,h:44,link:44,c:11,t:6}],["Tiger Hill Pagoda","tiers",{n:7,w:13,dw:0,th:4,rc:1,c:1,fin:1}]],
+  "swakopmund-na": [["Swakopmund Lighthouse","light",{h:26,w:3,tw:2,c:6,rc:10}],["Woermann Tower","belfry",{w:7,h:24,top:"pyr",c:6,t:1}]],
   "sydney-au": [["Sydney Opera House","sails"],["Sydney Harbour Bridge","span",{type:"arch",w:18,h:22,dh:9,pylon:1,c:8}]],
+  "sylhet-bd": [["Keane Bridge","span",{type:"truss",w:18,h:14,dh:8,c:8}]],
+  "szczecin-pl": [["Pomeranian Dukes’ Castle","castle",{w:31,wh:14,n:2,th:20,tw:5,top:"bulb",c:6,t:2}]],
+  "szeged-hu": [["Votive Church","cathedral",{w:23,nh:14,h:40,top:"spire",c:1,t:2}]],
+  "tabriz-ir": [["Tabriz Municipality Palace","palace",{w:27,nh:11,top:"tower",tw:5,th:26,cap:"pyr",c:13}],["Arg of Tabriz","castle",{w:15,wh:26,n:0,c:1}]],
+  "tacna-pe": [["Arco Parabólico","arch",{w:13,h:30,ow:2,oh:12,top:"peak",c:0}]],
+  "tai-an-cn": [["Tiankuang Hall, Dai Temple","tiers",{n:2,w:29,dw:6,th:7,base:4,rc:12,c:10,fin:2}]],
+  "tainan-tw": [["Chihkan Tower","tiers",{n:2,w:17,dw:4,th:5,base:5,rc:2,c:10,fin:2}],["Anping Old Fort","castle",{w:25,wh:8,n:2,th:10,tw:5,top:"crenel",kh:20,kw:7,ktop:"pyr",kc:10,c:1}]],
   "taipei-tw": [["Taipei 101","taipei"],["Chiang Kai-shek Memorial Hall","tiers",{n:2,w:21,dw:6,th:7,base:5,bc:6,rc:7,c:6,fin:2}]],
+  "taiyuan-cn": [["Xuanwen Pagoda, Yongzuo Temple","tiers",{n:7,w:15,dw:2,th:5,rc:2,c:1,fin:2}],["Wenfeng Pagoda, Yongzuo Temple","tiers",{n:7,w:15,dw:2,th:5,rc:2,c:1,fin:2}]],
+  "taiz-ye": [["Al-Ashrafiya Mosque","mosque",{w:21,r:5,sd:3,dc:6,m:2,mh:26,c:6}],["Cairo Castle","castle",{w:29,wh:10,n:3,th:14,tw:5,top:"crenel",c:0}]],
+  "takamatsu-jp": [["Takamatsu Symbol Tower","sky",{w:9,h:46,top:"spire",sp:4,c:11,t:6}]],
   "tallinn-ee": [["St. Olaf’s Church","church",{w:17,nh:12,h:28,tw:5,tx:-5,top:"needle",sp:20,c:13,t:9}],["Alexander Nevsky Cathedral","onion",{w:17,r:4,n:2,mc:[2],c:6}]],
+  "tampere-fi": [["Näsinneula","tower",{h:42,s:1,pod:36,pw:5,ant:8,c:13,t:11}]],
+  "tangier-ma": [["Kasbah of Tangier","castle",{w:29,wh:10,n:2,th:13,tw:5,top:"crenel",c:6}],["Cap Spartel Lighthouse","belfry",{w:7,h:24,lan:4,top:"dome",c:0,t:0}]],
+  "tanta-eg": [["Ahmad al-Badawi Mosque","mosque",{w:23,r:6,dc:13,m:2,mh:34,c:13}]],
+  "taranto-it": [["Aragonese Castle","castle",{w:27,wh:10,n:3,th:12,tw:7,top:"flat",c:13}]],
   "tarawa-ki": [["Maneaba ni Maungatabu (Parliament)","fale",{w:23,h:4,rh:10,c:0,t:0}],["Sacred Heart Cathedral","church",{w:17,nh:9,h:18,tw:5,top:"pyr",c:6,t:10}]],
+  "targoviste-ro": [["Chindia Tower","belfry",{w:9,h:30,top:"cone",c:13,t:1}]],
+  "targu-jiu-ro": [["Endless Column","column",{h:44,s:1,pw:2,ph:2,top:"none",c:12}]],
+  "tarragona-es": [["Tarragona Cathedral","church",{w:21,nh:13,h:30,tw:5,tx:6,top:"pyr",c:0,t:0}]],
+  "tartu-ee": [["University of Tartu Main Building","palace",{w:29,nh:12,top:"flat",cols:6,c:6}]],
   "tashkent-uz": [["Tashkent Tower","lattice",{h:48,w:8,decks:[32],c:8,t:11}],["Minor Mosque","mosque",{w:19,r:5,dc:7,m:2,mh:28,c:6}]],
+  "tay-ninh-vn": [["Cao Đài Holy See","cathedral",{w:23,nh:12,h:28,tw:5,top:"pyr",r:4,dc:9,c:6,t:12}]],
   "tbilisi-ge": [["Holy Trinity Cathedral (Sameba)","church",{w:21,nh:12,h:24,tw:7,top:"cone",sp:12,c:13,t:12}],["Narikala Fortress","castle",{w:27,wh:9,n:3,th:13,tw:5,top:"crenel",c:0}]],
   "tegucigalpa-hn": [["Cathedral of Saint Michael","cathedral",{w:21,nh:12,h:22,top:"dome",r:4,dc:6,c:6,t:6}],["Cristo del Picacho","statue",{h:18,ph:8,pw:4,pose:"out",c:6}]],
   "tehran-ir": [["Milad Tower","tower",{h:44,s:2,pod:36,pw:7,pod2:31,pw2:5,ant:10,c:8,t:11}],["Azadi Tower","arch",{w:21,h:28,ow:4,oh:20,top:"peak",c:6}]],
   "tel-aviv-il": [["Azrieli Center","sky",{n:3,w:7,gap:2,h:[34,38,36],c:11,t:6}],["Jaffa Clock Tower","belfry",{w:5,h:20,clock:1,top:"crenel",c:13}]],
+  "teruel-es": [["Tower of El Salvador","belfry",{w:7,h:30,lan:5,top:"pyr",c:1,t:9}]],
+  "tete-mz": [["Samora Machel Bridge","span",{type:"suspension",w:22,h:24,dh:8,c:8}]],
+  "tetovo-mk": [["Painted Mosque","mosque",{w:13,nh:9,r:0,m:1,mh:24,tent:3,c:6,dc:8}]],
   "the-hague-nl": [["Ridderzaal","cathedral",{w:19,nh:13,h:20,tw:3,top:"cone",c:1,t:8}],["Peace Palace","castle",{w:27,wh:12,n:2,th:16,tw:5,top:"pyr",kh:22,kw:5,ktop:"spire",c:1,t:2}]],
   "the-settlement-cx": [["Christmas Island mosque","mosque",{w:15,r:4,dc:9,m:1,mh:18,c:6}],["Tai Jin House","palace",{w:19,nh:7,top:"flat",c:6,rc:10}]],
   "the-valley-ai": [["Wallblake House","palace",{w:19,nh:8,top:"flat",c:6,rc:10}],["St. Gerard’s Catholic Church","church",{w:17,nh:9,h:18,tw:5,top:"pyr",c:13,t:10}]],
+  "thessaloniki-gr": [["White Tower","castle",{w:13,wh:26,n:0,kh:31,kw:5,c:6}],["Arch of Galerius","arch",{w:17,h:18,ow:3,top:"flat",c:1,t:1}]],
   "thimphu-bt": [["Tashichho Dzong","castle",{w:27,wh:12,n:2,th:16,tw:5,top:"pyr",kh:20,kw:9,ktop:"pyr",kc:12,c:6,t:12}],["Buddha Dordenma","statue",{h:24,ph:8,pw:7,pose:"seated",c:12,t:12}]],
+  "thiruvananthapuram-in": [["Padmanabhaswamy Temple gopuram","tiers",{n:7,w:19,dw:2,th:4,rc:13,c:13,fin:2}]],
   "tianjin-cn": [["Tianjin Eye","wheel",{r:15,leg:5,c:6,t:11}],["Tianjin Radio and TV Tower","tower",{h:46,s:2,pod:36,pw:6,ant:8,c:13,t:11}]],
   "tijuana-mx": [["Tijuana Arch","span",{type:"arch",bare:1,w:10,h:28,dh:0,c:8}],["Tijuana Cathedral","church",{w:17,nh:10,h:24,tw:5,top:"pyr",c:12,t:1}]],
+  "timbuktu-ml": [["Djinguereber Mosque","mud",{w:31,wh:9,n:2,th:20,tw:6,c:0}],["Sankore Mosque","mud",{w:0,n:1,th:16,tw:7,taper:0.5,c:0}]],
+  "timisoara-ro": [["Timișoara Orthodox Cathedral","onion",{w:21,nh:12,r:4,n:4,tent:20,mc:[9,12,1],c:13}]],
   "tirana-al": [["Et’hem Bey Mosque","mosque",{w:13,nh:8,r:4,dc:8,m:1,mh:24,c:12}],["Clock Tower of Tirana","belfry",{w:5,h:28,clock:1,top:"pyr",c:13,t:1}]],
+  "tiruchirappalli-in": [["Rockfort Temple","rock",{w:30,h:24,top:"temple",c:8,t:10}],["Srirangam Rajagopuram","tiers",{n:11,w:21,dw:2,th:4,rc:6,c:6,fin:2}]],
+  "tirunelveli-in": [["Nellaiappar Temple gopuram","tiers",{n:7,w:17,dw:2,th:4,rc:13,c:13,fin:2}]],
+  "tlemcen-dz": [["Mansourah minaret","belfry",{w:9,h:32,top:"flat",c:0,t:0}]],
   "tokyo-jp": [["Tokyo Tower","tokyo-tower"],["TOKYO SKYTREE","skytree"]],
+  "toledo-es": [["Alcázar of Toledo","castle",{w:31,wh:12,n:4,th:18,tw:5,top:"crenel",c:13}],["Toledo Cathedral","church",{w:21,nh:12,h:40,tw:7,top:"spire",c:13,t:6}]],
+  "topeka-us": [["Kansas State Capitol","palace",{w:29,nh:10,r:5,dd:6,dc:4,cols:4,c:13}]],
   "toronto-ca": [["CN Tower","cn-tower"],["Toronto City Hall","sky",{n:2,w:7,gap:5,h:[24,30],c:6,t:2}]],
   "torshavn-fo": [["Tinganes","palace",{w:23,nh:7,top:"flat",c:10,rc:9}],["Tórshavn Cathedral","church",{w:15,nh:8,h:20,tw:5,top:"pyr",c:6,t:2}]],
+  "touba-sn": [["Great Mosque of Touba","mosque",{w:25,r:6,dc:9,m:2,sq:1,mh:44,c:14}]],
+  "toulouse-fr": [["Basilica of Saint-Sernin","church",{w:23,nh:12,h:40,tw:7,top:"spire",c:14,t:14}],["Capitole de Toulouse","palace",{w:35,nh:12,top:"flat",cols:6,c:14,t:6}]],
+  "tours-fr": [["Tours Cathedral","cathedral",{w:23,nh:15,h:32,tw:5,top:"dome",rose:1,c:13,t:2}]],
+  "trabzon-tr": [["Hagia Sophia of Trabzon","church",{w:21,nh:11,h:20,tw:7,top:"cone",c:13,t:8}]],
+  "trani-it": [["Trani Cathedral","church",{w:23,nh:16,h:40,tw:7,tx:7,top:"pyr",c:13,t:13}]],
+  "trbovlje-si": [["Trbovlje Chimney","column",{h:60,s:2,taper:0.3,pw:3,ph:3,top:"none",c:13}]],
+  "trencin-sk": [["Trenčín Castle","castle",{w:31,wh:12,n:2,th:16,tw:5,top:"crenel",kh:26,kw:7,ktop:"crenel",c:13}]],
+  "trento-it": [["Castello del Buonconsiglio","castle",{w:27,wh:12,n:2,th:18,tw:5,top:"crenel",c:13}]],
+  "trieste-it": [["Miramare Castle","castle",{w:23,wh:12,n:1,th:20,tw:7,top:"crenel",c:6}]],
+  "trincomalee-lk": [["Koneswaram Temple","tiers",{n:5,w:17,dw:2,th:4,rc:14,c:14,fin:2}]],
+  "tripoli-lb": [["Citadel of Raymond de Saint-Gilles","castle",{w:33,wh:12,n:3,th:16,tw:5,top:"crenel",c:13}]],
   "tripoli-ly": [["Red Castle","castle",{w:29,wh:12,n:3,th:15,tw:5,top:"crenel",c:5}],["Arch of Marcus Aurelius","arch",{w:13,h:14,ow:3,top:"attic",c:13,t:13}]],
+  "tromso-no": [["Arctic Cathedral","pyramid",{w:9,h:24,c:6,s:13}]],
+  "trujillo-pe": [["Trujillo Cathedral","cathedral",{w:21,nh:12,h:22,top:"dome",c:12,t:6}]],
+  "tula-ru": [["Tula Kremlin","castle",{w:33,wh:12,n:4,th:16,tw:5,top:"crenel",c:1}]],
   "tunis-tn": [["Zitouna Mosque","mosque",{w:21,nh:8,r:4,dc:6,m:1,sq:1,mh:30,c:13}],["Cathedral of St. Vincent de Paul","cathedral",{w:21,nh:13,h:24,top:"pyr",r:4,dc:13,c:13,t:13}]],
+  "turin-it": [["Mole Antonelliana","belfry",{w:13,h:24,lan:8,top:"needle",sp:30,c:13,t:13}],["Basilica of Superga","cathedral",{w:25,nh:14,h:26,tw:5,top:"baroque",sp:4,r:7,dh:22,dc:13,c:13,t:13}]],
+  "turkistan-kz": [["Mausoleum of Khoja Ahmed Yasawi","mosque",{w:25,nh:20,r:6,dd:3,dc:4,m:0,c:0}]],
+  "turku-fi": [["Turku Castle","castle",{w:31,wh:12,n:2,th:18,tw:5,top:"pyr",kh:20,kw:11,ktop:"pyr",c:6,t:2}],["Turku Cathedral","church",{w:21,nh:13,h:34,tw:7,tx:-5,top:"spire",c:1,t:2}]],
+  "ufa-ru": [["Lala Tulpan Mosque","mosque",{w:15,nh:10,r:5,m:2,mh:40,c:6,dc:7}]],
   "ulaanbaatar-mn": [["Government Palace","palace",{w:31,nh:12,top:"flat",cols:8,c:13}],["Gandan Monastery","tiers",{n:2,w:19,dw:6,th:6,rc:9,c:6,fin:4}]],
+  "ulan-ude-ru": [["Lenin Head","bust",{h:22,ph:8,pw:10,beard:1,c:8,pc:13}]],
+  "uppsala-se": [["Uppsala Cathedral","cathedral",{w:21,nh:14,h:40,tw:5,top:"needle",c:1,t:2}],["Uppsala Castle","castle",{w:33,wh:14,n:2,th:20,tw:7,top:"dome",c:14,t:2}]],
   "urumqi-cn": [["Hongshan Pagoda","tiers",{n:9,w:9,dw:0,th:3,rc:1,c:13,fin:2}],["International Grand Bazaar minaret","belfry",{w:7,h:34,lan:5,top:"dome",c:0,t:7}]],
+  "ushuaia-ar": [["Les Eclaireurs Lighthouse","light",{h:18,w:3,tw:2,band:4,b:6,c:10,rc:10}]],
+  "utrecht-nl": [["Dom Tower","belfry",{w:9,h:40,lan:10,top:"pyr",c:13,t:2}]],
+  "vadodara-in": [["Laxmi Vilas Palace","palace",{w:33,nh:11,top:"tower",th:26,tw:5,cap:"dome",wings:"pyr",c:1,t:13}]],
   "vaduz-li": [["Vaduz Castle","castle",{w:25,wh:12,n:1,th:20,tw:7,top:"pyr",c:6,t:1}],["Vaduz Cathedral","church",{w:17,nh:11,h:30,tw:5,tx:-5,top:"spire",c:13,t:8}]],
   "valencia-es": [["Torres de Serranos","castle",{w:21,wh:16,n:2,th:20,tw:7,top:"crenel",c:13}],["El Micalet","belfry",{w:7,h:34,lan:4,top:"flat",c:13}]],
   "valletta-mt": [["Carmelite Church","palace",{w:21,nh:10,r:6,dd:5,dc:8,c:13}],["St John’s Co-Cathedral","cathedral",{w:21,nh:12,h:20,top:"pyr",c:13,t:8}]],
+  "van-tr": [["Van Fortress","castle",{w:35,wh:11,n:4,th:15,tw:5,top:"crenel",c:0}]],
   "vancouver-ca": [["Harbour Centre","tower",{h:32,s:3,pod:33,pw:6,ant:4,c:13,t:11}],["Lions Gate Bridge","span",{type:"suspension",w:20,h:22,dh:9,c:9}]],
+  "vannes-fr": [["Ramparts of Vannes","castle",{w:33,wh:10,n:3,th:14,tw:5,top:"cone",c:13,t:2}]],
+  "varanasi-in": [["Kashi Vishwanath Temple","stupa",{w:15,h:30,shape:"prang",c:12,t:3}]],
+  "varazdin-hr": [["Varaždin Castle","castle",{w:25,wh:12,n:2,th:16,tw:5,top:"cone",kh:22,kw:7,ktop:"pyr",c:6,t:1}]],
+  "varna-bg": [["Dormition Cathedral","onion",{w:19,nh:13,r:4,n:4,mc:[12],c:6}]],
   "vatican-city-va": [["St. Peter’s Basilica","dome"],["Vatican Obelisk","column",{h:28,s:1,pw:3,ph:4,top:"cross",c:13,t:3}]],
+  "velikiy-novgorod-ru": [["Saint Sophia Cathedral","onion",{w:21,nh:14,r:4,n:4,mc:[12,8],c:6}],["Novgorod Kremlin","castle",{w:31,wh:10,n:3,th:15,tw:5,top:"cone",c:1,t:2}]],
+  "veliko-tarnovo-bg": [["Tsarevets Fortress","castle",{w:31,wh:10,n:2,th:16,tw:5,top:"crenel",kh:22,kw:7,ktop:"dome",kc:1,c:13}]],
   "venice-it": [["St Mark’s Campanile","campanile"],["Santa Maria della Salute","palace",{w:17,nh:10,r:6,dd:4,dc:13,cols:3,c:6}]],
+  "verona-it": [["Verona Arena","stadium",{w:33,h:12,c:14,t:2,rc:14}],["Torre dei Lamberti","belfry",{w:7,h:42,lan:6,top:"dome",c:1,t:13}]],
+  "veszprem-hu": [["Fire Lookout Tower","belfry",{w:7,h:30,lan:5,top:"bulb",c:13,t:4}]],
+  "viana-do-castelo-pt": [["Sanctuary of Santa Luzia","cathedral",{w:23,nh:14,h:22,tw:5,top:"dome",r:7,dc:13,c:6,t:13}]],
+  "viborg-dk": [["Viborg Cathedral","cathedral",{w:21,nh:12,h:30,tw:5,top:"pyr",c:13,t:2}]],
+  "vicenza-it": [["Basilica Palladiana","palace",{w:31,nh:14,top:"flat",rc:4,c:6}],["Torre Bissara","belfry",{w:5,h:44,lan:4,top:"pyr",c:1,t:13}]],
+  "victoria-ca": [["British Columbia Parliament Buildings","palace",{w:31,nh:11,r:5,dd:5,dc:4,wings:"pyr",c:13,t:4}],["Fairmont Empress","castle",{w:25,wh:16,n:2,th:20,tw:5,top:"pyr",c:1,t:4}]],
   "victoria-sc": [["Victoria Clock Tower","belfry",{w:5,h:14,clock:1,top:"pyr",c:8,t:8}],["Sri Navasakthi Vinayagar Temple","tiers",{n:5,w:13,dw:2,th:4,rc:5,c:12,fin:2}]],
+  "vidin-bg": [["Baba Vida Fortress","castle",{w:27,wh:12,n:4,th:16,tw:5,top:"crenel",c:13}]],
   "vienna-at": [["St. Stephen’s Cathedral","church",{w:23,nh:14,h:40,tw:7,tx:-6,top:"spire",sp:16,c:13,t:7,rc:7}],["Wiener Riesenrad","wheel",{r:14,c:10,t:10}]],
   "vientiane-la": [["Pha That Luang","stupa",{w:25,h:36,c:12,t:3}],["Patuxai","arch",{w:19,h:18,ow:4,top:"towers",tc:"pyr",cap:"pyr",c:13,t:12}]],
   "vilnius-lt": [["Gediminas Tower","belfry",{w:9,h:20,top:"pyr",c:1,t:1}],["Vilnius Cathedral","palace",{w:21,nh:12,top:"flat",cols:6,c:6}]],
+  "visby-se": [["Visby City Wall","castle",{w:35,wh:12,n:4,th:18,tw:5,top:"pyr",c:13,t:2}],["Visby Cathedral","church",{w:21,nh:12,h:30,tw:7,tx:-5,top:"baroque",c:6,t:2}]],
+  "vitebsk-by": [["Holy Assumption Cathedral","cathedral",{w:21,nh:13,h:28,top:"bulb",r:4,dc:9,c:6,t:9}]],
+  "vladimir-ru": [["Golden Gate","arch",{w:17,h:16,ow:3,top:"dome",r:4,dc:12,c:6,t:6}],["Dormition Cathedral","onion",{w:21,nh:14,r:4,n:4,mc:[12],c:6}]],
+  "vladivostok-ru": [["Zolotoy Bridge","span",{type:"cable",n:2,w:20,h:26,dh:9,c:6}],["Russky Bridge","span",{type:"cable",n:2,w:24,h:30,dh:8,c:6,pc:8}]],
+  "vlore-al": [["Independence Monument","statue",{h:16,ph:8,pw:6,pose:"torch",c:8,t:8}],["Muradie Mosque","mosque",{w:13,nh:8,r:4,m:1,mh:24,c:13,dc:8}]],
+  "volgograd-ru": [["The Motherland Calls","statue",{h:40,ph:6,pw:5,pose:"sword",c:13,t:13}]],
+  "voronezh-ru": [["Annunciation Cathedral","onion",{w:21,nh:14,r:5,n:4,mc:[12],c:6}]],
+  "vukovar-hr": [["Vukovar Water Tower","tower",{h:30,s:2,pod:26,pw:6,ant:5,c:13,t:13}]],
+  "wakayama-jp": [["Wakayama Castle","tiers",{n:3,w:17,dw:4,th:5,base:8,rc:2,c:6,fin:2}]],
   "warsaw-pl": [["Palace of Culture and Science","sky",{w:11,h:34,top:"steps",sp:12,c:13,t:13}],["Royal Castle","castle",{w:25,wh:12,n:1,th:22,tw:5,top:"bulb",c:5,t:4}]],
   "washington-d-c-us": [["US Capitol","capitol"],["Washington Monument","column",{h:48,s:2,taper:0.3,pw:3,ph:1,top:"point",c:13}]],
   "wellington-nz": [["The Beehive","tiers",{n:6,w:19,dw:2,th:3,rc:13,c:6,fin:2}],["Old St Paul’s","church",{w:17,nh:8,h:20,tw:5,top:"spire",c:6,t:2}]],
+  "wenzhou-cn": [["Jiangxin Island West Pagoda","tiers",{n:7,w:15,dw:2,th:4,rc:2,c:13,fin:2}]],
   "west-island-cc": [["Oceania House","palace",{w:21,nh:8,top:"flat",c:6,rc:10}],["Home Island mosque","mosque",{w:15,r:4,dc:9,m:1,mh:16,c:6}]],
+  "wiesbaden-de": [["Marktkirche","church",{w:21,nh:13,h:42,tw:7,top:"spire",c:1,t:2}]],
   "willemstad-cw": [["Handelskade","canal"],["Fort Church","church",{w:15,nh:9,h:18,tw:5,top:"pyr",c:12,t:10}]],
   "windhoek-na": [["Christuskirche","church",{w:17,nh:10,h:30,tw:5,top:"spire",c:13,t:10}],["Independence Memorial Museum","sky",{w:11,h:24,c:12,t:2}]],
+  "winnipeg-ca": [["Manitoba Legislative Building","palace",{w:29,nh:10,r:5,dd:6,dc:13,cols:4,c:13}],["Esplanade Riel","span",{type:"cable",w:16,h:26,dh:8,c:6}]],
+  "wroclaw-pl": [["Wrocław Cathedral","cathedral",{w:21,nh:14,h:32,top:"needle",sp:22,c:1,t:4}],["Old Town Hall","church",{w:23,nh:13,h:34,tw:5,tx:4,top:"baroque",c:13,t:4,rc:1}]],
   "wuhan-cn": [["Yellow Crane Tower","tiers",{n:5,w:19,dw:2,th:5,rc:12,c:10,fin:4}],["Wuhan Yangtze River Bridge","span",{type:"truss",w:18,h:14,dh:10,c:8}]],
+  "wuxi-cn": [["Lingshan Grand Buddha","statue",{h:30,ph:8,pw:6,c:12}]],
   "xi-an-cn": [["Giant Wild Goose Pagoda","pagoda"],["Bell Tower of Xi’an","tiers",{n:3,w:19,dw:4,th:5,base:6,rc:9,c:10,fin:4}]],
+  "xiamen-cn": [["Zheng Chenggong statue, Gulangyu","statue",{h:22,ph:8,pw:5,c:13,pc:13}],["Shimao Straits Towers","sky",{n:2,w:9,gap:4,h:[48,42],top:"slant",sl:0.5,c:11,t:6}]],
+  "xining-cn": [["Dongguan Grand Mosque","mosque",{w:23,r:6,dc:9,m:2,mh:30,c:6}]],
+  "yamaguchi-jp": [["Rurikō-ji Five-storied Pagoda","tiers",{n:5,w:15,dw:2,th:5,rc:2,c:1,fin:6}]],
   "yamoussoukro-ci": [["Basilica of Our Lady of Peace","palace",{w:31,nh:9,r:8,dd:4,dc:4,cols:8,c:13}],["Grand Mosque of Yamoussoukro","mosque",{w:17,r:4,dc:6,m:1,sq:1,mh:30,c:6}]],
   "yangon-mm": [["Shwedagon Pagoda","stupa",{w:27,h:44,c:12,t:3}],["Sule Pagoda","stupa",{w:15,h:28,c:12,t:3}]],
+  "yangzhou-cn": [["White Pagoda, Slender West Lake","stupa",{w:15,h:28,shape:"dome",c:6,t:6}]],
   "yaounde-cm": [["Reunification Monument","column",{h:28,s:3,taper:0.3,pw:7,ph:4,top:"none",c:13}],["Notre-Dame des Victoires Cathedral","cathedral",{w:21,nh:12,h:22,top:"pyr",c:6,t:1}]],
   "yaren-nr": [["Parliament House","palace",{w:23,nh:8,top:"flat",c:6}],["Nauru airport control tower","belfry",{w:5,h:16,top:"flat",c:6}]],
+  "yaroslavl-ru": [["Church of Elijah the Prophet","onion",{w:19,r:4,n:4,mc:[9],c:6}]],
+  "yazd-ir": [["Amir Chakhmaq Complex","mosque",{w:23,nh:16,r:0,m:2,mh:30,c:0,t:1}],["Dowlat Abad windcatcher","belfry",{w:7,h:26,top:"none",c:0}]],
   "yekaterinburg-ru": [["Church on Blood","onion",{w:19,r:4,n:4,mc:[12],c:6}],["Vysotsky skyscraper","sky",{w:9,h:46,c:11,t:6}]],
   "yerevan-am": [["Mother Armenia","statue",{h:22,ph:16,pw:5,pose:"sword",c:8,t:8}],["Yerevan TV Tower","lattice",{h:48,w:8,band:8,c:10,t:6}]],
+  "yichang-cn": [["Three Gorges Dam","dam",{w:46,h:18,gates:9,c:8}]],
+  "yinchuan-cn": [["Haibao Pagoda","tiers",{n:9,w:11,dw:0,th:4,base:4,rc:13,c:13,fin:4}]],
+  "yogyakarta-id": [["Tugu Yogyakarta","column",{h:22,s:2,taper:0.4,pw:4,ph:6,top:"point",c:6}],["Kraton Bangsal Kencana","tiers",{n:2,w:23,dw:8,th:5,base:2,rc:2,c:12,fin:2}]],
   "yokohama-jp": [["Yokohama Landmark Tower","sky",{w:11,h:48,taper:0.2,c:13,t:11}],["Cosmo Clock 21","wheel",{r:15,c:6,t:7}]],
+  "zacatecas-mx": [["Zacatecas Cathedral","cathedral",{w:23,nh:13,h:30,top:"bulb",r:5,dc:14,c:14,t:14}]],
+  "zadar-hr": [["Bell tower of St. Anastasia","belfry",{w:7,h:30,lan:5,top:"pyr",c:6,t:6}]],
   "zagreb-hr": [["Zagreb Cathedral","cathedral",{w:19,nh:13,h:30,top:"needle",sp:18,c:13,t:13}],["St. Mark’s Church","church",{w:17,nh:10,h:22,tw:5,tx:5,top:"pyr",c:6,t:7,rc:7}]],
+  "zamboanga-ph": [["Fort Pilar","castle",{w:29,wh:10,n:2,th:12,tw:5,top:"crenel",c:13}]],
+  "zanzibar-tz": [["House of Wonders","palace",{w:27,nh:14,top:"tower",th:26,tw:5,cap:"pyr",c:6,t:8}],["Old Fort of Zanzibar","castle",{w:27,wh:10,n:2,th:13,tw:5,top:"crenel",c:0}]],
+  "zaragoza-es": [["Basílica del Pilar","cathedral",{w:31,nh:14,h:38,tw:5,top:"baroque",sp:6,r:6,dh:22,dc:7,c:0,t:7}],["Aljafería","castle",{w:25,wh:10,n:2,th:14,tw:5,top:"crenel",c:0}]],
+  "zhengzhou-cn": [["Erqi Memorial Tower","tiers",{n:9,w:11,dw:0,th:4,base:3,rc:9,c:6,fin:3}]],
+  "zhuhai-cn": [["Fisher Girl statue","statue",{h:20,ph:6,pw:4,pose:"torch",c:6}],["Hong Kong–Zhuhai–Macau Bridge","span",{type:"cable",w:18,h:22,dh:8,c:6}]],
+  "zlin-cz": [["Baťa’s Skyscraper","sky",{w:11,h:30,c:1,t:11}]],
+  "zugdidi-ge": [["Dadiani Palace","palace",{w:25,nh:12,top:"flat",c:13}]],
   "zurich-ch": [["Grossmünster","cathedral",{w:21,nh:13,h:28,top:"dome",c:13,t:8}],["Fraumünster","church",{w:17,nh:11,h:24,tw:5,tx:-5,top:"needle",sp:16,c:13,t:4}]],
+  "zwolle-nl": [["Sassenpoort","castle",{w:17,wh:14,n:2,th:20,tw:5,top:"needle",kh:26,kw:5,ktop:"needle",c:1,t:2}],["Peperbus","belfry",{w:7,h:30,lan:6,top:"bulb",c:13,t:2}]],
       };
       const LANDMARK_NAMES = {
         "austin-us": "Texas Capitol and Congress Avenue Bridge",
@@ -7156,23 +7962,30 @@
         const X = (v) => Math.round(x + v * unit),
           Y = (v) => Math.round(y - v * unit),
           R = (r) => Math.max(1, Math.round(r * unit));
+        // o.lean (any kind): cells sideways per cell up, so the whole landmark leans (Pisa)
+        const lean = o.lean || 0,
+          L = (v, up) => v + up * lean;
         const box = (left, up, w, h, color = 0) => {
           g.fillStyle = ink[color];
-          const x0 = X(left),
+          if (lean && h > 1) {
+            for (let r = 0; r < h; r++) box(left, up - r, w, 1, color);
+            return;
+          }
+          const x0 = X(L(left, up)),
             y0 = Y(up);
-          g.fillRect(x0, y0, Math.max(1, X(left + w) - x0), Math.max(1, Y(up - h) - y0));
+          g.fillRect(x0, y0, Math.max(1, X(L(left + w, up)) - x0), Math.max(1, Y(up - h) - y0));
         };
         const stroke = (x1, y1, x2, y2, color = 0) => {
           g.fillStyle = ink[color];
-          line(g, X(x1), Y(y1), X(x2), Y(y2));
+          line(g, X(L(x1, y1)), Y(y1), X(L(x2, y2)), Y(y2));
         };
         const orb = (cx, cy, r, color = 0) => {
           g.fillStyle = ink[color];
-          disc(g, X(cx), Y(cy), R(r));
+          disc(g, X(L(cx, cy)), Y(cy), R(r));
         };
         const dome = (cx, cy, r, color = 0) => {
           g.fillStyle = ink[color];
-          halfDisc(g, X(cx), Y(cy), R(r));
+          halfDisc(g, X(L(cx, cy)), Y(cy), R(r));
         };
         const stack = (bottom, levels, color = 0) => {
           let top = bottom;
@@ -8074,6 +8887,241 @@
             }
             break;
           }
+          case "mud": {
+            // Sudano-Sahelian mud building (Djenné, Timbuktu, Agadez): a wall of o.w with pinnacles along the top
+            // and o.n tapering towers (o.th tall, o.tw wide, o.taper), bristling with wooden beams (toron).
+            // One tower and no wall (o.w 0) is a lone minaret. c is the earth (0 sand, 1 red earth).
+            const w = o.w ?? 31,
+              wh = o.wh ?? 10,
+              n = o.n ?? 3,
+              th = o.th ?? 20,
+              tw = o.tw ?? 5,
+              hw = Math.floor(w / 2),
+              wood = 2;
+            if (w) {
+              box(-hw, wh, w, wh, c);
+              for (let p = -hw; p <= hw; p += 3) {
+                box(p, wh + 2, 1, 2, c); // pinnacles
+                if (p > -hw && p < hw) box(p, wh - 1, 1, wh - 2, o.t ?? 1); // buttresses
+              }
+              for (let p = -hw + 1; p < hw; p += 4) box(p, wh - 3, 1, 1, wood);
+            }
+            for (let j = 0; j < n; j++) {
+              const cx = n === 1 ? 0 : Math.round(-hw + 2 + (j * (w - 4)) / (n - 1)),
+                k0 = Math.floor(tw / 2);
+              for (let i = 1; i <= th; i++) {
+                const k = Math.max(1, Math.round(k0 * (1 - ((o.taper ?? 0.4) * i) / th)));
+                box(cx - k, i, 2 * k + 1, 1, c);
+                if (i % 3 === 0 && i < th - 1) for (const s of [-1, 1]) box(cx + s * (k + 1), i, 1, 1, wood);
+              }
+              box(cx, th + 2, 1, 2, c); // the pinnacle
+              box(cx, th + 3, 1, 1, 6); // an ostrich egg on top
+            }
+            break;
+          }
+          case "pylon": {
+            // Egyptian temple gateway: two battered towers (o.h tall) either side of a lower gate (o.gw wide,
+            // o.gh tall), each with a cornice; o.obelisk puts an obelisk on that side (-1 left, 1 right).
+            const w = o.w ?? 35,
+              h = o.h ?? 20,
+              gw = o.gw ?? 7,
+              gh = o.gh ?? Math.round(h * 0.65),
+              tw = Math.floor((w - gw) / 2),
+              g2 = Math.floor(gw / 2);
+            for (const s of [-1, 1]) {
+              const inner = s * (g2 + 1),
+                outer = s * (g2 + tw);
+              for (let i = 1; i <= h; i++) {
+                const bat = Math.round((i / h) * 2); // the sides lean in as they rise
+                const a = Math.min(inner, outer) + bat,
+                  b = Math.max(inner, outer) - bat;
+                box(a, i, b - a + 1, 1, c);
+              }
+              box(Math.min(inner, outer) + 1, h + 2, tw, 2, c); // cornice
+              box(Math.min(inner, outer) + 2, h - 2, tw - 2, 1, o.t ?? 2);
+              for (let i = 4; i < h - 4; i += 4) box(s * (g2 + Math.round(tw / 2)), i + 2, 1, 2, 2); // flagpole slots
+            }
+            box(-g2, gh, gw, gh, c);
+            box(-g2 - 1, gh + 1, gw + 2, 1, c);
+            box(-1, gh - 3, 3, gh - 3, 2); // the doorway
+            if (o.obelisk) {
+              const ox = o.obelisk * (g2 + tw + 4),
+                oh = Math.round(h * 1.1);
+              for (let i = 1; i <= oh; i++) box(ox - (i < oh * 0.5 ? 1 : 0), i, i < oh * 0.5 ? 3 : 2, 1, c);
+              box(ox, oh + 2, 1, 2, 3);
+            }
+            break;
+          }
+          case "rock": {
+            // A rock outcrop or cliff (o.w wide, o.h tall) in colour c, with o.niches tall carved niches (Bamyan,
+            // rock tombs), or o.chimneys fairy chimneys instead of one rock (Cappadocia); o.top "pagoda" (a gilt
+            // pagoda on the summit), "temple" (a small temple) or nothing.
+            const w = o.w ?? 30,
+              h = o.h ?? 24,
+              hw = Math.floor(w / 2);
+            if (o.chimneys) {
+              const n = o.chimneys;
+              for (let j = 0; j < n; j++) {
+                const cx = Math.round(-hw + 2 + (j * (w - 4)) / Math.max(1, n - 1)),
+                  ch = Math.round(h * (0.55 + 0.45 * Math.abs(Math.sin(j * 2.3 + 1))));
+                cone(cx, 0, 3, ch, c);
+                box(cx - 2, ch + 2, 5, 2, o.t ?? 2); // the dark capstone
+                if (j % 2 === 0) box(cx, Math.round(ch / 2), 1, 2, 2); // a cave dwelling
+              }
+              break;
+            }
+            let top = 0;
+            for (let i = -hw; i <= hw; i++) {
+              const a = Math.abs(i) / hw,
+                up = Math.max(
+                  1,
+                  Math.round(h * (1 - a ** 2.6) + Math.sin(i * 1.7) * 1.2 + Math.sin(i * 0.6)),
+                );
+              box(i, up, 1, up, c);
+              if (i % 4 === 0 && up > 4) box(i, Math.round(up * 0.6), 1, 1, 2); // cracks and ledges
+              if (i === 0) top = up;
+            }
+            const n = o.niches ?? 0;
+            for (let j = 0; j < n; j++) {
+              const nx = n === 1 ? 0 : Math.round(-hw * 0.5 + (j * hw) / (n - 1)),
+                nh = Math.round(h * (j % 2 ? 0.4 : 0.6));
+              box(nx - 1, nh + 1, 3, nh - 1, 2);
+              box(nx, nh + 2, 1, 1, 2);
+            }
+            if (o.top === "pagoda") {
+              cone(0, top, 3, 8, o.t ?? 12);
+              box(0, top + 10, 1, 2, 3);
+            } else if (o.top === "temple") {
+              box(-3, top + 4, 7, 4, 6);
+              cone(0, top + 4, 4, 3, o.t ?? 10);
+            }
+            break;
+          }
+          case "dam": {
+            // A dam wall o.w wide and o.h tall, with o.gates spillway gates pouring water and towers on the crest.
+            const w = o.w ?? 44,
+              h = o.h ?? 18,
+              hw = Math.floor(w / 2),
+              n = o.gates ?? 8;
+            for (let i = 1; i <= h; i++) {
+              const k = hw - Math.round(((h - i) / h) * 2);
+              box(-k, i, 2 * k + 1, 1, c);
+            }
+            box(-hw - 1, h + 1, w + 2, 1, c);
+            for (let j = 0; j < n; j++) {
+              const gx = Math.round(-hw + 3 + (j * (w - 7)) / Math.max(1, n - 1));
+              box(gx, h - 1, 2, 3, 2); // the gate
+              box(gx, h - 4, 2, h - 6, 6); // white water down the face
+              box(gx, h + 3, 2, 2, c); // gate towers on the crest
+            }
+            break;
+          }
+          case "bust": {
+            // A giant head on a plinth (Ulan-Ude's Lenin, Changsha's young Mao): o.h the head, o.ph and o.pw the
+            // plinth, o.beard a pointed beard.
+            const r = Math.max(3, Math.round((o.h ?? 20) / 2)),
+              ph = o.ph ?? 6,
+              pw = o.pw ?? r + 2,
+              pc = o.pc ?? 13;
+            box(-pw, ph, 2 * pw + 1, ph, pc);
+            dome(0, ph, r + 1, c); // shoulders
+            const cy = ph + r + 6,
+              nk = Math.max(1, Math.round(r / 3));
+            box(-nk, cy - r + 2, 2 * nk + 1, 4, c); // neck
+            orb(0, cy, r, c);
+            box(-r - 1, cy, 1, 2, c); // ears
+            box(r + 1, cy, 1, 2, c);
+            const eye = Math.max(1, Math.round(r / 2.5));
+            for (const s of [-1, 1]) box(s * eye - (s < 0 ? 1 : 0), cy + 1, 2, 1, 2); // brows and eyes
+            box(0, cy, 1, 2, 2); // the shadow of the nose
+            box(-1, cy - Math.round(r / 2), 3, 1, 2); // mouth
+            if (o.beard) {
+              box(-1, cy - r + 1, 3, 3, c);
+              box(0, cy - r - 2, 1, 1, c);
+            }
+            break;
+          }
+          case "skijump": {
+            // A ski jump: a tower (o.h tall) with the in-run sloping down to the take-off, and the landing hill
+            // curving down to the ground on the other side. o.dir 1 starts on the right, -1 on the left.
+            const h = o.h ?? 40,
+              w = o.w ?? 34,
+              d = o.dir ?? 1,
+              tx = d * Math.round(w * 0.42),
+              take = Math.round(h * 0.3);
+            box(tx - 2, h, 5, h, c);
+            box(tx - 3, h + 4, 7, 4, o.t ?? 11); // the starting cabin
+            for (let s = 0; s <= Math.abs(tx); s++)
+              box(d * s, Math.round(take + ((h - take) * s) / Math.abs(tx)), 1, 3, c); // the in-run
+            for (let s = 4; s < Math.abs(tx) - 2; s += 4) {
+              const px = d * s;
+              stroke(px, 0, px, Math.round(take + ((h - take) * s) / Math.abs(tx)) - 1, 8);
+            }
+            const land = Math.round(w * 0.55);
+            for (let s = 0; s <= land; s++) {
+              const up = Math.max(1, Math.round(take * (1 - s / land) ** 1.6));
+              box(-d * s, up, 1, up, o.hc ?? 9);
+            }
+            break;
+          }
+          case "crane": {
+            // Gantry cranes over a dock (Belfast's Samson and Goliath): o.n of them, o.w apart legs, o.h tall.
+            const n = o.n ?? 2,
+              w = o.w ?? 18,
+              h = o.h ?? 34,
+              hw = Math.floor(w / 2),
+              gap = w + 8;
+            for (let j = 0; j < n; j++) {
+              const cx = Math.round((j - (n - 1) / 2) * gap);
+              for (const s of [-hw, hw - 1]) box(cx + s, h, 2, h, c);
+              for (let i = 6; i < h - 4; i += 8) {
+                stroke(cx - hw + 1, i, cx - hw + 1 + 0, i + 6, c);
+                stroke(cx + hw - 1, i, cx + hw - 1, i + 6, c);
+              }
+              box(cx - hw - 4, h + 3, w + 8, 4, c); // the girder
+              box(cx - 2, h - 1, 4, 3, o.t ?? 2); // the trolley and cabin
+            }
+            break;
+          }
+          case "tulou": {
+            // A round Hakka earthen house (Fujian tulou): a low drum o.w wide and o.h tall, rows of small windows
+            // high up, one gate, and a wide dark tiled roof ring (o.rc).
+            const w = o.w ?? 32,
+              h = o.h ?? 12,
+              hw = Math.floor(w / 2),
+              rc = o.rc ?? 2;
+            box(-hw, h, w, h, c);
+            box(-hw, h, 2, h, o.t ?? 1); // the curve of the drum, darker at the ends
+            box(hw - 1, h, 2, h, o.t ?? 1);
+            for (let i = -hw + 3; i < hw - 2; i += 3) box(i, h - 2, 1, 1, 2);
+            box(-1, 4, 3, 4, 2);
+            box(-hw - 2, h + 2, w + 4, 2, rc);
+            box(-hw, h + 3, w, 1, rc);
+            break;
+          }
+          case "arcade": {
+            // A row of o.n arches, o.w cells each on piers 2 cells wide, in o.tiers tiers (1 or 2; the upper tier
+            // is lower): Roman aqueducts, arcades and multi-arch bridges. o.h is the lower tier's height.
+            const n = o.n ?? 6,
+              w = o.w ?? 6,
+              th = o.h ?? 12,
+              span = n * w + 2,
+              x0 = -Math.floor(span / 2);
+            let base = 0;
+            for (let tier = 0; tier < (o.tiers ?? 1); tier++) {
+              const h = tier ? Math.round(th * 0.55) : th;
+              for (let i = 0; i <= n; i++) box(x0 + i * w, base + h, 2, h, c); // piers
+              box(x0, base + h, span, 2, c); // the band over the arches
+              for (let i = 0; i < n; i++) {
+                // round the top corners of each opening
+                box(x0 + i * w + 2, base + h - 2, 1, 1, c);
+                box(x0 + (i + 1) * w - 1, base + h - 2, 1, 1, c);
+              }
+              base += h;
+            }
+            box(x0 - 1, base + 1, span + 2, 1, t); // coping
+            break;
+          }
           case "column": {
             // Obelisk, column or monument on a plinth; top "point", "capital", "statue", "angel", "ball", "flame", "cross".
             const h = o.h ?? 34,
@@ -8085,13 +9133,14 @@
             box(-pw - 1, 2, 2 * pw + 3, 2, pc);
             box(-pw, ph, 2 * pw + 1, ph - 2, pc);
             let k = s;
+            // o.n: a row of columns (temple ruins) under one entablature, centred on the plinth
+            const n = o.n ?? 1,
+              x0 = -2 * (s + 1) * (n - 1);
             for (let i = ph + 1; i <= h; i++) {
               k = o.taper ? Math.round(s - (s * o.taper * (i - ph)) / (h - ph)) : s;
-              box(-k, i, 2 * k + 1, 1, c);
-              // o.n: a row of columns (temple ruins) under one entablature
-              for (let j = 1; j < (o.n ?? 1); j++) box(j * 4 * (s + 1) - k, i, 2 * k + 1, 1, c);
+              for (let j = 0; j < n; j++) box(x0 + j * 4 * (s + 1) - k, i, 2 * k + 1, 1, c);
             }
-            if (o.n > 1) box(-k - 1, h + 2, 4 * (s + 1) * (o.n - 1) + 2 * k + 3, 2, c);
+            if (n > 1) box(x0 - k - 1, h + 2, 4 * (s + 1) * (n - 1) + 2 * k + 3, 2, c);
             if (top === "point") cone(0, h, k, k + 2, c);
             else if (top === "star") {
               box(-1, h + 3, 3, 1, 10);
@@ -8103,7 +9152,8 @@
             } else if (top === "cross") {
               box(0, h + 5, 1, 5, t);
               box(-1, h + 3, 3, 1, t);
-            } else if (top !== "none") {
+            } else if (top === "capital") box(-k - 1, h + 1, 2 * k + 3, 1, c);
+            else if (top !== "none") {
               box(-k - 1, h + 1, 2 * k + 3, 1, c);
               const { k: fk, sh } = figure(0, h + 1, o.fh ?? 7, t);
               if (top === "angel") for (const p of [-1, 1]) box(p > 0 ? fk + 1 : -fk - 3, sh + 1, 2, 3, t);
@@ -8124,10 +9174,13 @@
             box(-tw, h + 4, 2 * tw + 1, 3, 3);
             cone(0, h + 4, tw + 1, 2, o.rc ?? 10);
             box(0, h + 8, 1, 2, 2);
+            e.beams?.push({ x: X(0), y: Y(h + 3), len: R(h * 1.6) }); // its light sweeps at night (drawBeams)
             break;
           }
           case "castle": {
             // Curtain wall with o.n towers (cap o.top) and an optional keep (o.kh tall, o.kw wide).
+            // o.plain: a wall without crenels (dry-stone walls); o.round: round towers and keep (rounded
+            // shoulders), with top "none" for a bare drum.
             const w = o.w ?? 31,
               wh = o.wh ?? 10,
               n = o.n ?? 3,
@@ -8135,18 +9188,24 @@
               tw = o.tw ?? 5,
               hw = Math.floor(w / 2),
               k = Math.floor(tw / 2);
+            const drum = (cx, top, hk) => {
+              box(cx - hk, top - 1, 2 * hk + 1, top - 1, c);
+              box(cx - hk + 1, top, 2 * hk - 1, 1, c); // rounded shoulders
+            };
             box(-hw, wh, w, wh, c);
-            for (let p = -hw; p < hw; p += 2) box(p, wh + 1, 1, 1, c);
+            if (!o.plain) for (let p = -hw; p < hw; p += 2) box(p, wh + 1, 1, 1, c);
             if (o.kh) {
               const kk = Math.floor((o.kw ?? 9) / 2);
-              box(-kk, o.kh, 2 * kk + 1, o.kh, c);
+              if (o.round) drum(0, o.kh, kk);
+              else box(-kk, o.kh, 2 * kk + 1, o.kh, c);
               for (let i = wh + 3; i < o.kh - 2; i += 4)
                 for (let p = -kk + 2; p < kk - 1; p += 3) box(p, i, 1, 2, 2);
               cap(0, o.kh, kk, o.ktop ?? "crenel", o.kc ?? t, o.sp);
             }
             for (let i = 0; i < n; i++) {
               const p = n === 1 ? 0 : Math.round(-hw + k + (i * (w - tw)) / (n - 1));
-              box(p - k, th, tw, th, c);
+              if (o.round) drum(p, th, k);
+              else box(p - k, th, tw, th, c);
               box(p, th - 3, 1, 2, 2);
               cap(p, th, k, o.top ?? "crenel", t);
             }
@@ -8176,7 +9235,7 @@
               const k = Math.floor((o.tw ?? 5) / 2),
                 th = o.th ?? nh + 12;
               box(-k, th, 2 * k + 1, th, c);
-              orb(0, th - k - 2, Math.max(1, k - 1), 6);
+              if (o.clock !== 0) orb(0, th - k - 2, Math.max(1, k - 1), 6); // o.clock: 0 for no clock face
               cap(0, th, k, o.cap ?? "pyr", t, o.sp);
             }
             box(-hw, nh, w, nh, c);
@@ -8196,7 +9255,9 @@
             break;
           }
           case "span": {
-            // Bridge, o.w cells each side of the centre: "suspension", "stone" (masonry towers), "cable", "arch", "bascule", "truss".
+            // Bridge, o.w cells each side of the centre: "suspension", "stone" (masonry towers), "cable", "arch", "bascule",
+            // "truss", "lift" (a span raised between two towers) or "girder" (a flat deck on tall piers, o.n of them).
+            // o.roof: a covered deck (wooden bridges), in colour o.rc.
             // An "arch" can sit under the road (o.over) or stand alone (o.bare, from the ground with dh 0).
             const w = o.w ?? 22,
               h = o.h ?? 26,
@@ -8263,12 +9324,37 @@
                 stroke(i + 2, h, i + 4, dh, c);
                 box(i, h, 4, 1, c);
               }
+            else if (type === "lift") {
+              const p = Math.round(w * 0.5),
+                lift = o.lift ?? h - 6; // where the moving span hangs, up in the towers
+              for (const s of [-p, p]) {
+                box(s - 2, h, 5, h, o.tc ?? c);
+                box(s - 1, h - 2, 3, 3, 2);
+                cap(s, h, 2, o.top ?? "pyr", t);
+              }
+              for (let i = -p + 3; i < p - 2; i += 3) {
+                stroke(i, lift, i + 1, lift - 3, c);
+                stroke(i + 1, lift - 3, i + 3, lift, c);
+              }
+              box(-p + 3, lift, 2 * p - 5, 1, c);
+              box(-p + 3, lift - 3, 2 * p - 5, 1, c);
+            } else if (type === "girder")
+              for (let j = 0; j < (o.n ?? 5); j++) {
+                const s = Math.round(-w + ((2 * w) / ((o.n ?? 5) - 1 || 1)) * j);
+                box(s - 1, dh - 2, 3, dh - 2, o.pc ?? 13);
+              }
             box(-w - 2, deck, 2 * w + 5, 2, o.dc ?? c);
-            for (const s of [...towers, -w, w]) box(s - 1, deck - 2, 3, deck - 2, o.pc ?? 13);
+            if (type !== "girder")
+              for (const s of [...towers, -w, w]) box(s - 1, deck - 2, 3, deck - 2, o.pc ?? 13);
+            if (o.roof) {
+              for (let i = -w - 1; i <= w + 1; i += 3) box(i, deck + 3, 1, 3, o.rc ?? 1); // posts
+              for (let r = 0; r < 3; r++) box(-w - 3 + r, deck + 4 + r, 2 * w + 7 - 2 * r, 1, o.rc ?? 1);
+            }
             break;
           }
           case "statue": {
-            // Statue on a plinth; pose "stand", "out" (arms out), "torch", "sword" or "seated" (Buddha).
+            // Statue on a plinth; pose "stand", "out" (arms out), "torch", "sword", "seated" (Buddha) or "recline"
+            // (a reclining Buddha, o.h long, on a low base).
             const fh = o.h ?? 20,
               ph = o.ph ?? 8,
               pw = o.pw ?? 5,
@@ -8276,7 +9362,19 @@
               pc = o.pc ?? 13;
             box(-pw - 1, 2, 2 * pw + 3, 2, pc);
             box(-pw, ph, 2 * pw + 1, ph - 2, pc);
-            if (pose === "seated") {
+            if (pose === "recline") {
+              // lying on its side, head on the left resting on a raised arm
+              const half = Math.round(fh / 2),
+                bh = Math.max(3, Math.round(fh / 7));
+              for (let i = -half + 3; i <= half; i++) {
+                const k = Math.round(bh * (0.75 + 0.25 * Math.sin(((i + half) / fh) * Math.PI)));
+                box(i, ph + k, 1, k, c);
+              }
+              box(-half, ph + bh + 2, 3, bh + 2, c); // the arm under the head
+              orb(-half + 2, ph + bh + 4 + Math.round(bh / 2), Math.round(bh / 2) + 1, c);
+              box(-half + 2, ph + 2 * bh + 6, 1, 2, t); // the flame on the crown
+              break;
+            } else if (pose === "seated") {
               const k = Math.round(fh * 0.42);
               box(-k, ph + 3, 2 * k + 1, 3, c);
               for (let i = 0; i < fh - 8; i++) {
@@ -8308,13 +9406,18 @@
             for (const p of [-1, 1]) stroke(p * Math.round(r * 0.5), 0, 0, hub, o.t ?? 8);
             g.fillStyle = ink[c];
             ring(g, X(0), Y(hub), R(r));
-            for (let a = 0; a < 16; a++) {
-              const dx = Math.round(Math.cos((a * Math.PI) / 8) * r),
-                dy = Math.round(Math.sin((a * Math.PI) / 8) * r);
-              if (a % 2 === 0) stroke(0, hub, dx, hub + dy, c);
-              box(dx - 1, hub + dy, 2, 2, t);
-            }
             orb(0, hub, 1, t);
+            // the spokes and capsules turn, so they are drawn each frame (drawWheels)
+            e.wheels?.push({
+              x: X(0),
+              y: Y(hub),
+              r: R(r),
+              cr: R(r),
+              spokes: 8,
+              caps: 16,
+              spoke: ink[c],
+              cap: ink[t],
+            });
             break;
           }
           case "stadium": {
@@ -8641,6 +9744,9 @@
           }
         }
 
+        // How tall the city grows, from its population: 0.25 for a town of 100,000 or fewer (low roofs, a few
+        // storeys) up to 1 for 10 million (towers), so a cathedral town is not drawn as a city of high-rises.
+        const tall = clamp((Math.log10(city.population || 1e6) - 4.4) / 2.6, 0.25, 1);
         // Two depth layers of buildings. Pixel highlights, awnings and windows share the scene lighting.
         for (let layer = 0; layer < 2; layer++) {
           const haze = layer ? 0.11 : 0.5;
@@ -8649,7 +9755,9 @@
             const w = (4 + Math.floor(rng() * 8)) * unit;
             const height = Math.max(
               6,
-              Math.round(available * ((old ? 0.11 : 0.14) + rng() * (layer ? 0.32 : 0.47))),
+              Math.round(
+                available * ((old ? 0.08 : 0.1) + tall * 0.04 + rng() * (layer ? 0.32 : 0.47) * tall),
+              ),
             );
             const top = G - height,
               side = Math.max(2, Math.round(w * 0.22));
@@ -11947,6 +13055,8 @@
           e.crowd = crowdFor(home?.population);
           e.windows = []; // filled by the scene, for windows that switch on and off at night
           e.lamps = [];
+          e.wheels = []; // Ferris wheels and lighthouses, which move: drawn each frame over the scene
+          e.beams = [];
           // Hand-drawn landmarks have fixed pixel widths, so their heights get at most the room a phone has:
           // a taller screen shows more sky over the same skyline instead of stretching Big Ben.
           if (scene) {
@@ -12220,6 +13330,8 @@
             this.flipWindow(e);
           }
           g.drawImage(this.fg, 0, 0);
+          drawWheels(g, e, REDUCED_MOTION.matches ? 0 : t);
+          drawBeams(g, e, REDUCED_MOTION.matches ? 0 : t);
           // water shimmer
           if (e.water) {
             const { y0, y1 } = e.water,

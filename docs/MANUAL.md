@@ -114,10 +114,11 @@ Handy addresses for trying things without waiting for the right time or weather:
 | The cities you can pick | `CITY_ATLAS` in the `Config` section | Each row is `[id, label, country code, lat, lon, time zone, style, art, capital]`. Never rename an `id`, because saved settings point to it |
 | A city's landmarks | `CITY_LANDMARKS`, and `cityLandmark` for how a kind is drawn | Every city should keep at least two landmarks |
 | Mountains behind a city | `MOUNTAINS` (ranges) and `PEAKS` (single famous peaks) | Only add mountains you can really see from the city |
-| Trees in a city | `FLORA_OVERRIDES` and `cityFlora` | Trees follow the climate, so palms stay out of Oslo |
+| Trees in a city | `FLORA_OVERRIDES` and `cityFlora`, with the seasons in `plantKind` and `leafSeason` | Trees follow the climate, so palms stay out of Oslo. Away from the tropics they are bare in winter, blossom in spring and turn in autumn, flipped in the southern hemisphere |
+| The ground (street, park, railway, water) | `ground` and `street` | Every city calls `ground`, so the bands line up when clocks stand side by side. Don't give one city its own street |
 | Cars, trucks, police cars, taxis | `VEHICLE_MIX` and `VEHICLE_HALF` in `Scene life`, drawn in `drawGroundLife` | The chances add up to 100. Each car rolls a new kind every time it crosses the screen |
 | Boats | `BOAT_MIX` and the boat loop in `drawGroundLife` | The chances add up to 100. Boats only appear where the scene has water |
-| Trains | `TRAIN_KINDS` (looks and speed) and `TRAIN_LINES` (which country runs which trains) | A country in `TRAIN_LINES` gets a raised rail line across its cities |
+| Trains | `TRAIN_KINDS` (looks and speed), `TRAIN_LINES` (which country runs which trains), `railway` (the track, wires and station) and `drawTrain` | Inland cities have a railway in the bottom band. Capitals and big metro cities also get overhead wires and a station where passenger trains stop. Coastal cities in `TRAIN_LINES` get a raised line instead |
 | How busy the streets are | `busyness` in `Scene life` | It uses the city's local weekday and hour, and returns how many cars and walkers to show compared with a normal hour |
 | Holidays and festivals | `FESTIVALS` in `Festivities` | Rules look like `"07-14"`, `"03-15+4"` (and 4 more days), `"E-47"` (days from Easter) or `"11/4/Thu"` (fourth Thursday). Lunar New Year dates in `LUNAR_NEW_YEAR` end in 2030, so add the next years before then |
 | Planes and birds | `drawSkyLife` | Gulls need the city in `SEASIDE` (or a scene with water) |

@@ -2520,9 +2520,26 @@
       // At night each street lamp throws a warm cone onto the pavement and the road. It is added on top
       // of the traffic ("lighter"), so cars brighten as they pass under it.
       function drawLampLight(g, e) {
-        if (!e.lamps?.length || e.pal.lit <= 0.2) return;
+        if ((!e.lamps?.length && !e.station) || e.pal.lit <= 0.2) return;
         const strength = Math.min(1, e.pal.lit / 0.6);
         g.globalCompositeOperation = "lighter";
+        // the station's glow: strongest under the lamps, fading into the tunnel over 18 pixels past each
+        // end, so trains and people brighten gradually as they come in
+        const st = e.station;
+        if (st) {
+          const top = st.y - 5,
+            reach = 18;
+          for (let x = st.x0 - reach; x < st.x1 + reach; x++) {
+            const k = 1 - Math.max(st.x0 - x, x - (st.x1 - 1), 0) / reach; // 1 inside, 0 at the reach
+            if (k <= 0) continue;
+            const across = k * k * (3 - 2 * k); // smoothstep, so the glow has no visible edge
+            for (let y = top; y <= st.y + 3; y++) {
+              const a = 0.42 * strength * across * (1 - ((y - top) / 10) * 0.5);
+              g.fillStyle = `rgba(255,236,196,${a.toFixed(3)})`;
+              g.fillRect(x, y, 1, 1);
+            }
+          }
+        }
         for (const { x, y, len } of e.lamps)
           for (let dy = 1; dy <= len; dy++) {
             const half = Math.round(dy * 0.45);
@@ -2577,8 +2594,11 @@
           const planting = median.getContext("2d");
           e.streetMedian = { canvas: median, depth: G + 16 };
           for (let x = 2; x < W - 4; x += 23) {
-            g.fillStyle = css(e.sh(e.snow ? [217, 229, 227] : [82, 117, 75]));
+            // a light, yellowish lawn with a darker kerb, so the darker tree crowns stand out against it
+            g.fillStyle = css(e.sh(e.snow ? [217, 229, 227] : [142, 162, 92]));
             g.fillRect(x, G + 11, 17, 5);
+            g.fillStyle = css(e.sh(e.snow ? [190, 204, 206] : [104, 124, 70]));
+            g.fillRect(x, G + 15, 17, 1);
             if (e.flora) {
               drawPlant(planting, e, x + 4, G + 15, 1, Math.floor(x / 23));
               drawPlant(planting, e, x + 10, G + 15, 1, Math.floor(x / 23) + 1);
@@ -2647,9 +2667,8 @@
         e.rail = b + 8;
         e.freight = true;
         if (!e.electric) return;
-        // the station: a platform behind the track with a yellow edge, a shelter and a sign. It is
-        // underground and lit by its own lamps, so it is drawn unshaded and looks the same day and night,
-        // bright against the dark tunnel at night.
+        // the station: a platform behind the track with a yellow edge, a shelter and a sign. Its ceiling
+        // lamps are always on (drawn unshaded); at night drawLampLight spreads their glow around them.
         const lit = (color, x, y, w, h) => {
           g.fillStyle = css(color);
           g.fillRect(x, y, w, h);
@@ -2658,26 +2677,26 @@
           half = Math.round(clamp(W * 0.25, 30, W / 2 - 4)),
           x0 = mid - half,
           x1 = mid + half;
-        lit([176, 178, 172], x0, b + 1, x1 - x0, 5); // the tiled back wall
-        lit([150, 152, 148], x0, b + 5, x1 - x0, 1);
+        fill([176, 178, 172], x0, b + 1, x1 - x0, 5); // the tiled back wall
+        fill([150, 152, 148], x0, b + 5, x1 - x0, 1);
         for (let x = x0 + 2; x < x1 - 3; x += 8) lit([255, 248, 222], x, b + 1, 4, 1); // ceiling lamps
-        lit([178, 172, 162], x0, b + 6, x1 - x0, 3);
-        lit([226, 190, 70], x0, b + 6, x1 - x0, 1);
+        fill([178, 172, 162], x0, b + 6, x1 - x0, 3);
+        fill([226, 190, 70], x0, b + 6, x1 - x0, 1);
         const shelter = mid - 6;
-        lit([70, 74, 86], shelter, b + 1, 13, 1);
-        lit([70, 74, 86], shelter + 1, b + 2, 1, 4);
-        lit([70, 74, 86], shelter + 11, b + 2, 1, 4);
-        lit([150, 190, 200], shelter + 2, b + 2, 9, 3);
-        lit([238, 238, 232], x0 + 11, b + 1, 5, 3);
-        lit([60, 90, 170], x0 + 12, b + 2, 3, 1);
-        lit([70, 74, 86], x0 + 13, b + 4, 1, 2);
+        fill([70, 74, 86], shelter, b + 1, 13, 1);
+        fill([70, 74, 86], shelter + 1, b + 2, 1, 4);
+        fill([70, 74, 86], shelter + 11, b + 2, 1, 4);
+        fill([150, 190, 200], shelter + 2, b + 2, 9, 3);
+        fill([238, 238, 232], x0 + 11, b + 1, 5, 3);
+        fill([60, 90, 170], x0 + 12, b + 2, 3, 1);
+        fill([70, 74, 86], x0 + 13, b + 4, 1, 2);
         // a stairway at each end, seen from the front, from the street down to the platform
         const stairs = [x0 + 1, x1 - 8];
         for (const sx of stairs) {
           for (let y = b - 1; y < b + 6; y++)
-            lit((y - b) % 2 ? [150, 144, 136] : [118, 112, 106], sx, y, 7, 1);
-          lit([62, 64, 74], sx, b - 1, 1, 7);
-          lit([62, 64, 74], sx + 6, b - 1, 1, 7);
+            fill((y - b) % 2 ? [150, 144, 136] : [118, 112, 106], sx, y, 7, 1);
+          fill([62, 64, 74], sx, b - 1, 1, 7);
+          fill([62, 64, 74], sx + 6, b - 1, 1, 7);
         }
         e.station = { x0, x1, y: b + 6, stairs: stairs.map((sx) => sx + 3) };
         // overhead wires: masts every 40 pixels and the contact wire just over the trains

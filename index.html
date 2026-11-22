@@ -892,6 +892,7 @@
           kit: { kick: "kick", snare: "snare", hat: "hat", open: "open" },
           brush: { kick: "softKick", snare: "brush", hat: "ride", open: "ride" },
           clicks: { kick: "tock", snare: "rim", hat: "shaker", open: "tick" },
+          snap: { kick: "kick", snare: "clap", hat: "shaker", open: "open" },
         };
         // a clock that ticks over some songs (tick, tock on alternate beats)
         const CLICKS = ["x...x...x...x...", "x...x...x...x..x", "x.......x.......", "..x...x...x...x."];
@@ -952,6 +953,42 @@
             loops: ["sway", "half"],
             echo: [0.2, 4, 0.35],
             level: 1.1,
+          },
+          rhodes: {
+            chords: "rhodes",
+            leads: ["guitar", "whistle"],
+            bass: "sub",
+            drums: "kit",
+            loops: ["lazy", "sway"],
+            echo: [0.18, 3, 0.35],
+            level: 0.85,
+          },
+          kalimba: {
+            chords: "wurli",
+            leads: ["kalimba", "musicbox"],
+            bass: "bass",
+            drums: "snap",
+            loops: ["lazy", "half"],
+            echo: [0.3, 3, 0.45],
+            level: 1.15,
+          },
+          garden: {
+            chords: "rhodes",
+            leads: ["marimba", "kalimba"],
+            bass: "upright",
+            drums: "clicks",
+            loops: ["sway", "shuffle"],
+            echo: [0.2, 4, 0.35],
+            level: 1.1,
+          },
+          lullaby: {
+            chords: "felt",
+            leads: ["musicbox", "whistle"],
+            bass: "sub",
+            drums: "brush",
+            loops: ["half", "sway"],
+            echo: [0.45, 3, 0.5],
+            level: 0.8,
           },
         };
         const MAJOR = [0, 2, 4, 5, 7, 9, 11],
@@ -1604,6 +1641,82 @@
             }
             lp.connect(g).connect(this.tone);
           }
+          // tremolo: a gain whose level an LFO moves by depth, rate times a second
+          trem(t, end, rate, depth, out) {
+            const g = this.ctx.createGain(),
+              d = this.ctx.createGain(),
+              lfo = this.ctx.createOscillator();
+            g.gain.value = 1 - depth;
+            d.gain.value = depth;
+            lfo.frequency.value = rate;
+            lfo.connect(d).connect(g.gain);
+            lfo.start(t);
+            lfo.stop(end);
+            g.connect(out);
+            return g;
+          }
+          rhodes(n, t, dur, vel) {
+            // a Rhodes: a soft electric piano (a low FM index) with its stereo tremolo, here a slow wobble
+            const f = hz(n),
+              end = t + dur + 2,
+              car = this.osc("sine", f, t, end),
+              mod = this.osc("sine", f, t, end),
+              idx = this.ctx.createGain();
+            idx.gain.setValueAtTime(f * 0.9, t);
+            idx.gain.setTargetAtTime(f * 0.1, t, 0.25);
+            mod.connect(idx).connect(car.frequency);
+            car.connect(this.trem(t, end, 3.2, 0.3, this.env(t, vel * 1.1, 0.008, dur + 1, this.tone)));
+          }
+          wurli(n, t, dur, vel) {
+            // a Wurlitzer: reedier than the Rhodes, a square through a low-pass, with a faster tremolo
+            const end = t + dur + 1.5,
+              lp = this.lowpass(t, 1800, 700, 0.2);
+            this.osc("square", hz(n), t, end).connect(lp);
+            lp.connect(this.trem(t, end, 5.5, 0.25, this.env(t, vel * 0.55, 0.005, dur + 0.6, this.tone)));
+          }
+          kalimba(n, t, dur, vel) {
+            // a thumb piano: a sine with a short, high, out-of-tune tine knock
+            this.fm(n, t, Math.min(dur, 0.5), vel * 1.1, 5.4, 1.2, 0.02);
+          }
+          musicbox(n, t, dur, vel) {
+            // a music box: a high, clean comb tooth, an octave up, that rings and dies
+            const f = hz(n + 12);
+            this.osc("sine", f, t, t + 2).connect(this.env(t, vel * 0.8, 0.002, 1.2, this.tone));
+            this.osc("sine", f * 3, t, t + 0.4).connect(this.env(t, vel * 0.15, 0.001, 0.15, this.tone));
+          }
+          marimba(n, t, dur, vel) {
+            // a marimba: a woody sine with its fourth partial knocked in for a moment
+            const f = hz(n);
+            this.osc("sine", f, t, t + 1).connect(this.env(t, vel * 1.2, 0.002, 0.5, this.tone));
+            this.osc("sine", f * 4, t, t + 0.2).connect(this.env(t, vel * 0.3, 0.001, 0.06, this.tone));
+          }
+          guitar(n, t, dur, vel) {
+            // a clean jazz guitar, played with the thumb: a dark pluck that rings for the note
+            const lp = this.lowpass(t, 1600, hz(n) * 2, 0.15, 0.8);
+            this.osc("triangle", hz(n), t, t + dur + 1).connect(lp);
+            this.osc("sawtooth", hz(n), t, t + dur + 1).connect(this.env(t, 0.25, 0.002, 0.3, lp));
+            lp.connect(this.env(t, vel * 1.2, 0.003, Math.min(dur, 0.8) + 0.4, this.tone));
+          }
+          whistle(n, t, dur, vel) {
+            // someone whistling: a high sine with a breathy edge and a vibrato that comes in late
+            const o = this.osc("sine", hz(n + 12), t, t + dur + 0.5),
+              vib = this.ctx.createOscillator(),
+              depth = this.ctx.createGain(),
+              g = this.ctx.createGain();
+            vib.frequency.value = 5.5;
+            depth.gain.setValueAtTime(0, t);
+            depth.gain.linearRampToValueAtTime(18, t + Math.min(dur, 0.6));
+            vib.connect(depth).connect(o.detune);
+            vib.start(t);
+            vib.stop(t + dur + 0.5);
+            o.detune.setValueAtTime(-30, t);
+            o.detune.linearRampToValueAtTime(0, t + 0.05);
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(vel * 0.45, t + 0.05);
+            g.gain.setTargetAtTime(0, t + dur, 0.06);
+            o.connect(g).connect(this.tone);
+            this.hit(t, Math.min(dur, 0.4), "bandpass", hz(n + 12) * 2, 0.012);
+          }
           // a plucked string: a bright attack whose low-pass closes fast, then a short ring
           plk(n, t, vel, type, bright, ring) {
             const lp = this.lowpass(t, bright, hz(n) * 1.5, 0.06, 1);
@@ -1629,6 +1742,10 @@
             this.osc("triangle", hz(n), t, t + dur + 0.3)
               .connect(lp)
               .connect(this.env(t, 0.5, 0.01, dur));
+          }
+          sub(n, t, dur) {
+            // a round sine sub bass, an octave low
+            this.osc("sine", hz(n), t, t + dur + 0.3).connect(this.env(t, 0.6, 0.015, dur));
           }
           kick(t, vel) {
             const o = this.ctx.createOscillator();
@@ -1679,6 +1796,11 @@
           rim(t, vel) {
             this.hit(t, 0.03, "bandpass", 2200, 0.35 * vel);
             this.ping(1800, t, 0.015, 0.06 * vel, "square");
+          }
+          clap(t, vel) {
+            // a lo-fi clap: three quick bursts of band-passed noise, then the tail
+            for (const d of [0, 0.011, 0.022]) this.hit(t + d, 0.02, "bandpass", 1200, 0.18 * vel);
+            this.hit(t + 0.03, 0.15, "bandpass", 1100, 0.14 * vel);
           }
           shaker(t, vel) {
             this.hit(t, 0.07, "highpass", 5500, 0.08 * vel, 0.015);

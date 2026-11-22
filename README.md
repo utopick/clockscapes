@@ -40,7 +40,7 @@ The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 h
 
 ## Music
 
-Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks a band, such as a felt piano with a long echo, a jazz trio with vibraphone, a nylon guitar, a warm pad or a ticking clock kit, and its tunes change a little when a part comes back. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
+Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks one of ten bands, such as a felt piano with a long echo, a jazz trio with vibraphone, a Rhodes with a clean jazz guitar, a Wurlitzer with a kalimba and claps, a marimba over a ticking clock kit, or a music box and someone whistling, and its tunes change a little when a part comes back. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
 
 ## Alarms
 

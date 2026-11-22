@@ -112,7 +112,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | If you want to change… | Look in… | Watch out for… |
 |---|---|---|
 | The cities you can pick | `CITY_ATLAS` in the `Config` section | Each row is `[id, label, country code, lat, lon, time zone, style, art, capital]`. Never rename an `id`, because saved settings point to it |
-| A city's landmarks | `CITY_LANDMARKS`, and `cityLandmark` for how a kind is drawn | Every city should keep at least two landmarks |
+| A city's landmarks | `CITY_LANDMARKS`, and `cityLandmark` for how a kind is drawn | Only draw a city's real sights, one or two of them; a city with no famous sight keeps the generic skyline, which grows with its population |
 | Mountains behind a city | `MOUNTAINS` (ranges) and `PEAKS` (single famous peaks) | Only add mountains you can really see from the city |
 | Trees in a city | `FLORA_OVERRIDES` and `cityFlora`, with the seasons in `plantKind` and `leafSeason` | Trees follow the climate, so palms stay out of Oslo. Away from the tropics they are bare in winter, blossom in spring and turn in autumn, flipped in the southern hemisphere |
 | The ground (street, park, railway, water) | `ground` and `street` | Every city calls `ground`, so the bands line up when clocks stand side by side. Don't give one city its own street |

@@ -2630,28 +2630,37 @@
         e.rail = b + 8;
         e.freight = true;
         if (!e.electric) return;
-        // the station: a platform behind the track with a yellow edge, a shelter and a sign
+        // the station: a platform behind the track with a yellow edge, a shelter and a sign. It is
+        // underground and lit by its own lamps, so it is drawn unshaded and looks the same day and night,
+        // bright against the dark tunnel at night.
+        const lit = (color, x, y, w, h) => {
+          g.fillStyle = css(color);
+          g.fillRect(x, y, w, h);
+        };
         const mid = Math.round(W / 2),
           half = Math.round(clamp(W * 0.25, 30, W / 2 - 4)),
           x0 = mid - half,
           x1 = mid + half;
-        fill([178, 172, 162], x0, b + 6, x1 - x0, 3);
-        fill([226, 190, 70], x0, b + 6, x1 - x0, 1);
+        lit([176, 178, 172], x0, b + 1, x1 - x0, 5); // the tiled back wall
+        lit([150, 152, 148], x0, b + 5, x1 - x0, 1);
+        for (let x = x0 + 2; x < x1 - 3; x += 8) lit([255, 248, 222], x, b + 1, 4, 1); // ceiling lamps
+        lit([178, 172, 162], x0, b + 6, x1 - x0, 3);
+        lit([226, 190, 70], x0, b + 6, x1 - x0, 1);
         const shelter = mid - 6;
-        fill([70, 74, 86], shelter, b + 1, 13, 1);
-        fill([70, 74, 86], shelter + 1, b + 2, 1, 4);
-        fill([70, 74, 86], shelter + 11, b + 2, 1, 4);
-        fill([150, 190, 200], shelter + 2, b + 2, 9, 3);
-        fill([238, 238, 232], x0 + 11, b + 1, 5, 3);
-        fill([60, 90, 170], x0 + 12, b + 2, 3, 1);
-        fill([70, 74, 86], x0 + 13, b + 4, 1, 2);
+        lit([70, 74, 86], shelter, b + 1, 13, 1);
+        lit([70, 74, 86], shelter + 1, b + 2, 1, 4);
+        lit([70, 74, 86], shelter + 11, b + 2, 1, 4);
+        lit([150, 190, 200], shelter + 2, b + 2, 9, 3);
+        lit([238, 238, 232], x0 + 11, b + 1, 5, 3);
+        lit([60, 90, 170], x0 + 12, b + 2, 3, 1);
+        lit([70, 74, 86], x0 + 13, b + 4, 1, 2);
         // a stairway at each end, seen from the front, from the street down to the platform
         const stairs = [x0 + 1, x1 - 8];
         for (const sx of stairs) {
           for (let y = b - 1; y < b + 6; y++)
-            fill((y - b) % 2 ? [150, 144, 136] : [118, 112, 106], sx, y, 7, 1);
-          fill([62, 64, 74], sx, b - 1, 1, 7);
-          fill([62, 64, 74], sx + 6, b - 1, 1, 7);
+            lit((y - b) % 2 ? [150, 144, 136] : [118, 112, 106], sx, y, 7, 1);
+          lit([62, 64, 74], sx, b - 1, 1, 7);
+          lit([62, 64, 74], sx + 6, b - 1, 1, 7);
         }
         e.station = { x0, x1, y: b + 6, stairs: stairs.map((sx) => sx + 3) };
         // overhead wires: masts every 40 pixels and the contact wire just over the trains

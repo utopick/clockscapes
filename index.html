@@ -690,11 +690,12 @@
               <p class="hint atlasHint">
                 Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of
                 your clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the
-                night is slower and darker than the day. When it rains there, you hear the rain. After two or
-                three minutes a song fades into the next clock's song. The same variation number at the same
-                hour plays the same songs again, and a new number gives you new ones. The music button starts
-                the variation of the time it's pressed, so at 15:32 you hear variation 1532 (a random time
-                when none of your clocks is in this device's time zone).
+                night is slower and darker than the day. When it rains there, you hear the rain and the drops
+                on the window, and thunder in a storm. After two or three minutes a song fades into the next
+                clock's song. The same variation number at the same hour plays the same songs again, and a new
+                number gives you new ones. The music button starts the variation of the time it's pressed, so
+                at 15:32 you hear variation 1532 (a random time when none of your clocks is in this device's
+                time zone).
               </p>
               <label
                 >Music
@@ -821,7 +822,9 @@
       /*
        * Lo-fi music made live, with no audio files (the main script's "Music" section runs it).
        * LOFI.song(seed, mood) writes a song "sheet" from a number; it is pure and tests/music.test.js checks it.
-       *   mood = { night: 0 (day) to 1 (deep night), rain: 0 to 1 }; night means minor keys, slower, darker.
+       *   mood = { night: 0 (day) to 1 (deep night), rain: 0 to 1, thunder: true in a storm }; night means
+       *   minor keys, slower, darker. Rain plays a hiss, a low wash and drops on the window; thunder adds
+       *   distant rumbles and now and then a closer crack.
        * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
@@ -1165,6 +1168,7 @@
             wobble: 5 + r() * 10,
             crackle: 0.25 + r() * 0.5,
             rain,
+            thunder: Boolean(mood.thunder) && rain > 0,
           };
         }
 
@@ -1254,7 +1258,45 @@
               this.beds.push(src);
             };
             bed(k.vinyl, "highpass", 900, 0.25 * sheet.crackle);
-            if (sheet.rain > 0) bed(k.noise, "bandpass", 2400, 0.12 * sheet.rain);
+            if (sheet.rain > 0) {
+              bed(k.noise, "bandpass", 2400, 0.12 * sheet.rain); // the hiss
+              bed(k.noise, "lowpass", 420, 0.16 * sheet.rain * sheet.rain); // a low wash, for heavy rain
+            }
+          }
+          // One drop on the window: a short high plink that falls a little in pitch.
+          drop(t, gain) {
+            const ctx = this.ctx,
+              o = ctx.createOscillator(),
+              g = ctx.createGain(),
+              f = 1800 + Math.random() * 2600;
+            o.type = "sine";
+            o.frequency.setValueAtTime(f, t);
+            o.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.05);
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(gain, t + 0.003);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+            o.connect(g).connect(this.fader);
+            o.start(t);
+            o.stop(t + 0.08);
+          }
+          // Thunder: filtered noise that swells and dies away over seconds. A near one starts with a crack.
+          thunder(t, near) {
+            const ctx = this.ctx,
+              src = ctx.createBufferSource(),
+              f = ctx.createBiquadFilter(),
+              g = ctx.createGain(),
+              long = 4 + Math.random() * 3;
+            src.buffer = kit(ctx).noise;
+            src.loop = true;
+            f.type = "lowpass";
+            f.frequency.setValueAtTime(near ? 900 : 260, t);
+            f.frequency.exponentialRampToValueAtTime(90, t + long);
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(near ? 2.2 : 1.6, t + (near ? 0.05 : 0.6)); // loud, because so little noise is left under 260 Hz
+            g.gain.exponentialRampToValueAtTime(0.0001, t + long);
+            src.connect(f).connect(g).connect(this.fader);
+            src.start(t, Math.random() * 1.5);
+            src.stop(t + long + 0.1);
           }
           fadeOut(at, secs) {
             const g = this.fader.gain;
@@ -1277,6 +1319,14 @@
             }
           }
           play(step, t) {
+            // the weather, between the notes: drops on the window, and in a storm a rumble every 25 s or so
+            if (this.s.rain > 0) {
+              const sd = this.sd;
+              if (Math.random() < 0.5 * this.s.rain)
+                this.drop(t + Math.random() * sd, 0.02 + Math.random() * 0.03);
+              if (this.s.thunder && Math.random() < sd / 25)
+                this.thunder(t + Math.random() * sd, Math.random() < 0.25);
+            }
             const s = this.s,
               L = this.loop,
               bar = Math.floor(step / 16),
@@ -11096,7 +11146,12 @@
         const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
         const wx = CONFIG.weather === false ? null : WX[wxKey(z)];
         const wet = wx && (wx.cat === "rain" || wx.cat === "thunder");
-        return { alt, night: clamp((6 - alt) / 12, 0, 1), rain: wet ? clamp(wx.inten || 0.5, 0.2, 1) : 0 };
+        return {
+          alt,
+          night: clamp((6 - alt) / 12, 0, 1),
+          rain: wet ? clamp(wx.inten || 0.5, 0.2, 1) : 0,
+          thunder: wx?.cat === "thunder",
+        };
       }
       function setMusicVolume(v) {
         if (music.bus) music.bus.gain.setTargetAtTime((v / 100) ** 2, audioCtx.currentTime, 0.05);

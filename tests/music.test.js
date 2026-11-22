@@ -89,3 +89,9 @@ test("a section that comes back is changed, and the form has a solo", () => {
   }
   assert.ok(same < SEEDS.length / 10, `${same} songs repeat A unchanged`);
 });
+
+test("thunder only comes with rain in a storm", () => {
+  assert.strictEqual(LOFI.song(7, { rain: 0.8, thunder: true }).thunder, true);
+  assert.strictEqual(LOFI.song(7, { rain: 0.8 }).thunder, false);
+  assert.strictEqual(LOFI.song(7, { rain: 0, thunder: true }).thunder, false);
+});

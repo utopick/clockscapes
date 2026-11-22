@@ -23,7 +23,7 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 - How many people and cars a city has depends on its real population, in four levels from few people to super crowded.
 - The streets follow each city's own week. Roads fill up in the weekday rush hours, people stroll at weekends, Friday and Saturday nights get busy with people going out, and the small hours are quiet.
 - On a city's holiday or local festival, such as Thanksgiving, Carnaval or Las Fallas, a small plane tows the festival's name across that clock every 15 minutes.
-- Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and rain in a city adds rain to the song.
+- Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and rain in a city adds rain to the song, with drops on the window and, in a thunderstorm, distant thunder.
 - Daily alarms carry a short message across your clocks for a minute, as explained [below](#alarms).
 - A screen filter can make the clocks look like an old CRT television or an LCD screen, as shown [below](#screen-filters).
 - Settings stay in this browser only. The only thing the page talks to is [Open-Meteo](https://open-meteo.com/), for the weather and the place search, and you can switch the weather off.

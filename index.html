@@ -2657,10 +2657,18 @@
         fill([70, 74, 86], shelter + 1, b + 2, 1, 4);
         fill([70, 74, 86], shelter + 11, b + 2, 1, 4);
         fill([150, 190, 200], shelter + 2, b + 2, 9, 3);
-        fill([238, 238, 232], x0 + 3, b + 1, 5, 3);
-        fill([60, 90, 170], x0 + 4, b + 2, 3, 1);
-        fill([70, 74, 86], x0 + 5, b + 4, 1, 2);
-        e.station = { x0, x1, y: b + 6 };
+        fill([238, 238, 232], x0 + 11, b + 1, 5, 3);
+        fill([60, 90, 170], x0 + 12, b + 2, 3, 1);
+        fill([70, 74, 86], x0 + 13, b + 4, 1, 2);
+        // a stairway at each end, seen from the front, from the street down to the platform
+        const stairs = [x0 + 1, x1 - 8];
+        for (const sx of stairs) {
+          for (let y = b - 1; y < b + 6; y++)
+            fill((y - b) % 2 ? [150, 144, 136] : [118, 112, 106], sx, y, 7, 1);
+          fill([62, 64, 74], sx, b - 1, 1, 7);
+          fill([62, 64, 74], sx + 6, b - 1, 1, 7);
+        }
+        e.station = { x0, x1, y: b + 6, stairs: stairs.map((sx) => sx + 3) };
         // overhead wires: masts every 40 pixels and the contact wire just over the trains
         e.wire = b;
         for (let x = 12; x < W; x += 40) {
@@ -6111,17 +6119,36 @@
             [0.6, life.walkers[2]?.color],
             [0.85, life.walkers[3]?.color],
           ];
+          // Everyone uses the stairs at the nearer end: waiting people come down them early in the cycle and
+          // walk to their spot; the ones who got off walk back to them and climb out. A trip t seconds
+          // long: 1.75 s on the 7 steps, then 5 pixels a second along the platform.
+          const into = clock % cycle;
+          const along = (stair, home, t) =>
+            t < 1.75
+              ? [stair, Math.round(st.y - 7 + t * 4)]
+              : [
+                  Math.round(
+                    stair + Math.sign(home - stair) * Math.min(Math.abs(home - stair), (t - 1.75) * 5),
+                  ),
+                  st.y,
+                ];
           people.forEach(([at, color], i) => {
-            const home = Math.round(st.x0 + (st.x1 - st.x0) * at);
-            let x = home;
+            const home = Math.round(st.x0 + (st.x1 - st.x0) * at),
+              stair = st.stairs[at < 0.5 ? 0 : 1],
+              walk = 1.75 + Math.abs(home - stair) / 5;
+            let x, y;
             if (gone != null) {
-              if (gone > 8 || i % 2) return; // two got off; the others boarded
-              x = Math.round(home + (at < 0.5 ? -1 : 1) * gone * 5);
-            } else if (dwell != null && dwell > 1 + i) return; // boarded
+              if (i % 2 || gone > walk) return; // two got off; the others boarded
+              [x, y] = along(stair, home, walk - gone); // the way in, played backwards
+            } else if (dwell != null && dwell > 1 + i)
+              return; // boarded
+            else if (into < i * 1.5)
+              return; // not here yet
+            else [x, y] = along(stair, home, into - i * 1.5);
             g.fillStyle = life.skin;
-            g.fillRect(x, st.y - 3, 1, 1);
+            g.fillRect(x, y - 3, 1, 1);
             g.fillStyle = color || life.ink;
-            g.fillRect(x, st.y - 2, 2, 2);
+            g.fillRect(x, y - 2, 2, 2);
           });
         }
         // height of the train d pixels from an end: 6, sloping down over the nose on fast trains
@@ -8904,12 +8931,10 @@
                 2,
                 Math.round(cl.h * 0.5 * (0.5 + 0.5 * Math.sin(Math.PI * t)) + (r() - 0.5) * 2),
               );
-              biggest = Math.max(biggest, rr);
-              puffs.push([
-                Math.round(3 + t * (W - 6) + (r() - 0.5) * 3),
-                base - rr + 1 - Math.floor(r() * 2),
-                rr,
-              ]);
+              const x = Math.round(3 + t * (W - 6) + (r() - 0.5) * 3),
+                fit = Math.max(2, Math.min(rr, x - 1, W - 2 - x)); // the end puffs stay inside the sprite
+              biggest = Math.max(biggest, fit);
+              puffs.push([x, base - fit + 1 - Math.floor(r() * 2), fit]);
             }
             for (let i = 0, m = 1 + Math.floor(r() * 2); i < m; i++) {
               const rr = Math.max(2, Math.round(biggest * (0.5 + r() * 0.25)));
@@ -8923,6 +8948,11 @@
           }
           // decks are shaded softly (an overcast sky is evenly lit); small puffs get no crescent, so the
           // texture stays calm instead of speckled
+          // no puff may reach the sprite's edge, or the cloud shows a straight cut there
+          for (const q of puffs) {
+            q[2] = Math.max(1, Math.min(q[2], Math.floor((W - 3) / 2)));
+            q[0] = clamp(q[0], q[2] + 1, W - 2 - q[2]);
+          }
           const deck = cl.kind === "deck";
           const mid = mixc(ctop, cbot, deck ? 0.3 : 0.45),
             hi = mixc(ctop, [255, 255, 255], 0.22);

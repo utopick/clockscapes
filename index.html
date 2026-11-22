@@ -9447,6 +9447,9 @@
           }
         }
 
+        // How tall the city grows, from its population: 0.25 for a town of 100,000 or fewer (low roofs, a few
+        // storeys) up to 1 for 10 million (towers), so a cathedral town is not drawn as a city of high-rises.
+        const tall = clamp((Math.log10(city.population || 1e6) - 4.4) / 2.6, 0.25, 1);
         // Two depth layers of buildings. Pixel highlights, awnings and windows share the scene lighting.
         for (let layer = 0; layer < 2; layer++) {
           const haze = layer ? 0.11 : 0.5;
@@ -9455,7 +9458,9 @@
             const w = (4 + Math.floor(rng() * 8)) * unit;
             const height = Math.max(
               6,
-              Math.round(available * ((old ? 0.11 : 0.14) + rng() * (layer ? 0.32 : 0.47))),
+              Math.round(
+                available * ((old ? 0.08 : 0.1) + tall * 0.04 + rng() * (layer ? 0.32 : 0.47) * tall),
+              ),
             );
             const top = G - height,
               side = Math.max(2, Math.round(w * 0.22));

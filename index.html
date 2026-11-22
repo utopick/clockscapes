@@ -706,6 +706,14 @@
               >
               <label>Volume <input type="range" name="musicVol" min="0" max="100" /></label>
               <label
+                title="Sounds of each city behind the music: rain and thunder, birds, crickets, waves, wind, voices, traffic and trains"
+                >City sounds
+                <select name="musicPlaces">
+                  <option value="1">On</option>
+                  <option value="0">Off</option>
+                </select></label
+              >
+              <label
                 >Variation <input type="number" name="musicVar" min="1" max="9999" class="short"
               /></label>
               <p class="hint" id="nowPlaying" style="margin: 0 0 10px"></p>
@@ -826,7 +834,9 @@
        *   minor keys, slower, darker. Rain plays a hiss, a low wash and drops on the window; thunder adds
        *   distant rumbles and now and then a closer crack. Without rain the place still sounds: mood.sea
        *   (a coastal city) brings slow waves, mood.wind (0 to 1) a rising and falling wind, and birds sing by
-       *   day, crickets on warm nights (mood.warm).
+       *   day, crickets on warm nights (mood.warm). mood.crowd (0 to 1) brings voices and traffic hum and
+       *   mood.trains a train passing now and then. mood.places === false leaves all of these out. They all
+       *   go through a muffled low-pass, like a lo-fi field recording.
        * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
@@ -1171,6 +1181,9 @@
             crackle: 0.25 + r() * 0.5,
             rain,
             thunder: Boolean(mood.thunder) && rain > 0,
+            places: mood.places !== false,
+            crowd: clamp(+mood.crowd || 0, 0, 1),
+            trains: Boolean(mood.trains),
             sea: Boolean(mood.sea),
             wind: clamp(+mood.wind || 0, 0, 1),
             // birds by day and crickets on warm nights, both quiet in the rain
@@ -1249,9 +1262,15 @@
             this.wobble.gain.value = sheet.wobble;
             this.lfo.connect(this.wobble);
             this.lfo.start(start);
+            // the place's sounds go through their own muffled low-pass, like a lo-fi field recording
+            this.amb = ctx.createGain();
+            const muffle = ctx.createBiquadFilter();
+            muffle.type = "lowpass";
+            muffle.frequency.value = 3200;
+            this.amb.connect(muffle).connect(this.fader);
             // vinyl crackle, and rain when it rains at that place
             this.beds = [this.lfo];
-            const bed = (buffer, type, freq, gain, swell = 0, period = 9) => {
+            const bed = (buffer, type, freq, gain, swell = 0, period = 9, to = this.amb) => {
               const src = ctx.createBufferSource(),
                 f = ctx.createBiquadFilter(),
                 g = ctx.createGain();
@@ -1271,11 +1290,13 @@
                 lfo.start(start);
                 this.beds.push(lfo);
               }
-              src.connect(f).connect(g).connect(this.fader);
+              src.connect(f).connect(g).connect(to);
               src.start(start, Math.random() * 2);
               this.beds.push(src);
             };
-            bed(k.vinyl, "highpass", 900, 0.25 * sheet.crackle);
+            bed(k.vinyl, "highpass", 900, 0.25 * sheet.crackle, 0, 9, this.fader);
+            if (!sheet.places) return;
+            if (sheet.crowd > 0) bed(k.noise, "lowpass", 160, 0.13 * sheet.crowd, 0.3, 17); // distant traffic
             if (sheet.rain > 0) {
               bed(k.noise, "bandpass", 2400, 0.12 * sheet.rain); // the hiss
               bed(k.noise, "lowpass", 420, 0.16 * sheet.rain * sheet.rain); // a low wash, for heavy rain
@@ -1298,7 +1319,7 @@
               g.gain.setValueAtTime(0, at);
               g.gain.linearRampToValueAtTime(0.018, at + 0.01);
               g.gain.exponentialRampToValueAtTime(0.0001, at + 0.06);
-              o.connect(g).connect(this.fader);
+              o.connect(g).connect(this.amb);
               o.start(at);
               o.stop(at + 0.07);
             }
@@ -1314,7 +1335,7 @@
               g.gain.setValueAtTime(0.008, t + i * 0.045);
               g.gain.setValueAtTime(0, t + i * 0.045 + 0.018);
             }
-            o.connect(g).connect(this.fader);
+            o.connect(g).connect(this.amb);
             o.start(t);
             o.stop(t + 0.15);
           }
@@ -1330,7 +1351,7 @@
             g.gain.setValueAtTime(0, t);
             g.gain.linearRampToValueAtTime(gain, t + 0.003);
             g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-            o.connect(g).connect(this.fader);
+            o.connect(g).connect(this.amb);
             o.start(t);
             o.stop(t + 0.08);
           }
@@ -1349,9 +1370,57 @@
             g.gain.setValueAtTime(0, t);
             g.gain.linearRampToValueAtTime(near ? 2.2 : 1.6, t + (near ? 0.05 : 0.6)); // loud, because so little noise is left under 260 Hz
             g.gain.exponentialRampToValueAtTime(0.0001, t + long);
-            src.connect(f).connect(g).connect(this.fader);
+            src.connect(f).connect(g).connect(this.amb);
             src.start(t, Math.random() * 1.5);
             src.stop(t + long + 0.1);
+          }
+          // A piece of filtered noise: the voices' syllables, the wheels' clacks and the train's rumble.
+          noise(t, type, freq, q, peak, attack, len, endFreq) {
+            const ctx = this.ctx,
+              src = ctx.createBufferSource(),
+              f = ctx.createBiquadFilter(),
+              g = ctx.createGain();
+            src.buffer = kit(ctx).noise;
+            src.loop = true;
+            f.type = type;
+            f.Q.value = q;
+            f.frequency.setValueAtTime(freq, t);
+            if (endFreq) f.frequency.exponentialRampToValueAtTime(endFreq, t + len);
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(peak, t + attack);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+            src.connect(f).connect(g).connect(this.amb);
+            src.start(t, Math.random() * 1.5);
+            src.stop(t + len + 0.05);
+          }
+          // People talking nearby: one syllable of a murmur, a short vowel-like band of noise.
+          voice(t) {
+            const f = 380 + Math.random() * 900;
+            this.noise(
+              t,
+              "bandpass",
+              f,
+              4,
+              0.2 + Math.random() * 0.15,
+              0.03,
+              0.12 + Math.random() * 0.25,
+              f * (0.8 + Math.random() * 0.4),
+            );
+          }
+          // A train going past: a rumble that swells and fades, and the wheels clacking over each rail joint
+          // (two bogies a car, ta-tak ... ta-tak), loudest as the middle of the train passes.
+          train(t) {
+            const cars = 5 + Math.floor(Math.random() * 5),
+              gap = 0.5 + Math.random() * 0.25, // seconds from one car to the next
+              len = cars * gap + 2;
+            this.noise(t, "lowpass", 220, 0.7, 0.9, len * 0.45, len, 120);
+            for (let c = 0; c < cars; c++)
+              for (const bogie of [0, 0.13]) {
+                const at = t + 1 + c * gap + bogie,
+                  near = 1 - Math.abs((c + 0.5) / cars - 0.5) * 1.4;
+                this.noise(at, "bandpass", 1500 + Math.random() * 400, 1.2, 0.35 * near, 0.003, 0.05);
+                this.noise(at, "lowpass", 300, 1, 0.5 * near, 0.003, 0.08);
+              }
           }
           fadeOut(at, secs) {
             const g = this.fader.gain;
@@ -1374,16 +1443,17 @@
             }
           }
           play(step, t) {
-            // the place, between the notes: birds by day, crickets at night
-            if (Math.random() < 0.035 * this.s.birds) this.chirp(t + Math.random() * this.sd);
-            if (Math.random() < 0.3 * this.s.crickets) this.trill(t + Math.random() * this.sd);
-            // the weather: drops on the window, and in a storm a rumble every 25 s or so
-            if (this.s.rain > 0) {
-              const sd = this.sd;
-              if (Math.random() < 0.5 * this.s.rain)
-                this.drop(t + Math.random() * sd, 0.02 + Math.random() * 0.03);
-              if (this.s.thunder && Math.random() < sd / 25)
-                this.thunder(t + Math.random() * sd, Math.random() < 0.25);
+            // the place, between the notes: birds by day, crickets at night, voices, a train now and then,
+            // and the weather: drops on the window, and in a storm a rumble every 25 s or so
+            if (this.s.places) {
+              const sd = this.sd,
+                at = () => t + Math.random() * sd;
+              if (Math.random() < 0.035 * this.s.birds) this.chirp(at());
+              if (Math.random() < 0.3 * this.s.crickets) this.trill(at());
+              if (Math.random() < 0.8 * this.s.crowd) this.voice(at());
+              if (this.s.trains && Math.random() < sd / 75) this.train(at()); // about one every 75 s
+              if (Math.random() < 0.5 * this.s.rain) this.drop(at(), 0.02 + Math.random() * 0.03);
+              if (this.s.thunder && Math.random() < sd / 25) this.thunder(at(), Math.random() < 0.25);
             }
             const s = this.s,
               L = this.loop,
@@ -4877,7 +4947,7 @@
         care: true, // burn-in protection: pixel shift and a sweep line
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
-        music: { on: false, volume: 60, variation: 1 }, // volume 0..100, variation 1..9999 (part of each song's seed)
+        music: { on: false, volume: 60, variation: 1, places: true }, // volume 0..100, variation 1..9999 (part of each song's seed), places: the sounds of the place
         zones: [
           { label: "Barcelona", tz: "Europe/Madrid", lat: 41.388, lon: 2.17, scene: "barcelona-es" },
           { label: "New York", tz: "America/New_York", lat: 40.713, lon: -74.006, scene: "new-york-us" },
@@ -11199,6 +11269,7 @@
           on: m?.on === true,
           volume: num(m?.volume, 0, 100, 60),
           variation: num(m?.variation, 1, 9999, 1),
+          places: m?.places !== false,
         };
       }
       // What the music should feel like at clock z now: night 0..1 (0 by day, 1 from 6 degrees below the
@@ -11209,6 +11280,11 @@
         return +z.lat >= 0 ? m >= 10 || m <= 2 : m >= 4 && m <= 8;
       };
       function moodAt(z) {
+        const home =
+            CITY_ATLAS[z.scene] ||
+            CITY_ATLAS[{ madrid: "madrid-es", london: "london-gb", austin: "austin-us" }[z.scene]],
+          sea = ["harbor", "island"].includes(home?.style),
+          p = timeParts(z.tz, Date.now());
         const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
         const wx = debugWx() || (CONFIG.weather === false ? null : WX[wxKey(z)]);
         const wet = wx && (wx.cat === "rain" || wx.cat === "thunder");
@@ -11218,9 +11294,18 @@
           rain: wet ? clamp(wx.inten || 0.5, 0.2, 1) : 0,
           thunder: wx?.cat === "thunder",
           // the place without rain: the sea in coastal cities, wind (from 3 m/s up to 15), warm nights
-          sea: ["harbor", "island"].includes(CITY_ATLAS[z.scene]?.style),
+          sea,
           wind: wx ? clamp(((wx.wind || 0) - 3) / 12, 0, 1) : 0,
           warm: wx?.temp == null ? !wintry(z) : wx.temp >= 14,
+          // voices and traffic from the city's crowd level and how busy this hour is; trains where there
+          // is a railway (inland cities, and countries with a raised line)
+          crowd: clamp(
+            ((CROWDS.indexOf(crowdFor(home?.population)) + 1) / 4) * busyness(p.weekday, p.h).walkers * 0.7,
+            0,
+            1,
+          ),
+          trains: !sea || Boolean(TRAIN_LINES[home?.country]),
+          places: CONFIG.music.places !== false,
         };
       }
       function setMusicVolume(v) {
@@ -12404,6 +12489,7 @@
         form.musicOn.value = CONFIG.music.on ? "1" : "0";
         form.musicVol.value = CONFIG.music.volume;
         form.musicVar.value = CONFIG.music.variation;
+        form.musicPlaces.value = CONFIG.music.places === false ? "0" : "1";
         $("#nowPlaying").textContent = musicOn() ? "Now playing: " + music.title : "";
         showTab("clocks");
         msg.textContent = "";
@@ -12654,6 +12740,7 @@
           }
           if (!z.label) z.label = z.tz.split("/").pop().replace(/_/g, " ");
         }
+        const hadPlaces = CONFIG.music.places !== false;
         CONFIG = {
           weather: form.weather.value === "1",
           units: form.units.value,
@@ -12670,9 +12757,12 @@
             on: form.musicOn.value === "1",
             volume: form.musicVol.value,
             variation: form.musicVar.value,
+            places: form.musicPlaces.value === "1",
           }),
         };
-        const changedVariation = CONFIG.music.variation !== music.variation;
+        // a new variation, or city sounds switched on or off, starts the next song now
+        const changedVariation =
+          CONFIG.music.variation !== music.variation || CONFIG.music.places !== hadPlaces;
         music.variation = CONFIG.music.variation;
         await store.set("config", CONFIG);
         settingsNews?.postMessage("saved");

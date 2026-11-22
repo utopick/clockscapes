@@ -7348,7 +7348,7 @@
   "turku-fi": [["Turku Castle","castle",{w:31,wh:12,n:2,th:18,tw:5,top:"pyr",kh:20,kw:11,ktop:"pyr",c:6,t:2}],["Turku Cathedral","church",{w:21,nh:13,h:34,tw:7,tx:-5,top:"spire",c:1,t:2}]],
   "ufa-ru": [["Lala Tulpan Mosque","mosque",{w:15,nh:10,r:5,m:2,mh:40,c:6,dc:7}]],
   "ulaanbaatar-mn": [["Government Palace","palace",{w:31,nh:12,top:"flat",cols:8,c:13}],["Gandan Monastery","tiers",{n:2,w:19,dw:6,th:6,rc:9,c:6,fin:4}]],
-  "ulan-ude-ru": [["Lenin Head","bust",{h:22,ph:8,pw:10,beard:1,c:8,pc:13}]],
+  "ulan-ude-ru": [["Lenin Head","bust",{h:22,ph:8,pw:10,beard:1,c:1,pc:8}]],
   "uppsala-se": [["Uppsala Cathedral","cathedral",{w:21,nh:14,h:40,tw:5,top:"needle",c:1,t:2}],["Uppsala Castle","castle",{w:33,wh:14,n:2,th:20,tw:7,top:"dome",c:14,t:2}]],
   "urumqi-cn": [["Hongshan Pagoda","tiers",{n:9,w:9,dw:0,th:3,rc:1,c:13,fin:2}],["International Grand Bazaar minaret","belfry",{w:7,h:34,lan:5,top:"dome",c:0,t:7}]],
   "ushuaia-ar": [["Les Eclaireurs Lighthouse","light",{h:18,w:3,tw:2,band:4,b:6,c:10,rc:10}]],
@@ -8048,16 +8048,27 @@
             box(cx, top + 4, 1, 3, 10);
           }
         };
-        // Standing figure on `base`, fh cells tall: a robe widening to the feet, then the head.
+        // Standing figure on `base`, fh cells tall: a robe widening to the feet with a shaded side and a fold,
+        // arms at the sides, shoulders, a neck and a head. Returns the shoulder height for the poses.
         const figure = (cx, base, fh, color) => {
           const k = Math.max(1, Math.round(fh / 9)),
-            sh = base + fh - 2 * k - 1;
+            sh = base + fh - 2 * k - 1,
+            sc = { 6: 13, 13: 8, 8: 2, 12: 1, 4: 9, 10: 2 }[color] ?? 2;
           for (let i = base + 1; i <= sh; i++) {
             const flare = Math.round((k * (sh - i)) / fh);
             box(cx - k - flare, i, 2 * k + 1 + 2 * flare, 1, color);
+            box(cx + k + flare, i, 1, 1, sc);
+            if (k > 1 && i < sh - 1 && i > base + 1) {
+              if (i > sh - fh * 0.45) box(cx - k + 1, i, 1, 1, sc); // the gap between arm and body
+              if (i - base < fh * 0.6) box(cx - 1, i, 1, 1, sc); // a fold in the robe
+            }
           }
-          orb(cx, sh + k + 1, k, color);
-          return { k, sh };
+          box(cx - k - 1, sh + 1, 2 * k + 3, 2, color); // shoulders
+          box(cx + k + 1, sh + 1, 1, 2, sc);
+          box(cx, sh + 3, 1, 1, color); // neck
+          orb(cx, sh + k + 3, k, color);
+          box(cx + k - 1, sh + k + 2, 1, 1, sc);
+          return { k, sh: sh + 1 };
         };
         switch (kind) {
           case "tokyo-tower": {
@@ -8251,7 +8262,50 @@
             box(-3, 12, 7, 12, 2);
             dome(0, 11, 3, 2);
             break;
-          case "liberty":
+          case "liberty": {
+            // Statue of Liberty: stepped granite pedestal, robed figure with the lit side in verdigris and the
+            // shaded side in green, folds, the tablet on the left arm, the spiked crown and the raised torch.
+            box(-11, 3, 23, 3, 8);
+            box(-8, 6, 17, 3, 13);
+            box(-5, 15, 11, 9, 13);
+            box(1, 15, 5, 9, 8);
+            box(-6, 16, 13, 1, 6);
+            for (let y = 17; y <= 36; y++) {
+              const hw = y < 20 ? 5 : y < 30 ? 4 : y < 33 ? 3 : 4;
+              for (let x = -hw; x <= hw; x++) box(x, y, 1, 1, x >= 2 ? 9 : 4);
+            }
+            for (let y = 20; y <= 29; y++) box(-2 + (y % 3 === 0 ? 0 : 0), y, 1, 1, 9);
+            for (let y = 18; y <= 25; y++) box(0, y, 1, 1, 9);
+            box(-1, 28, 1, 1, 9);
+            box(-4, 36, 9, 1, 9); // the hem of the cloak at the shoulders
+            box(-1, 37, 3, 1, 4); // neck
+            box(-2, 47, 5, 6, 4); // head
+            box(2, 47, 1, 6, 9);
+            box(-1, 45, 1, 1, 2);
+            box(1, 45, 1, 1, 2);
+            box(-3, 48, 7, 1, 4); // the crown and its rays
+            for (const [px, top] of [
+              [-4, 50],
+              [-2, 51],
+              [0, 52],
+              [2, 51],
+              [4, 50],
+            ]) {
+              box(px, top, 1, top - 48, 4);
+              box(px, top, 1, 1, 3);
+            }
+            box(4, 34, 5, 9, 6); // the tablet
+            box(5, 33, 3, 7, 13);
+            box(3, 31, 3, 3, 4);
+            for (let y = 36; y <= 50; y++)
+              box(-4 - Math.round(((y - 36) * 4) / 14), y, 2 + (y > 44 ? 1 : 0), 1, 4); // the raised arm
+            box(-10, 53, 4, 3, 4); // the hand
+            box(-12, 54, 7, 1, 3); // the torch: a platform, the flame
+            box(-10, 60, 3, 6, 3);
+            box(-9, 62, 1, 3, 3);
+            box(-9, 59, 1, 2, 5);
+            break;
+          }
           case "redeemer":
             stack(
               0,
@@ -8265,16 +8319,9 @@
             box(-3, 31, 7, 16, 4);
             box(-6, 20, 13, 5, 4);
             orb(0, 34, 3, 4);
-            if (kind === "liberty") {
-              for (let p = -3; p <= 3; p += 2) stroke(0, 35, p, 40 - Math.abs(p), 4);
-              stroke(-2, 30, -9, 39, 4);
-              box(-10, 43, 3, 5, 3);
-              box(4, 29, 4, 7, 4);
-            } else {
-              box(-15, 31, 31, 4, 4);
-              box(-15, 29, 4, 2, 4);
-              box(12, 29, 4, 2, 4);
-            }
+            box(-15, 31, 31, 4, 4);
+            box(-15, 29, 4, 2, 4);
+            box(12, 29, 4, 2, 4);
             break;
           case "hallgrim":
             for (let i = 0; i < 7; i++) {
@@ -9015,26 +9062,48 @@
           }
           case "bust": {
             // A giant head on a plinth (Ulan-Ude's Lenin, Changsha's young Mao): o.h the head, o.ph and o.pw the
-            // plinth, o.beard a pointed beard.
+            // plinth, o.beard a pointed beard. A bearded head sits straight on the plinth; the others get shoulders.
             const r = Math.max(3, Math.round((o.h ?? 20) / 2)),
               ph = o.ph ?? 6,
               pw = o.pw ?? r + 2,
-              pc = o.pc ?? 13;
+              pc = o.pc ?? 13,
+              dk = o.beard ? 2 : 8; // the shaded side and the features
             box(-pw, ph, 2 * pw + 1, ph, pc);
-            dome(0, ph, r + 1, c); // shoulders
-            const cy = ph + r + 6,
-              nk = Math.max(1, Math.round(r / 3));
-            box(-nk, cy - r + 2, 2 * nk + 1, 4, c); // neck
-            orb(0, cy, r, c);
-            box(-r - 1, cy, 1, 2, c); // ears
-            box(r + 1, cy, 1, 2, c);
-            const eye = Math.max(1, Math.round(r / 2.5));
-            for (const s of [-1, 1]) box(s * eye - (s < 0 ? 1 : 0), cy + 1, 2, 1, 2); // brows and eyes
-            box(0, cy, 1, 2, 2); // the shadow of the nose
-            box(-1, cy - Math.round(r / 2), 3, 1, 2); // mouth
+            box(pw - 2, ph, 3, ph, 8);
+            box(-pw - 1, ph + 1, 2 * pw + 3, 1, pc);
+            if (!o.beard) dome(0, ph, r + 1, c); // shoulders
+            const cy = ph + r + (o.beard ? 1 : 6),
+              hw = Math.max(3, Math.round(r * 0.82)),
+              bottom = cy - r;
+            // the skull: a dome on top, the cheeks widest at the brow, the jaw narrowing to the chin
+            for (let y = bottom; y < cy + r; y++) {
+              const f = (y - bottom) / (2 * r - 1); // 0 at the chin, 1 at the crown
+              const k = Math.round(
+                f < 0.45
+                  ? hw * (0.62 + 0.38 * Math.sqrt(f / 0.45))
+                  : hw * Math.sqrt(1 - ((f - 0.45) / 0.58) ** 2),
+              );
+              box(-k, y + 1, 2 * k + 1, 1, c);
+              if (k > 1) box(k - 1, y + 1, 2, 1, dk); // the shaded side
+            }
+            const at = (f) => bottom + Math.round(f * 2 * r), // a height as a fraction of the head, 0 chin to 1 crown
+              eye = Math.max(2, Math.round(hw / 2.2));
+            for (const sd of [-1, 1]) {
+              box(sd * eye - 1, at(0.7), 3, 1, dk); // the brow ridge
+              box(sd * eye - 1, at(0.62), 2, 2, dk); // the eye in its socket
+              box(sd * (hw + 1) - (sd < 0 ? 0 : 1), at(0.62), 1, 3, c); // the ears
+            }
+            box(0, at(0.58), 2, 4, c); // the nose, shaded on the right and under the tip
+            box(1, at(0.58), 1, 4, dk);
+            box(-1, at(0.38), 3, 1, dk);
             if (o.beard) {
-              box(-1, cy - r + 1, 3, 3, c);
-              box(0, cy - r - 2, 1, 1, c);
+              box(-3, at(0.36), 7, 2, dk); // the moustache
+              box(-2, at(0.2), 5, 3, dk); // the goatee, ending in a point
+              box(-1, at(0.07), 3, 2, dk);
+              box(0, bottom, 1, 1, dk);
+              box(-2, at(0.97), 4, 1, 12); // the light on the bald dome
+            } else {
+              box(-2, at(0.26), 5, 1, dk); // mouth
             }
             break;
           }

@@ -1,6 +1,8 @@
 package io.github.utopick.clockscapes
 
 import android.app.Activity
+import android.app.UiModeManager
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -103,6 +105,14 @@ class MainActivity : Activity() {
         super.onResume()
         inFront = true
         web.onResume()
+    }
+
+    // A TV has no notification to stop the music from, so leaving the app (Home, another app, the screensaver)
+    // stops it there. A phone keeps playing in the background, with its notification.
+    override fun onStop() {
+        if (getSystemService(UiModeManager::class.java).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION)
+            web.evaluateJavascript(MusicNotice.JS_STOP, null)
+        super.onStop()
     }
 
     override fun onPause() {

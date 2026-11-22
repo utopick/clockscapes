@@ -417,18 +417,33 @@
         flex-wrap: wrap;
         align-items: flex-end;
       }
-      .zone .atlas {
-        flex-basis: calc(100% - 35px);
-        margin-right: 0;
-      }
-      .zone .atlas input {
-        width: min(100%, 380px);
+      .zone .atlas select {
+        width: min(100%, 260px);
         box-sizing: border-box;
+      }
+      /* the place typed by hand, folded away so a TV remote only meets the two lists */
+      .zone .custom {
+        flex-basis: 100%;
+        margin-bottom: 10px;
+      }
+      .zone .custom summary {
+        width: fit-content; /* as wide as its words, so the arrows measure from where it is */
+        cursor: pointer;
+        color: #9fb0e0;
+        padding: 6px 0;
+      }
+      .zone .custom[open] {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .zone .custom[open] summary {
+        margin-right: 100%; /* the boxes go on the next line */
       }
       .atlasHint {
         margin: 0 0 10px;
       }
-      /* the suggestion list under "Find a city" and "Time zone" (see suggestFor) */
+      /* the suggestion list under "Time zone" (see suggestFor) */
       .suggest {
         display: flex;
         flex-direction: column;
@@ -766,12 +781,12 @@
                     maxlength="36"
                     placeholder="Up to 36 characters"
                     spellcheck="false"
-                    title="Plays like an alarm when you press A three times or swipe down, up and down on the clocks"
+                    title="Plays like an alarm when you press A three times, press Up six times on a TV remote, or swipe down, up and down on the clocks"
                 /></label>
               </div>
               <p class="hint" style="margin: 0 0 10px">
-                To try it, save, then press <b>A</b> three times, or swipe down, up and down again on the
-                clocks in one stroke.
+                To try it, save, then press <b>A</b> three times, press Up six times on a TV remote, or swipe
+                down, up and down again on the clocks in one stroke.
               </p>
             </fieldset>
           </div>
@@ -818,8 +833,8 @@
             <fieldset>
               <legend>Zones (1–4)</legend>
               <p class="hint atlasHint">
-                Choose a city to set its coordinates, time zone and artwork. Cities without a named landmark
-                use a regional streetscape.
+                Choose a country, then a city, to set its coordinates, time zone and artwork. Cities without a
+                named landmark use a regional streetscape. For a place that isn't listed, open "Other place".
               </p>
               <div id="zones"></div>
               <button type="button" id="addZone">+ ADD ZONE</button>
@@ -845,7 +860,6 @@
       </form>
     </div>
     <datalist id="tzlist"></datalist>
-    <datalist id="citylist"></datalist>
 
     <script id="lofi">
       "use strict";
@@ -7351,7 +7365,7 @@
   "turku-fi": [["Turku Castle","castle",{w:31,wh:12,n:2,th:18,tw:5,top:"pyr",kh:20,kw:11,ktop:"pyr",c:6,t:2}],["Turku Cathedral","church",{w:21,nh:13,h:34,tw:7,tx:-5,top:"spire",c:1,t:2}]],
   "ufa-ru": [["Lala Tulpan Mosque","mosque",{w:15,nh:10,r:5,m:2,mh:40,c:6,dc:7}]],
   "ulaanbaatar-mn": [["Government Palace","palace",{w:31,nh:12,top:"flat",cols:8,c:13}],["Gandan Monastery","tiers",{n:2,w:19,dw:6,th:6,rc:9,c:6,fin:4}]],
-  "ulan-ude-ru": [["Lenin Head","bust",{h:22,ph:8,pw:10,beard:1,c:8,pc:13}]],
+  "ulan-ude-ru": [["Lenin Head","bust",{h:22,ph:8,pw:10,beard:1,c:1,pc:8}]],
   "uppsala-se": [["Uppsala Cathedral","cathedral",{w:21,nh:14,h:40,tw:5,top:"needle",c:1,t:2}],["Uppsala Castle","castle",{w:33,wh:14,n:2,th:20,tw:7,top:"dome",c:14,t:2}]],
   "urumqi-cn": [["Hongshan Pagoda","tiers",{n:9,w:9,dw:0,th:3,rc:1,c:13,fin:2}],["International Grand Bazaar minaret","belfry",{w:7,h:34,lan:5,top:"dome",c:0,t:7}]],
   "ushuaia-ar": [["Les Eclaireurs Lighthouse","light",{h:18,w:3,tw:2,band:4,b:6,c:10,rc:10}]],
@@ -7927,6 +7941,285 @@
         else foliage(leaf);
       }
 
+      // Original statue sprites, top row first. A dot leaves the skyline visible.
+      // S is the shadow plane, H the lit plane, B the base material, T the pose's trim.
+      const STATUE_ART = {
+        stand: [
+          ".....HB....",
+          "....HBB....",
+          "....HBS....",
+          ".....B.....",
+          "...HHBB....",
+          "..HHBBSS...",
+          ".HBHBBSSB..",
+          ".BBHBBSSB..",
+          ".B.HBBSSB..",
+          ".B.HBBSS.B.",
+          ".B.HBSS..B.",
+          ".B.HBSS..B.",
+          "...HBSS....",
+          "...HBBSS...",
+          "...HBBSS...",
+          "..BHBBBSS..",
+          "..BHBBBSS..",
+          "..HBBHBSS..",
+          "..HBBHBBSS.",
+          ".HBBBHBBSS.",
+          ".BBBBBSBSS.",
+        ],
+        finial: ["..H..", "..HB.", "..B..", ".HBB.", "B.HBS", "..BS.", ".BBS."],
+        angel: [
+          "......B......",
+          ".B...HB....B.",
+          ".HB...B...BS.",
+          "..HB.HBB.BS..",
+          "...HBHBBBS...",
+          "....SHBSB....",
+          ".....HBS.....",
+          "....HBBSS....",
+          "....BBBSS....",
+        ],
+        out: [
+          "..........HB.........",
+          ".........HBB.........",
+          ".........HBS.........",
+          "..........B..........",
+          "........HHBB.........",
+          "BBBBBHHHHHHBBBBBBBBBB",
+          "....BBBBBHBBBSSSS....",
+          "......SSBHBBBSS......",
+          "........BHBBBSS......",
+          "........BHBBSS.......",
+          "........BHBBSS.......",
+          "........BHBBSS.......",
+          "........HBBBSS.......",
+          "........HBBSSS.......",
+          "........HBBSSS.......",
+          ".......BHBBBSS.......",
+          ".......HBBBBSS.......",
+          ".......HBBHBSS.......",
+          ".......HBBHBSS.......",
+          ".......BBBHBBSS......",
+          ".......BBBBBSSS......",
+        ],
+        torch: [
+          ".............H.",
+          "............HT.",
+          "...........HTT.",
+          "...........HTT.",
+          "..........BBBB.",
+          "...........B...",
+          "..........HB...",
+          ".....HB...BB...",
+          "....HBB...BS...",
+          "....HBS..BB....",
+          ".....B...BS....",
+          "...HHBB.BS.....",
+          "..HBHBBBS......",
+          ".HBHBBSS.......",
+          ".B.HBBSS.......",
+          ".B.BHBSS.......",
+          ".B.BHBSS.......",
+          "...BHBSS.......",
+          "...BHBSS.......",
+          "...HBBSS.......",
+          "..BHBBBSS......",
+          "..BHBBBSS......",
+          "..HBBHBSS......",
+          "..HBBHBBSS.....",
+          ".HBBBHBBSS.....",
+          ".BBBBBBSSS.....",
+        ],
+        sword: [
+          "...............T.",
+          "..............HT.",
+          "..............HT.",
+          "..............HT.",
+          ".............HT..",
+          ".............HT..",
+          ".............HT..",
+          ".........HB.HBTB.",
+          "........HBB..B...",
+          "........HBS.BB...",
+          ".........B..BS...",
+          ".......HHB.BS....",
+          "....BBHHBBBBS....",
+          "..HHBBBHBSS......",
+          ".HBBBBBHBSS......",
+          ".HBBBBBHBSS......",
+          ".HBBBBBBBSS......",
+          "..BBBSSBBSS......",
+          "...SS.SBBSS......",
+          "......HBBBSS.....",
+          "......HBBBSS.....",
+          ".....BHBBBSS.....",
+          ".....HBBBBSS.....",
+          ".....HBBHBSS.....",
+          ".....HBBHBSS.....",
+          ".....BBBHBBSS....",
+          ".....BBBBBSSS....",
+        ],
+        seated: [
+          ".........B.........",
+          "........HB.........",
+          ".......HHBB........",
+          ".......HBBBS.......",
+          ".......HBBBS.......",
+          "......BHBBBSB......",
+          ".......HBBSS.......",
+          "........BBB........",
+          "......HHBBBB.......",
+          ".....HHHBBBSB......",
+          ".....HBHBBBSSB.....",
+          "....HBBBHBBSSB.....",
+          "....HBSBHBBSSB.....",
+          "....HB.BHBBSSB.....",
+          "....HB.BHBSSB......",
+          "....HBB.BBSB.......",
+          ".....HBBBBB........",
+          "...HHHBBBSSBBB.....",
+          "..HHBBBBSSSHBBB....",
+          ".HBBBBSSSBBBBSSB...",
+          ".HBBBSSBBBBSSSSB...",
+          "..BBBBBBBBBSSSS....",
+        ],
+        recline: [
+          "..HB................................",
+          ".HHBB...............................",
+          "HHBBBS..............................",
+          ".HBBBS..............................",
+          ".HBBSS..............................",
+          "..HBBS....HHBBB.....................",
+          "..HBSS..HHBBBBBHHBBBBBB.............",
+          "..HBBSSHBHBBBBBBBBBBBBBHHBBBB.......",
+          "..HBBBHBBBHBBBBSSBBBBBBBBBBBBHHBBBB.",
+          "..BBBBBBBBSSSSSSSBBBBBBSSSSBBBBBBBBS",
+          "...SSSSSSSSBBBBBBBBBBSSSSSSSSSBBSSBS",
+          "....BBBBBBBBBBSSSSSSSSSSSSSSSSSSSSS.",
+        ],
+        lenin: [
+          "......HHBBBB.......",
+          "....HHHBBBBBS......",
+          "...HHHBBBBBBSS.....",
+          "..HHHBBBBBBBBSS....",
+          "..HHBBBBBBBBBSS....",
+          "..HHBBBBBBBBBSS....",
+          "..HBBBBBBBBBBSS....",
+          "..HBBBBBBBBBBSS....",
+          ".HHHBBBBSSBBSSS....",
+          ".BSSHHBSSSSBSSBB...",
+          "..HHHBBBBBSBSBSB...",
+          ".HHHBBBBBBSBSSSB...",
+          "HHBBBBBBBSSBSSS....",
+          ".SSBBHBBBSSBSSS....",
+          "..SSSSBBSSBSSS.....",
+          "..HHBBSSSSSSS......",
+          "..HBBBSSSSSS.......",
+          "...HHBSSSSS........",
+          "....BBSSSS.........",
+          "....BSSSS..........",
+          ".....SSS...........",
+          ".....SS............",
+        ],
+        mao: [
+          "..........BBBBBBBBB......",
+          ".......BBBHHBBBBSSBBB....",
+          ".....BBHHBBBBBSSBBBBSSB..",
+          "...BBHHBBBBBSSBBBBBBBSSB.",
+          "..BHHBBBBSSSBBBBBBBBBBSSB",
+          "..BBBBSSSHHHBBBBBBBBBBSSB",
+          "..BBBHHHHHBBBBBBBBBBBBSSB",
+          "..BHHHHHBBBBBBBBBBBBBSSB.",
+          "..HHHHHBBBBBBBBBSSBBBSSB.",
+          "..HHHBBBBBSSSSSSSBBBBSSB.",
+          ".HHHHBSSSBBBBBSSBBBBSSB..",
+          ".HHHHHBBBBBBBBBSSBSSHSB..",
+          "HHHHBBBBBBBBBBSSBBBSBSB..",
+          ".BBHHBBBBBBBSSSBBBSSSSB..",
+          "..HHBBBBBHHBBSSBBBSSSS...",
+          "..HHHHBBBBBBBBBBSSSSS....",
+          "...HHBBBBBBBBBBSSSSS.....",
+          "...HHBBBBBBBBBSSSS.......",
+          "....HBBBBBBBSSSSB........",
+          ".....BBBBSSSSSSSBB.......",
+          "......SSSSSSSSBBBBBB.....",
+          ".......HHBSSSBBBBBBBBB...",
+          ".....HHHBBBBBBBBBBBBSSBB.",
+          "..HHHBBBBBBBBBBBSSSSSSSSB",
+        ],
+        redeemer: [
+          "..............HB...............",
+          ".............HHB...............",
+          ".............HBB...............",
+          ".............HBS...............",
+          "..............BS...............",
+          ".............HHHBB.............",
+          "..HHHHHHHHHBBBBBBBBBHHHHHBBBB..",
+          "BBHHHBBBBHHBBHBBBSSBBBBBBBBBBSS",
+          ".BBBBBBBBSSHBHBBBSSBBBBBBBBSSS.",
+          ".....SSSSSSSHBHBSSSSSSSSSS.....",
+          "............HBHBBBSS...........",
+          "............HBHBBBSS...........",
+          "............HBHBBBSS...........",
+          "............HBBHBSSS...........",
+          "............HBBHBSSS...........",
+          "...........BHBBHBSSS...........",
+          "...........BHBBHBBSS...........",
+          "...........HBBBHBSSS...........",
+          "...........HBBBBHBSSS..........",
+          "..........BHBBBBHBSSS..........",
+          "..........BBBBBBSSSSS..........",
+        ],
+        liberty: [
+          "...H.....................",
+          "...TH....................",
+          "..THT....................",
+          "..THHT...................",
+          ".TTHHT...................",
+          ".TTHT....................",
+          "..TTT....................",
+          "BHHHHBB..................",
+          ".BBBBB...................",
+          "..BBB....................",
+          "...B.....................",
+          "..HBB....................",
+          "..HBS.........B..........",
+          "..HBS......B..H..B.......",
+          "..HBS....B..B.H.B..B.....",
+          "...HBS....B.BHHHB.B......",
+          "...HBS.....HHHBBBB.......",
+          "...HBS.....HHHBBBS.......",
+          "...HBS......HBBSS........",
+          "....HBS.....HBBSS........",
+          "....HBS......HBS.........",
+          "....HBS.....HHBS.........",
+          ".....HBS..HHHHBBBS.......",
+          ".....HHBHHHHHBBBBSS......",
+          "......HBBHHHBBBBBSS......",
+          ".......BBHHBHBBBBSS.BHBBB",
+          "........SHHBBHBBBSS.BHHBS",
+          ".........HBBBBHBBSSBBHBBS",
+          ".........HBBBBBHBBBHBBBBS",
+          ".........HBBHBBBHHHBBBBBS",
+          ".........HBBBHBBBBHBBBBS.",
+          ".........HBBBBHBBBBBBSS..",
+          ".........HBBBBBHBBBSSS...",
+          ".........HBBBHBBSSSS.....",
+          ".........HBBHBBBSSSS.....",
+          ".........HBBHBBBBSSS.....",
+          "........HBBHBBBBBSSS.....",
+          "........HBBHBBBBBSSS.....",
+          "........HBHBBBBBSSSS.....",
+          "........HBHBBBBBSSSS.....",
+          ".......HBHBBBBBSSSSS.....",
+          ".......HBHBBBBBBSSSS.....",
+          ".......HHBBBBBBBSSSSS....",
+          "......HHBBBBBBBSSSSSS....",
+          "......BBBBBBBBBSSSSSS....",
+          "......BBBBBBBBSSSSSSS....",
+        ],
+      };
+
       // ==== Landmarks (the "art" field of CITY_ATLAS) ====
       // cityLandmark(g, e, kind, x, unit, o) draws one landmark centred on x. It is one long switch: a few
       // "archetypes" (church, mosque, sky, tower, palace, stadium...) shaped by the parameters o from
@@ -7966,7 +8259,7 @@
         const lean = o.lean || 0,
           L = (v, up) => v + up * lean;
         const box = (left, up, w, h, color = 0) => {
-          g.fillStyle = ink[color];
+          g.fillStyle = typeof color === "number" ? ink[color] : color;
           if (lean && h > 1) {
             for (let r = 0; r < h; r++) box(left, up - r, w, 1, color);
             return;
@@ -8051,16 +8344,52 @@
             box(cx, top + 4, 1, 3, 10);
           }
         };
-        // Standing figure on `base`, fh cells tall: a robe widening to the feet, then the head.
-        const figure = (cx, base, fh, color) => {
-          const k = Math.max(1, Math.round(fh / 9)),
-            sh = base + fh - 2 * k - 1;
-          for (let i = base + 1; i <= sh; i++) {
-            const flare = Math.round((k * (sh - i)) / fh);
-            box(cx - k - flare, i, 2 * k + 1 + 2 * flare, 1, color);
+        // A little reflected sky light on the sculpted planes keeps the relief visible at night.
+        const sculptedInk = (rgb, reflection = 0.28, reflected = [147, 159, 180]) => {
+          const dark = clamp((1 - (e.k ?? 1)) / 0.75, 0, 1);
+          return css(mixc(e.sh(rgb), reflected, reflection * dark));
+        };
+        const sculpture = (color, trim = color, flame = false) => {
+          const material = colors[color];
+          return {
+            B: sculptedInk(material),
+            S: sculptedInk(mixc(material, [41, 40, 54], 0.48), 0.15),
+            H: sculptedInk(mixc(material, [255, 248, 225], 0.32), 0.37),
+            T: sculptedInk(colors[trim], flame ? 0.65 : 0.34, flame ? colors[trim] : undefined),
+          };
+        };
+        // A cap, recessed shaft and stepped foot define three faces even on short bases.
+        const statuePlinth = (halfWidth, height, color, base = 0) => {
+          const { H, B, S } = sculpture(color);
+          const foot = Math.min(2, Math.floor(height / 2));
+          const shaft = height - foot - 1;
+          const side = Math.max(1, Math.round(halfWidth / 2));
+          if (foot > 0) {
+            box(-halfWidth - 1, base + foot, 2 * halfWidth + 3, foot, B);
+            box(halfWidth + 2 - side, base + foot, side, foot, S);
           }
-          orb(cx, sh + k + 1, k, color);
-          return { k, sh };
+          if (shaft > 0) {
+            box(-halfWidth + 1, base + height - 1, 2 * halfWidth - 1, shaft, B);
+            box(halfWidth - side, base + height - 1, side, shaft, S);
+          }
+          box(-halfWidth, base + height, 2 * halfWidth + 1, 1, H);
+          box(halfWidth + 1 - side, base + height, side, 1, B);
+        };
+        // Sample the artist's cell grid at the requested size and draw solid runs through box(), so
+        // landmarkSize measures exactly the same silhouette as the live skyline.
+        const sprite = (art, base, height, width, palette) => {
+          const columns = art[0].length;
+          const left = -Math.floor(width / 2);
+          for (let y = 0; y < height; y++) {
+            const row = art[Math.floor(((y + 0.5) * art.length) / height)];
+            for (let x = 0; x < width;) {
+              const cell = row[Math.floor(((x + 0.5) * columns) / width)];
+              let end = x + 1;
+              while (end < width && row[Math.floor(((end + 0.5) * columns) / width)] === cell) end++;
+              if (cell !== ".") box(left + x, base + height - y, end - x, 1, palette[cell]);
+              x = end;
+            }
+          }
         };
         switch (kind) {
           case "tokyo-tower": {
@@ -8254,30 +8583,32 @@
             box(-3, 12, 7, 12, 2);
             dome(0, 11, 3, 2);
             break;
-          case "liberty":
+          case "liberty": {
+            box(-11, 3, 23, 3, 8);
+            box(-8, 6, 17, 3, 13);
+            box(-7, 8, 15, 2, 8);
+            box(-6, 15, 13, 7, 13);
+            box(2, 15, 5, 7, 8);
+            box(-7, 16, 15, 1, 6);
+            box(-6, 17, 13, 1, 13);
+            sprite(STATUE_ART.liberty, 17, 46, 25, {
+              B: sculptedInk(colors[4]),
+              S: sculptedInk([62, 119, 111], 0.16),
+              H: sculptedInk([171, 216, 199], 0.37),
+              T: sculptedInk(colors[3], 0.66, colors[3]),
+            });
+            break;
+          }
           case "redeemer":
-            stack(
-              0,
-              [
-                [22, 3],
-                [16, 4],
-                [10, 9],
-              ],
-              1,
-            );
-            box(-3, 31, 7, 16, 4);
-            box(-6, 20, 13, 5, 4);
-            orb(0, 34, 3, 4);
-            if (kind === "liberty") {
-              for (let p = -3; p <= 3; p += 2) stroke(0, 35, p, 40 - Math.abs(p), 4);
-              stroke(-2, 30, -9, 39, 4);
-              box(-10, 43, 3, 5, 3);
-              box(4, 29, 4, 7, 4);
-            } else {
-              box(-15, 31, 31, 4, 4);
-              box(-15, 29, 4, 2, 4);
-              box(12, 29, 4, 2, 4);
-            }
+            box(-11, 3, 22, 3, 8);
+            box(-8, 7, 16, 4, 13);
+            box(4, 7, 4, 4, 8);
+            statuePlinth(5, 9, 13, 7);
+            sprite(STATUE_ART.redeemer, 16, 21, 31, {
+              B: sculptedInk([188, 191, 181]),
+              S: sculptedInk([119, 132, 132], 0.16),
+              H: sculptedInk([221, 223, 209], 0.37),
+            });
             break;
           case "hallgrim":
             for (let i = 0; i < 7; i++) {
@@ -9017,28 +9348,13 @@
             break;
           }
           case "bust": {
-            // A giant head on a plinth (Ulan-Ude's Lenin, Changsha's young Mao): o.h the head, o.ph and o.pw the
-            // plinth, o.beard a pointed beard.
-            const r = Math.max(3, Math.round((o.h ?? 20) / 2)),
+            const h = o.h ?? 20,
               ph = o.ph ?? 6,
-              pw = o.pw ?? r + 2,
+              pw = o.pw ?? Math.round(h / 2) + 2,
               pc = o.pc ?? 13;
-            box(-pw, ph, 2 * pw + 1, ph, pc);
-            dome(0, ph, r + 1, c); // shoulders
-            const cy = ph + r + 6,
-              nk = Math.max(1, Math.round(r / 3));
-            box(-nk, cy - r + 2, 2 * nk + 1, 4, c); // neck
-            orb(0, cy, r, c);
-            box(-r - 1, cy, 1, 2, c); // ears
-            box(r + 1, cy, 1, 2, c);
-            const eye = Math.max(1, Math.round(r / 2.5));
-            for (const s of [-1, 1]) box(s * eye - (s < 0 ? 1 : 0), cy + 1, 2, 1, 2); // brows and eyes
-            box(0, cy, 1, 2, 2); // the shadow of the nose
-            box(-1, cy - Math.round(r / 2), 3, 1, 2); // mouth
-            if (o.beard) {
-              box(-1, cy - r + 1, 3, 3, c);
-              box(0, cy - r - 2, 1, 1, c);
-            }
+            statuePlinth(pw, ph + 1, pc);
+            const art = o.beard ? STATUE_ART.lenin : STATUE_ART.mao;
+            sprite(art, ph + 1, h, Math.round((h * art[0].length) / art.length), sculpture(c));
             break;
           }
           case "skijump": {
@@ -9130,15 +9446,24 @@
               ph = o.ph ?? 4,
               top = o.top ?? "point",
               pc = o.pc ?? c;
-            box(-pw - 1, 2, 2 * pw + 3, 2, pc);
-            box(-pw, ph, 2 * pw + 1, ph - 2, pc);
+            const sculptedTop = top === "statue" || top === "angel";
+            const columnSide = sculptedTop ? sculpture(c).S : null;
+            if (sculptedTop) statuePlinth(pw, ph, pc);
+            else {
+              box(-pw - 1, 2, 2 * pw + 3, 2, pc);
+              box(-pw, ph, 2 * pw + 1, ph - 2, pc);
+            }
             let k = s;
             // o.n: a row of columns (temple ruins) under one entablature, centred on the plinth
             const n = o.n ?? 1,
               x0 = -2 * (s + 1) * (n - 1);
             for (let i = ph + 1; i <= h; i++) {
               k = o.taper ? Math.round(s - (s * o.taper * (i - ph)) / (h - ph)) : s;
-              for (let j = 0; j < n; j++) box(x0 + j * 4 * (s + 1) - k, i, 2 * k + 1, 1, c);
+              for (let j = 0; j < n; j++) {
+                const center = x0 + j * 4 * (s + 1);
+                box(center - k, i, 2 * k + 1, 1, c);
+                if (columnSide && k > 0) box(center + k, i, 1, 1, columnSide);
+              }
             }
             if (n > 1) box(x0 - k - 1, h + 2, 4 * (s + 1) * (n - 1) + 2 * k + 3, 2, c);
             if (top === "point") cone(0, h, k, k + 2, c);
@@ -9155,8 +9480,15 @@
             } else if (top === "capital") box(-k - 1, h + 1, 2 * k + 3, 1, c);
             else if (top !== "none") {
               box(-k - 1, h + 1, 2 * k + 3, 1, c);
-              const { k: fk, sh } = figure(0, h + 1, o.fh ?? 7, t);
-              if (top === "angel") for (const p of [-1, 1]) box(p > 0 ? fk + 1 : -fk - 3, sh + 1, 2, 3, t);
+              const fh = o.fh ?? 7,
+                art = top === "angel" ? STATUE_ART.angel : fh < 11 ? STATUE_ART.finial : STATUE_ART.stand;
+              sprite(
+                art,
+                h + 1,
+                fh,
+                Math.max(5, Math.round((fh * art[0].length) / art.length)),
+                sculpture(t),
+              );
             }
             break;
           }
@@ -9353,50 +9685,23 @@
             break;
           }
           case "statue": {
-            // Statue on a plinth; pose "stand", "out" (arms out), "torch", "sword", "seated" (Buddha) or "recline"
-            // (a reclining Buddha, o.h long, on a low base).
             const fh = o.h ?? 20,
               ph = o.ph ?? 8,
               pw = o.pw ?? 5,
               pose = o.pose ?? "stand",
               pc = o.pc ?? 13;
-            box(-pw - 1, 2, 2 * pw + 3, 2, pc);
-            box(-pw, ph, 2 * pw + 1, ph - 2, pc);
-            if (pose === "recline") {
-              // lying on its side, head on the left resting on a raised arm
-              const half = Math.round(fh / 2),
-                bh = Math.max(3, Math.round(fh / 7));
-              for (let i = -half + 3; i <= half; i++) {
-                const k = Math.round(bh * (0.75 + 0.25 * Math.sin(((i + half) / fh) * Math.PI)));
-                box(i, ph + k, 1, k, c);
-              }
-              box(-half, ph + bh + 2, 3, bh + 2, c); // the arm under the head
-              orb(-half + 2, ph + bh + 4 + Math.round(bh / 2), Math.round(bh / 2) + 1, c);
-              box(-half + 2, ph + 2 * bh + 6, 1, 2, t); // the flame on the crown
-              break;
-            } else if (pose === "seated") {
-              const k = Math.round(fh * 0.42);
-              box(-k, ph + 3, 2 * k + 1, 3, c);
-              for (let i = 0; i < fh - 8; i++) {
-                const kk = Math.round(k * 0.62 * (1 - (0.35 * i) / (fh - 8)));
-                box(-kk, ph + 4 + i, 2 * kk + 1, 1, c);
-              }
-              const hr = Math.max(1, Math.round(fh / 9));
-              orb(0, ph + fh - 4 + hr, hr + 1, c);
-              box(0, ph + fh - 2 + 3 * hr, 1, 2, c);
-              orb(0, ph + Math.round(fh * 0.25), 1, t);
-              break;
-            }
-            const { k, sh } = figure(0, ph, fh, c);
-            if (pose === "out") box(-Math.round(fh * 0.42), sh, 2 * Math.round(fh * 0.42) + 1, 2, c);
-            else if (pose === "torch") {
-              stroke(k, sh, k + 2, sh + 4 * k + 2, c);
-              box(k + 1, sh + 4 * k + 5, 3, 3, 3);
-            } else if (pose === "sword") {
-              stroke(k, sh, k + 3, sh + 4, c);
-              stroke(k + 3, sh + 4, k + 4, sh + Math.round(fh * 0.6), 8);
-              orb(-k - 2, sh - 3, k + 1, o.t ?? 8);
-            }
+            statuePlinth(pw, ph, pc);
+            const art = ["out", "sword", "torch", "seated", "recline"].includes(pose)
+              ? STATUE_ART[pose]
+              : STATUE_ART.stand;
+            const height =
+              pose === "recline"
+                ? Math.round(fh / 3)
+                : pose === "sword" || pose === "torch"
+                  ? Math.round(fh * 1.28)
+                  : fh;
+            const width = pose === "recline" ? fh : Math.round((height * art[0].length) / art.length);
+            sprite(art, ph, height, width, sculpture(c, pose === "torch" ? 3 : (o.t ?? 8), pose === "torch"));
             break;
           }
           case "wheel": {
@@ -13703,16 +14008,27 @@
       const placeName = (c) => (US_STATES[c.id] ? US_STATES[c.id] + " - " : "") + countryName(c.country);
       const REGIONS = Intl.DisplayNames ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
       const countryName = (code) => (code === "KO" ? "Kosovo" : REGIONS?.of(code) || code);
-      const cityOption = (c) => `${c.label}, ${placeName(c).replace(" - ", ", ")}`;
-      const cityByOption = new Map();
-      for (const city of Object.values(CITY_ATLAS).sort((a, b) => a.label.localeCompare(b.label))) {
-        const value = cityOption(city);
-        const option = document.createElement("option");
-        option.value = value;
-        option.label = LANDMARK_NAMES[city.id] || "Regional streetscape";
-        $("#citylist").appendChild(option);
-        cityByOption.set(value.toLowerCase(), city);
-      }
+      // The cities of each country, A to Z, and the countries A to Z by name, for the two lists in each zone
+      // (lists instead of a search box, so a TV remote can pick a city).
+      const COUNTRY_CITIES = {};
+      for (const city of Object.values(CITY_ATLAS).sort((a, b) => a.label.localeCompare(b.label)))
+        (COUNTRY_CITIES[city.country] ??= []).push(city);
+      const COUNTRIES = Object.keys(COUNTRY_CITIES).sort((a, b) =>
+        countryName(a).localeCompare(countryName(b)),
+      );
+      const countryOptions = (code) =>
+        `<option value="">Other place</option>` +
+        COUNTRIES.map(
+          (k) => `<option value="${k}"${k === code ? " selected" : ""}>${esc(countryName(k))}</option>`,
+        ).join("");
+      const cityOptions = (code, id) =>
+        `<option value="">${code ? "Pick a city" : "Pick a country first"}</option>` +
+        (COUNTRY_CITIES[code] || [])
+          .map(
+            (c) =>
+              `<option value="${c.id}"${c.id === id ? " selected" : ""}>${esc(c.label)}${US_STATES[c.id] ? " (" + US_STATES[c.id] + ")" : ""}</option>`,
+          )
+          .join("");
 
       // The settings row for zone z (number i + 1). Every value goes through esc().
       function zoneRow(z, i) {
@@ -13721,18 +14037,21 @@
         const d = document.createElement("div");
         d.className = "zone";
         d.innerHTML = `<span class="n">${i + 1}</span>
-    <label class="atlas">Find a city <input data-atlas data-suggest="citylist" autocomplete="off" value="${city ? esc(cityOption(city)) : ""}" placeholder="Search capitals and major cities" spellcheck="false"></label>
+    <label class="atlas">Country <select data-country>${countryOptions(city?.country)}</select></label>
+    <label class="atlas">City <select data-atlas>${cityOptions(city?.country, city?.id)}</select></label>
+    <details class="custom"${city ? "" : " open"}><summary>Other place (typed by hand)</summary>
     <label>Label <input data-k="label" value="${esc(z.label)}" maxlength="48"></label>
     <label>Time zone (IANA) <input data-k="tz" data-suggest="tzlist" autocomplete="off" class="wide" value="${esc(z.tz)}"></label>
     <label>Lat <input data-k="lat" class="short" value="${esc(z.lat)}"></label>
     <label>Lon <input data-k="lon" class="short" value="${esc(z.lon)}"></label>
+    <button type="button" data-act="find">FIND</button></details>
     <label>Scene <select data-k="scene">${Object.entries(sceneOptions)
       .map(
         ([k, v]) =>
           `<option value="${k}"${k === city?.id ? " data-city-art" : ""}${k === z.scene ? " selected" : ""}>${v}</option>`,
       )
       .join("")}</select></label>
-    <button type="button" data-act="find">FIND</button><button type="button" data-act="del">✕</button>`;
+    <button type="button" data-act="del">✕</button>`;
         return d;
       }
       function readZones() {
@@ -13844,16 +14163,16 @@
       });
 
       zonesEl.addEventListener("change", (ev) => {
-        if (!ev.target.matches("[data-atlas]")) return;
-        const value = ev.target.value.trim().toLowerCase();
-        if (!value) return;
-        const city =
-          cityByOption.get(value) || Object.values(CITY_ATLAS).find((c) => c.label.toLowerCase() === value);
-        if (!city) {
-          msg.textContent = "Select a suggested city to load its artwork.";
+        const row = ev.target.closest(".zone");
+        if (ev.target.matches("[data-country]")) {
+          // a new country lists its cities; "Other place" opens the boxes for a place typed by hand
+          row.querySelector("[data-atlas]").innerHTML = cityOptions(ev.target.value);
+          if (!ev.target.value) row.querySelector(".custom").open = true;
           return;
         }
-        const row = ev.target.closest(".zone");
+        if (!ev.target.matches("[data-atlas]")) return;
+        const city = CITY_ATLAS[ev.target.value];
+        if (!city) return;
         const scene = row.querySelector('[data-k="scene"]');
         scene.querySelector("[data-city-art]")?.remove();
         const option = document.createElement("option");
@@ -13865,7 +14184,6 @@
         for (const key of ["label", "tz", "lat", "lon"]) {
           row.querySelector(`[data-k="${key}"]`).value = city[key];
         }
-        ev.target.value = cityOption(city);
         msg.textContent = "";
       });
       zonesEl.addEventListener("click", async (ev) => {
@@ -14072,26 +14390,34 @@
       function focusables() {
         const root = modal.classList.contains("hidden") ? $("#controls") : modal;
         return [...root.querySelectorAll("button, input, select, textarea, a[href], summary")].filter(
-          (el) => !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== "hidden",
+          (el) =>
+            !el.disabled &&
+            el.getClientRects().length &&
+            getComputedStyle(el).visibility !== "hidden" &&
+            // a closed <details> keeps measuring what it hides: only its summary line counts
+            !(el.tagName !== "SUMMARY" && el.closest("details:not([open])")),
         );
       }
-      // the nearest control from the focused one in direction [dx, dy], counting sideways distance double
+      // The nearest control from the focused one in direction [dx, dy], counting sideways distance double.
+      // Controls within 45 degrees of that direction come first, so Right reaches the list beside this one
+      // rather than a closer button below; the others only when nothing lies that way.
       function nearest(from, [dx, dy]) {
         const r = from.getBoundingClientRect(),
           cx = r.left + r.width / 2,
           cy = r.top + r.height / 2;
-        let best = null,
-          score = Infinity;
+        const found = [null, null],
+          score = [Infinity, Infinity];
         for (const el of focusables()) {
           if (el === from) continue;
           const q = el.getBoundingClientRect(),
             x = q.left + q.width / 2 - cx,
             y = q.top + q.height / 2 - cy,
             along = x * dx + y * dy,
-            side = Math.abs(x * dy - y * dx);
-          if (along > 2 && along + side * 2 < score) [best, score] = [el, along + side * 2];
+            side = Math.abs(x * dy - y * dx),
+            k = side <= along ? 0 : 1;
+          if (along > 2 && along + side * 2 < score[k]) [found[k], score[k]] = [el, along + side * 2];
         }
-        return best;
+        return found[0] || found[1];
       }
       addEventListener("keydown", (ev) => {
         if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
@@ -14108,19 +14434,44 @@
         const dir = ARROWS[ev.key],
           el = document.activeElement,
           inside = el && el !== document.body && focusables().includes(el);
+        // OK on a text box reached with the arrows unlocks it, and only then does the keyboard come up
+        if (ev.key === "Enter" && el?.dataset.remote === "lock") {
+          ev.preventDefault();
+          el.readOnly = false;
+          el.blur(); // and focus again, which brings the keyboard up
+
+          el.focus();
+          return;
+        }
         if (!dir && !(ev.key === "Enter" && !inside)) return;
-        // a text box keeps left and right for its caret, and a slider for its value
+        // a text box being typed in keeps left and right for its caret, and a slider for its value
         if (
           dir?.[0] &&
           inside &&
+          el.dataset.remote !== "lock" &&
           (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !/button|checkbox|radio/.test(el.type)))
         )
           return;
         ev.preventDefault();
         poke();
         const next = inside ? nearest(el, dir) : focusables().find((b) => b.id === "gear") || focusables()[0];
+        // A TV opens its keyboard as soon as a text box gets the focus, so the arrows reach it locked
+        if (
+          next &&
+          (next.tagName === "TEXTAREA" ||
+            (next.tagName === "INPUT" && /^(text|search|number|time)$/.test(next.type)))
+        ) {
+          next.readOnly = true;
+          next.dataset.remote = "lock";
+        }
         next?.focus();
         next?.scrollIntoView({ block: "nearest" });
+      });
+      // a box locked by the remote goes back to normal for touch and mouse once it loses the focus
+      addEventListener("focusout", (ev) => {
+        if (!ev.target.dataset?.remote) return;
+        ev.target.readOnly = false;
+        delete ev.target.dataset.remote;
       });
       // Back on the remote: true when the page used it (closed settings or hid the buttons)
       window.tvBack = () => {
@@ -14232,6 +14583,19 @@
         keyPresses[key] = [];
         action();
       }
+      // ---- the same on a TV remote, on the clocks: Up six times plays the test alarm, and Up Up Down Down
+      // Left Right Left Right calls a monster ----
+      const ARROW_LETTER = { ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R" };
+      let arrowKeys = [];
+      addEventListener("keydown", (ev) => {
+        const k = ARROW_LETTER[ev.key];
+        if (!k || ev.repeat || !modal.classList.contains("hidden")) return;
+        const now = Date.now();
+        arrowKeys = arrowKeys.filter((a) => now - a.t < 5000).concat({ k, t: now });
+        const keys = arrowKeys.map((a) => a.k).join("");
+        if (keys.endsWith("UUDDLRLR")) ((arrowKeys = []), triggerEncounter());
+        else if (keys.endsWith("UUUUUU")) ((arrowKeys = []), playTestAlarm());
+      });
       const ZIG_LEG = 40, // CSS pixels each stroke of the zigzag must cover
         ZIG_TURN = 15; // moving back this far ends a stroke
       let zig = null;

@@ -32,8 +32,8 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 
 You can show one to four clocks. Press **S** (or tap the screen, then **⚙ SETTINGS**) and use the **CLOCKS** tab:
 
-1. Under Zones, type in **Find a city** and pick one of about 3,000 cities: every national and regional capital, the province capitals of Spain, Italy and France, and every city of a million people or more. That fills in its time zone, coordinates and scene.
-2. For a place that isn't in the list, type its name in **Label** and press **FIND**, or type the time zone and coordinates yourself. It then gets a regional street scene.
+1. Under Zones, pick a **Country** and then a **City** from about 3,000 cities, so a TV remote can do it too: every national and regional capital, the province capitals of Spain, Italy and France, and every city of a million people or more. That fills in its time zone, coordinates and scene.
+2. For a place that isn't in the list, open **Other place**, type its name in **Label** and press **FIND**, or type the time zone and coordinates yourself. It then gets a regional street scene.
 3. Press **+ ADD ZONE** for another clock, or **RANDOMIZE 3 CITIES** for a surprise, then **SAVE**.
 
 The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 hour clock, °C or °F, and whether to fetch the live weather. With the weather off, the scenes still follow day and night.
@@ -63,7 +63,7 @@ When the alarm goes off, the message crosses your clocks for a full minute, one 
 
 With the clocks side by side, the message drives from one clock into the next along the same road, turning from trucks into a march where the city crosses from night to day, as in the animation at the top. When the clocks are stacked in rows, as on a phone, every clock shows the whole message.
 
-To try it without waiting, write something in the **TEST MESSAGE** box, save, and press **A** three times (or swipe down, up and down again on the clocks).
+To try it without waiting, write something in the **TEST MESSAGE** box, save, and press **A** three times. On a touch screen, swipe down, up and down again on the clocks, and on a TV remote press Up six times.
 
 ## Screen filters
 
@@ -89,7 +89,7 @@ The same SCREEN tab has three settings for leaving the clocks up for hours. **Ba
 | **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again) |
 | **Esc** | Closes settings |
 
-On a touch screen, tap to show the buttons. With a TV remote, the arrows move between the buttons and the settings, OK presses, Back closes settings, and the remote's play and next keys control the music. There are a few easter eggs too. **K**eep poking and you'll maybe find some.
+On a touch screen, tap to show the buttons. With a TV remote, the arrows move between the buttons and the settings, OK presses, Back closes settings, and the remote's play and next keys control the music. A text box only opens the TV's keyboard once you press OK on it, so moving through settings doesn't keep popping it up. There are a few easter eggs too. **K**eep poking and you'll maybe find some.
 
 ![Tokyo in the morning, Mexico City at sunset and Rio de Janeiro at night](img/screenshot.png)
 

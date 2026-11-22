@@ -8328,6 +8328,7 @@
           [z.label, z.lat, z.lon, p.day, p.month, p.h, CONFIG.music.variation, round].join("|"),
         );
         music.k++;
+        queueMicrotask(() => mediaInfo(true)); // once the title below is set
         music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
         let when;
         if (mood.alt > 6) when = "by day";
@@ -8355,6 +8356,7 @@
           for (const song of old) song.fadeOut(now, 1.5);
           setTimeout(() => {
             for (const song of old) song.dispose();
+            if (!musicOn()) mediaOut(false);
             if (!arp && !musicOn()) audioCtx.suspend();
           }, 2000);
           showMusicState(false);
@@ -8364,10 +8366,8 @@
         if (musicOn()) return;
         if (!audioCtx) return toast("This browser cannot play sound");
         audioCtx.resume().catch(() => {});
-        if (!music.bus) {
-          music.bus = audioCtx.createGain();
-          music.bus.connect(audioCtx.destination);
-        }
+        if (!music.bus) music.bus = audioCtx.createGain();
+        mediaOut(true);
         music.bus.gain.value = (CONFIG.music.volume / 100) ** 2;
         // start from the first clock but at a random round, so starting twice in an hour gives other songs
         music.k = CONFIG.zones.length * Math.floor(Math.random() * 1000);
@@ -8376,10 +8376,54 @@
         showMusicState(true);
       }
       function showMusicState(on) {
+        mediaInfo(on);
         const b = $("#music");
         b.setAttribute("aria-pressed", String(on));
         b.textContent = on ? "❚❚ MUSIC" : "▶︎ MUSIC";
         $("#next").hidden = !on;
+      }
+      // The music plays through an <audio> element, fed from the Web Audio graph, so the phone treats it as
+      // media: it keeps playing in the background, goes to Bluetooth speakers like any music, and the
+      // lock screen, headphone and Bluetooth buttons can play, stop and skip it (mediaSession below).
+      // If the browser won't play the element, the music goes straight to the speakers as before.
+      function mediaOut(on) {
+        if (!on) return void music.el?.pause();
+        if (!music.el && audioCtx.createMediaStreamDestination) {
+          music.dest = audioCtx.createMediaStreamDestination();
+          music.el = new Audio();
+          music.el.srcObject = music.dest.stream;
+        }
+        const direct = () => {
+          music.bus.disconnect();
+          music.bus.connect(audioCtx.destination);
+        };
+        if (!music.el) return direct();
+        music.bus.disconnect();
+        music.bus.connect(music.dest);
+        music.el.play().catch(direct);
+      }
+      // What the lock screen and the media controls show, and what their buttons do.
+      function mediaInfo(on) {
+        const session = navigator.mediaSession;
+        if (!session) return;
+        session.metadata = new MediaMetadata({
+          title: music.title || "Lo-fi music",
+          artist: "Clockscapes",
+          artwork: [{ src: "icons/icon-512.png", sizes: "512x512", type: "image/png" }],
+        });
+        session.playbackState = on ? "playing" : "paused";
+      }
+      if (navigator.mediaSession) {
+        const actions = {
+          play: () => musicOn() || toggleMusic(),
+          pause: () => musicOn() && toggleMusic(),
+          stop: () => musicOn() && toggleMusic(),
+          nexttrack: () => musicOn() && nextSong(3),
+        };
+        for (const [action, handler] of Object.entries(actions))
+          try {
+            navigator.mediaSession.setActionHandler(action, handler);
+          } catch (e) {} // an older browser without this action
       }
       function toggleMusic() {
         CONFIG.music.on = !musicOn();

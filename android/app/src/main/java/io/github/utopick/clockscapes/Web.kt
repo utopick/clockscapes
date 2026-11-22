@@ -1,6 +1,7 @@
 package io.github.utopick.clockscapes
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -24,6 +25,10 @@ import android.app.WallpaperManager
 object Web {
     const val HOST = "appassets.androidplatform.net"
     const val URL = "https://$HOST/assets/www/index.html"
+
+    /** The navigation bar's size as "[right, bottom]" in CSS pixels, kept up to date by MainActivity. */
+    @Volatile
+    var safeInsets = "[0,0]"
 
     private fun loader(context: Context) = WebViewAssetLoader.Builder()
         .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
@@ -76,5 +81,15 @@ object Web {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }
+
+        /** Sends the app to the background, like the phone's home button (EXIT in the page). */
+        @JavascriptInterface
+        fun exit() {
+            (context as? Activity)?.runOnUiThread { context.moveTaskToBack(true) }
+        }
+
+        /** How much room the page leaves for the phone's navigation bar (see setSafeInsets in the page). */
+        @JavascriptInterface
+        fun insets(): String = safeInsets
     }
 }

@@ -239,11 +239,13 @@
         image-rendering: pixelated;
         image-rendering: crisp-edges;
       }
+      /* --safe-right and --safe-bottom keep the buttons clear of the phone's own navigation bar; the
+         Android app sets them, and elsewhere the browser's safe-area insets are used */
       #controls {
         position: fixed;
         left: 14px;
-        right: 14px;
-        bottom: 14px;
+        right: calc(14px + var(--safe-right, env(safe-area-inset-right, 0px)));
+        bottom: calc(14px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
         z-index: 5;
         display: flex;
         flex-direction: column;
@@ -315,7 +317,7 @@
       }
       @media (max-width: 520px) {
         #toast {
-          bottom: 116px; /* above the two rows of buttons */
+          bottom: calc(96px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); /* above the buttons */
         }
       }
       #modal {
@@ -330,16 +332,33 @@
       #modal.hidden {
         display: none;
       }
+      /* The settings box has the same height on every tab: the title and tabs stay at the top, SAVE and
+         the notes stay at the bottom, and only the middle (.pane) scrolls. */
       #cfg {
         background: #0d1030;
         color: #e8ecff;
         border: 3px solid #ffd27a;
         box-shadow: 6px 6px 0 #000;
-        padding: 18px 20px;
+        padding: 18px min(20px, 4vw);
+        box-sizing: border-box;
         width: min(860px, 94vw);
-        max-height: 90vh;
-        overflow: auto;
+        height: min(820px, 92vh, 92dvh);
+        display: flex;
+        flex-direction: column;
         font-size: 13px;
+      }
+      #cfg .pane {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        margin: 0 -6px;
+        padding: 0 6px;
+      }
+      #cfg > .hint {
+        max-height: 30%;
+        overflow-y: auto;
+        flex-shrink: 0;
       }
       #cfg h2 {
         margin: 0 0 12px;
@@ -434,6 +453,7 @@
       }
       .wide {
         width: 260px;
+        max-width: calc(100vw - 110px); /* fits inside the settings box on narrow phones */
       }
       .short {
         width: 80px;
@@ -482,11 +502,18 @@
       #nextSong {
         margin-bottom: 8px;
       }
+      /* one row of tabs on every screen: on a narrow phone they share the width and the text shrinks */
       .tabs {
         display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
+        gap: min(6px, 1.2vw);
         margin: 0 0 12px;
+      }
+      #cfg .tabs button {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 6px min(12px, 1.5vw);
+        font-size: clamp(10px, 3.1vw, 13px);
+        white-space: nowrap;
       }
       #cfg .tabs button[aria-selected="true"] {
         border-color: #ffd27a;
@@ -565,210 +592,214 @@
             LICENSE
           </button>
         </div>
-        <div data-panel="license" hidden>
-          <fieldset>
-            <legend>Weather and places</legend>
-            <p class="hint atlasHint">
-              Weather data by
-              <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>, under the
-              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"
-                >Creative Commons Attribution 4.0 licence (CC BY 4.0)</a
-              >. Clockscapes changes the data: it turns the current conditions into the sky, rain, snow and
-              fog of each scene, and shows the temperature and a short description.
-            </p>
-            <p class="hint atlasHint">
-              The FIND button's place search uses the
-              <a href="https://open-meteo.com/en/docs/geocoding-api" target="_blank" rel="noopener"
-                >Open-Meteo geocoding API</a
-              >, which is based on
-              <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a>
-              (CC BY 4.0). The free Open-Meteo API is for non-commercial use, and Clockscapes is free.
-            </p>
-          </fieldset>
-          <fieldset>
-            <legend>The app</legend>
-            <p class="hint atlasHint">
-              Clockscapes is open source under the
-              <a
-                href="https://github.com/utopick/clockscapes/blob/main/LICENSE"
-                target="_blank"
-                rel="noopener"
-                >MIT licence</a
-              >. The clock font is
-              <a href="https://github.com/googlefonts/nunito" target="_blank" rel="noopener">Nunito</a>,
-              copyright 2014 The Nunito Project Authors, under the SIL Open Font License 1.1. The city
-              coordinates are adapted from
-              <a href="https://github.com/katerinaSo/countries_cities_data" target="_blank" rel="noopener"
-                >countries_cities_data</a
-              >. The pictures and the music are made by the app's own code.
-            </p>
-          </fieldset>
-        </div>
-        <div data-panel="screen" hidden>
-          <fieldset>
-            <legend>Screen</legend>
-            <p class="hint atlasHint">
-              A filter over the clocks that imitates an old screen. CRT looks like a tube television, with
-              scanlines, glowing colours and dark rounded corners. LCD shows the thin gaps between the pixels
-              of a handheld screen. Save to see it.
-            </p>
-            <label
-              >Filter
-              <select name="filter">
-                <option value="off">Off</option>
-                <option value="crt">CRT television</option>
-                <option value="lcd">LCD screen</option>
-              </select></label
-            >
-          </fieldset>
-          <fieldset>
-            <legend>Power and screen care</legend>
-            <p class="hint atlasHint">
-              Battery saver draws 5 frames a second instead of 15, so the phone stays cooler. Letting the
-              screen sleep saves the most. Burn-in protection keeps OLED screens safe when the clocks stay up
-              for hours: the picture moves by a pixel or two every 2 minutes, and a soft line sweeps down the
-              screen every 10 minutes.
-            </p>
-            <label
-              >Motion
-              <select name="power">
-                <option value="smooth">Smooth (15 frames a second)</option>
-                <option value="saver">Battery saver (5 frames a second)</option>
-              </select></label
-            >
-            <label
-              >Keep the screen on
-              <select name="awake">
-                <option value="1">On</option>
-                <option value="0">Off, let it sleep</option>
-              </select></label
-            >
-            <label
-              >Burn-in protection
-              <select name="care">
-                <option value="1">On</option>
-                <option value="0">Off</option>
-              </select></label
-            >
-          </fieldset>
-          <!-- only shown inside the Android app, which provides window.ClockscapesAndroid -->
-          <fieldset id="androidBox" hidden>
-            <legend>Android</legend>
-            <p class="hint atlasHint">Show these clocks on your home screen as a live wallpaper.</p>
-            <button type="button" id="setWallpaper">SET AS WALLPAPER</button>
-          </fieldset>
-        </div>
-        <div data-panel="music" hidden>
-          <fieldset>
-            <legend>Music</legend>
-            <p class="hint atlasHint">
-              Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of
-              your clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the
-              night is slower and darker than the day. When it rains there, you hear the rain. After two or
-              three minutes a song fades into the next clock's song. The same variation number at the same
-              hour plays the same songs again, and a new number gives you new ones.
-            </p>
-            <label
-              >Music
-              <select name="musicOn">
-                <option value="1">On</option>
-                <option value="0">Off</option>
-              </select></label
-            >
-            <label>Volume <input type="range" name="musicVol" min="0" max="100" /></label>
-            <label>Variation <input type="number" name="musicVar" min="1" max="9999" class="short" /></label>
-            <p class="hint" id="nowPlaying" style="margin: 0 0 10px"></p>
-            <button type="button" id="newVariation" title="Pick a new variation and play it now">
-              NEW VARIATION
-            </button>
-            <button type="button" id="nextSong" title="Fade into the next song now (N)">NEXT SONG</button>
-          </fieldset>
-        </div>
-        <div data-panel="alarms" hidden>
-          <fieldset>
-            <legend>Alarms (this device’s time)</legend>
-            <p class="hint atlasHint">
-              Each alarm goes off every day at this device’s time, and for a minute its message crosses your
-              clocks, one word per truck or sign: neon trucks where it is night and a march where it is day.
-              With the clocks side by side it drives from one clock into the next along the same road, and
-              stacked in bands every clock shows it (by day a band may get banner planes instead). Tap any
-              clock to stop it. The sound can only play once you have tapped or clicked the page since opening
-              it.
-            </p>
-            <!-- only shown inside the Android app -->
-            <p class="hint atlasHint" id="androidAlarmHint" hidden>
-              On the live wallpaper and the lock screen, alarms make no sound, and their message only shows if
-              the screen is on during that minute. For an alarm you can hear, keep this app open.
-            </p>
-            <div id="alarms"></div>
-            <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
-            <div class="alarm">
-              <label class="text"
-                >Test message
-                <input
-                  name="alarmTest"
-                  maxlength="36"
-                  placeholder="Up to 36 characters"
-                  spellcheck="false"
-                  title="Plays like an alarm when you press A three times or swipe down, up and down on the clocks"
+        <div class="pane">
+          <div data-panel="license" hidden>
+            <fieldset>
+              <legend>Weather and places</legend>
+              <p class="hint atlasHint">
+                Weather data by
+                <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>, under the
+                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"
+                  >Creative Commons Attribution 4.0 licence (CC BY 4.0)</a
+                >. Clockscapes changes the data: it turns the current conditions into the sky, rain, snow and
+                fog of each scene, and shows the temperature and a short description.
+              </p>
+              <p class="hint atlasHint">
+                The FIND button's place search uses the
+                <a href="https://open-meteo.com/en/docs/geocoding-api" target="_blank" rel="noopener"
+                  >Open-Meteo geocoding API</a
+                >, which is based on
+                <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a>
+                (CC BY 4.0). The free Open-Meteo API is for non-commercial use, and Clockscapes is free.
+              </p>
+            </fieldset>
+            <fieldset>
+              <legend>The app</legend>
+              <p class="hint atlasHint">
+                Clockscapes is open source under the
+                <a
+                  href="https://github.com/utopick/clockscapes/blob/main/LICENSE"
+                  target="_blank"
+                  rel="noopener"
+                  >MIT licence</a
+                >. The clock font is
+                <a href="https://github.com/googlefonts/nunito" target="_blank" rel="noopener">Nunito</a>,
+                copyright 2014 The Nunito Project Authors, under the SIL Open Font License 1.1. The city
+                coordinates are adapted from
+                <a href="https://github.com/katerinaSo/countries_cities_data" target="_blank" rel="noopener"
+                  >countries_cities_data</a
+                >. The pictures and the music are made by the app's own code.
+              </p>
+            </fieldset>
+          </div>
+          <div data-panel="screen" hidden>
+            <fieldset>
+              <legend>Screen</legend>
+              <p class="hint atlasHint">
+                A filter over the clocks that imitates an old screen. CRT looks like a tube television, with
+                scanlines, glowing colours and dark rounded corners. LCD shows the thin gaps between the
+                pixels of a handheld screen. Save to see it.
+              </p>
+              <label
+                >Filter
+                <select name="filter">
+                  <option value="off">Off</option>
+                  <option value="crt">CRT television</option>
+                  <option value="lcd">LCD screen</option>
+                </select></label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>Power and screen care</legend>
+              <p class="hint atlasHint">
+                Battery saver draws 5 frames a second instead of 15, so the phone stays cooler. Letting the
+                screen sleep saves the most. Burn-in protection keeps OLED screens safe when the clocks stay
+                up for hours: the picture moves by a pixel or two every 2 minutes, and a soft line sweeps down
+                the screen every 10 minutes.
+              </p>
+              <label
+                >Motion
+                <select name="power">
+                  <option value="smooth">Smooth (15 frames a second)</option>
+                  <option value="saver">Battery saver (5 frames a second)</option>
+                </select></label
+              >
+              <label
+                >Keep the screen on
+                <select name="awake">
+                  <option value="1">On</option>
+                  <option value="0">Off, let it sleep</option>
+                </select></label
+              >
+              <label
+                >Burn-in protection
+                <select name="care">
+                  <option value="1">On</option>
+                  <option value="0">Off</option>
+                </select></label
+              >
+            </fieldset>
+            <!-- only shown inside the Android app, which provides window.ClockscapesAndroid -->
+            <fieldset id="androidBox" hidden>
+              <legend>Android</legend>
+              <p class="hint atlasHint">Show these clocks on your home screen as a live wallpaper.</p>
+              <button type="button" id="setWallpaper">SET AS WALLPAPER</button>
+            </fieldset>
+          </div>
+          <div data-panel="music" hidden>
+            <fieldset>
+              <legend>Music</legend>
+              <p class="hint atlasHint">
+                Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of
+                your clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the
+                night is slower and darker than the day. When it rains there, you hear the rain. After two or
+                three minutes a song fades into the next clock's song. The same variation number at the same
+                hour plays the same songs again, and a new number gives you new ones.
+              </p>
+              <label
+                >Music
+                <select name="musicOn">
+                  <option value="1">On</option>
+                  <option value="0">Off</option>
+                </select></label
+              >
+              <label>Volume <input type="range" name="musicVol" min="0" max="100" /></label>
+              <label
+                >Variation <input type="number" name="musicVar" min="1" max="9999" class="short"
               /></label>
-            </div>
-            <p class="hint" style="margin: 0 0 10px">
-              To try it, save, then press <b>A</b> three times, or swipe down, up and down again on the clocks
-              in one stroke.
-            </p>
-          </fieldset>
-        </div>
-        <div data-panel="clocks">
-          <fieldset>
-            <legend>Display</legend>
-            <label
-              >Layout
-              <select name="layout">
-                <option value="auto">Auto (horizontal on phones)</option>
-                <option value="columns">Vertical: side-by-side columns</option>
-                <option value="rows">Horizontal: stacked bands</option>
-              </select></label
-            >
-            <label
-              >Clock
-              <select name="hour12">
-                <option value="0">24 h</option>
-                <option value="1">12 h</option>
-              </select></label
-            >
-          </fieldset>
-          <fieldset>
-            <legend>Weather</legend>
-            <label
-              >Live weather
-              <select name="weather">
-                <option value="1">On</option>
-                <option value="0">Off</option>
-              </select></label
-            >
-            <label
-              >Units
-              <select name="units">
-                <option value="metric">°C</option>
-                <option value="imperial">°F</option>
-              </select></label
-            >
-            <p class="hint" style="margin: 0 0 10px">
-              Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No API
-              key required. With weather off, scenes still follow the local day/night cycle.
-            </p>
-          </fieldset>
-          <fieldset>
-            <legend>Zones (1–4)</legend>
-            <p class="hint atlasHint">
-              Choose a city to set its coordinates, time zone and artwork. Cities without a named landmark use
-              a regional streetscape.
-            </p>
-            <div id="zones"></div>
-            <button type="button" id="addZone">+ ADD ZONE</button>
-            <button type="button" id="randomize">RANDOMIZE 3 CITIES</button>
-          </fieldset>
+              <p class="hint" id="nowPlaying" style="margin: 0 0 10px"></p>
+              <button type="button" id="newVariation" title="Pick a new variation and play it now">
+                NEW VARIATION
+              </button>
+              <button type="button" id="nextSong" title="Fade into the next song now (N)">NEXT SONG</button>
+            </fieldset>
+          </div>
+          <div data-panel="alarms" hidden>
+            <fieldset>
+              <legend>Alarms (this device’s time)</legend>
+              <p class="hint atlasHint">
+                Each alarm goes off every day at this device’s time, and for a minute its message crosses your
+                clocks, one word per truck or sign: neon trucks where it is night and a march where it is day.
+                With the clocks side by side it drives from one clock into the next along the same road, and
+                stacked in bands every clock shows it (by day a band may get banner planes instead). Tap any
+                clock to stop it. The sound can only play once you have tapped or clicked the page since
+                opening it.
+              </p>
+              <!-- only shown inside the Android app -->
+              <p class="hint atlasHint" id="androidAlarmHint" hidden>
+                On the live wallpaper and the lock screen, alarms make no sound, and their message only shows
+                if the screen is on during that minute. For an alarm you can hear, keep this app open.
+              </p>
+              <div id="alarms"></div>
+              <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
+              <div class="alarm">
+                <label class="text"
+                  >Test message
+                  <input
+                    name="alarmTest"
+                    maxlength="36"
+                    placeholder="Up to 36 characters"
+                    spellcheck="false"
+                    title="Plays like an alarm when you press A three times or swipe down, up and down on the clocks"
+                /></label>
+              </div>
+              <p class="hint" style="margin: 0 0 10px">
+                To try it, save, then press <b>A</b> three times, or swipe down, up and down again on the
+                clocks in one stroke.
+              </p>
+            </fieldset>
+          </div>
+          <div data-panel="clocks">
+            <fieldset>
+              <legend>Display</legend>
+              <label
+                >Layout
+                <select name="layout">
+                  <option value="auto">Auto (horizontal on phones)</option>
+                  <option value="columns">Vertical: side-by-side columns</option>
+                  <option value="rows">Horizontal: stacked bands</option>
+                </select></label
+              >
+              <label
+                >Clock
+                <select name="hour12">
+                  <option value="0">24 h</option>
+                  <option value="1">12 h</option>
+                </select></label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>Weather</legend>
+              <label
+                >Live weather
+                <select name="weather">
+                  <option value="1">On</option>
+                  <option value="0">Off</option>
+                </select></label
+              >
+              <label
+                >Units
+                <select name="units">
+                  <option value="metric">°C</option>
+                  <option value="imperial">°F</option>
+                </select></label
+              >
+              <p class="hint" style="margin: 0 0 10px">
+                Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No
+                API key required. With weather off, scenes still follow the local day/night cycle.
+              </p>
+            </fieldset>
+            <fieldset>
+              <legend>Zones (1–4)</legend>
+              <p class="hint atlasHint">
+                Choose a city to set its coordinates, time zone and artwork. Cities without a named landmark
+                use a regional streetscape.
+              </p>
+              <div id="zones"></div>
+              <button type="button" id="addZone">+ ADD ZONE</button>
+              <button type="button" id="randomize">RANDOMIZE 3 CITIES</button>
+            </fieldset>
+          </div>
         </div>
         <div id="msg" role="status"></div>
         <div class="actions">
@@ -9244,11 +9275,18 @@
       };
       $("#nextSong").onclick = () => (musicOn() ? nextSong(3) : toast("The music is off"));
       $("#music").onclick = toggleMusic;
-      // Android app only: the button opens the system's live wallpaper screen
+      // Android app only: the wallpaper button, the alarm note, and room for the phone's navigation bar,
+      // whose size (in CSS pixels) the app sends now and whenever it changes
+      window.setSafeInsets = (right, bottom) => {
+        document.documentElement.style.setProperty("--safe-right", right + "px");
+        document.documentElement.style.setProperty("--safe-bottom", bottom + "px");
+      };
       if (window.ClockscapesAndroid) {
         $("#androidBox").hidden = false;
         $("#androidAlarmHint").hidden = false;
         $("#setWallpaper").onclick = () => window.ClockscapesAndroid.setWallpaper();
+        const [right, bottom] = JSON.parse(window.ClockscapesAndroid.insets());
+        setSafeInsets(right, bottom);
       }
       $("#next").onclick = () => musicOn() && nextSong(3);
       // ---- suggestion lists ----
@@ -9431,8 +9469,10 @@
           (m) => window.matchMedia(`(display-mode: ${m})`).matches,
         ) || navigator.standalone === true;
       const exitButton = $("#exit");
-      exitButton.hidden = !(APP_MODE || PARAMS.has("exit"));
+      exitButton.hidden = !(APP_MODE || PARAMS.has("exit") || window.ClockscapesAndroid);
       async function exitApp() {
+        // the Android app goes to the background, like pressing the phone's home button
+        if (window.ClockscapesAndroid) return window.ClockscapesAndroid.exit();
         try {
           if (isFullscreen()) await exitFullscreen?.call(document);
         } catch (e) {}

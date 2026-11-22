@@ -33,11 +33,19 @@ test("notes stay in range and the melody stays in the key", () => {
     const scale = s.minor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11];
     const inScale = (n) => scale.includes((n - s.key + 120) % 12);
     assert.strictEqual(s.chords.length, 4);
-    for (const c of s.chords) {
+    assert.strictEqual(s.chordsB.length, 4);
+    for (const c of s.chords.concat(s.chordsB)) {
       assert.ok(c.root >= 24 && c.root < 48 && inScale(c.root), `seed ${seed}: bass ${c.root}`);
       for (const n of c.keys) assert.ok(n >= 52 && n < 88 && inScale(n), `seed ${seed}: chord note ${n}`);
     }
-    for (const mel of [s.melA, s.melB, s.melA2, s.melB2, s.solo]) {
+    for (const [name, mel] of Object.entries({
+      melA: s.melA,
+      melB: s.melB,
+      melA2: s.melA2,
+      melB2: s.melB2,
+      solo: s.solo,
+    })) {
+      const ch = name.startsWith("melB") ? s.chordsB : s.chords;
       assert.strictEqual(mel.length, 4);
       for (const [bar, notes] of mel.entries())
         for (const [step, n, len] of notes) {
@@ -46,7 +54,7 @@ test("notes stay in range and the melody stays in the key", () => {
         }
       // each bar starts on a note of its chord
       for (const [bar, notes] of mel.entries()) {
-        const pcs = s.chords[bar].keys.concat(s.chords[bar].root).map((n) => n % 12);
+        const pcs = ch[bar].keys.concat(ch[bar].root).map((n) => n % 12);
         assert.ok(pcs.includes(notes[0][1] % 12), `seed ${seed}: bar ${bar} does not land on its chord`);
       }
     }
@@ -105,4 +113,22 @@ test("birds sing by day, crickets on warm nights, and both stop in the rain", ()
   assert.ok(warmNight.crickets > 0 && warmNight.birds === 0);
   assert.strictEqual(coldNight.crickets, 0);
   assert.ok(rainyDay.birds === 0 && rainyDay.crickets === 0);
+});
+
+test("the songs vary: many progressions, a wide tempo and every chord colour", () => {
+  const songs = SEEDS.map((seed) => LOFI.song(seed, { night: 0.5 })),
+    progs = new Set(songs.map((s) => s.minor + s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "))),
+    bpms = songs.map((s) => s.bpm);
+  assert.ok(progs.size > 60, `only ${progs.size} progressions`);
+  assert.ok(Math.max(...bpms) - Math.min(...bpms) >= 24, `tempos ${Math.min(...bpms)}..${Math.max(...bpms)}`);
+  assert.strictEqual(new Set(songs.map((s) => s.colour)).size, 5);
+});
+
+test("B is A's shape again, starting from A's second chord", () => {
+  for (const seed of SEEDS.slice(0, 50)) {
+    const s = LOFI.song(seed);
+    assert.strictEqual(s.motif.length, 3);
+    // without the vii -> V swap the roots move the same way; check B's first chord is A's second
+    if (s.minor) assert.strictEqual(s.chordsB[0].root % 12, s.chords[1].root % 12, `seed ${seed}`);
+  }
 });

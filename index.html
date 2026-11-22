@@ -849,6 +849,11 @@
        *   its leads, another one plays the solo section) and the bass, which drum kit plays the loop (KITS maps
        *   each drum row to a voice), and how much echo the chords and leads get. The sheet keeps that choice in
        *   band, voices, drums, hits and echo, so the Player only follows the sheet.
+       * Each song grows from a gene of three moves between scale degrees (sheet.motif). The moves walk the
+       *   melody inside a bar, the four chords of a section (sheet.chords), and B away from A (sheet.chordsB
+       *   starts on A's second chord), so the song has the same shape at every size. Each melody bar also
+       *   turns on where the last one ended. A chord colour (COLOURS), the tempo and the order of the
+       *   sections (FORMS) also come from the seed.
        * Melodies: A and B come back as A2 and B2 with their first and third bars kept and a new second bar and
        *   ending, and every song has a four-bar solo. Some songs add a ticking clock (CLICKS) under the drums.
        * To add a band, add a row to BANDS and, if it needs a new sound, write that voice as a Player method
@@ -998,28 +1003,18 @@
         };
         const MAJOR = [0, 2, 4, 5, 7, 9, 11],
           MINOR = [0, 2, 3, 5, 7, 8, 10];
-        // four-bar loops as scale degrees (0 = I)
-        const PROGS = {
-          major: [
-            [1, 4, 0, 0],
-            [1, 4, 0, 5],
-            [0, 5, 1, 4],
-            [3, 2, 1, 0],
-            [3, 4, 2, 5],
-            [0, 3, 2, 5],
-            [2, 5, 1, 4],
-            [1, 4, 2, 5],
-          ],
-          minor: [
-            [0, 3, 6, 2],
-            [0, 5, 3, 4],
-            [5, 6, 0, 0],
-            [0, 6, 5, 4],
-            [3, 4, 0, 5],
-            [0, 3, 0, 6],
-            [1, 4, 0, 0],
-            [5, 1, 4, 0],
-          ],
+        // The song's gene: three moves between scale degrees (fourths and fifths twice as likely as steps
+        // and thirds). The same three moves walk the melody inside a bar, the chords inside a section, and
+        // the B section away from A, so the song repeats its own shape at every size, like a fractal.
+        const MOVES = [3, -3, 3, -3, 1, -1, 2, -2];
+        const STARTS = [0, 0, 1, 3, 5]; // loops start on I, ii, IV or vi
+        // chord colours, as scale degrees stacked over the chord's root
+        const COLOURS = {
+          ninth: [2, 4, 6, 8], // rootless 3-5-7-9, the classic lo-fi chord
+          seventh: [0, 2, 4, 6],
+          add9: [0, 2, 4, 8],
+          sus: [0, 1, 4, 7], // 1-2-5-8
+          fourths: [0, 3, 6, 9], // stacked fourths
         };
         // melody rhythms for one bar: [step, length in steps]
         const CELLS = [
@@ -1081,6 +1076,44 @@
             [8, 8],
           ],
         ];
+        CELLS.push(
+          [
+            [0, 2],
+            [2, 2],
+            [4, 2],
+            [6, 2],
+            [8, 8],
+          ],
+          [
+            [0, 8],
+            [10, 2],
+            [12, 4],
+          ],
+          [
+            [1, 2],
+            [3, 3],
+            [8, 2],
+            [11, 5],
+          ],
+          [
+            [0, 3],
+            [3, 3],
+            [6, 2],
+            [12, 4],
+          ],
+          [
+            [4, 2],
+            [6, 2],
+            [8, 2],
+            [10, 6],
+          ],
+          [
+            [0, 1],
+            [1, 1],
+            [2, 6],
+            [12, 4],
+          ],
+        );
         const ENDS = [
           [[0, 12]],
           [
@@ -1114,7 +1147,13 @@
           break: "chords bass clicks melA",
           outro: "chords",
         };
-        const MIDDLE = ["A", "B", "groove", "A2", "solo", "B2", "break", "A2", "B2"];
+        // the order of the sections after the intro; each has A2 and a solo in its first five
+        const FORMS = [
+          ["groove", "A", "B", "A2", "solo", "B2", "break", "A2", "B2"],
+          ["A", "A2", "B", "solo", "B2", "break", "A2", "B2", "groove"],
+          ["groove", "A", "B", "solo", "A2", "break", "B2", "A2", "B"],
+          ["A", "B", "solo", "A2", "B2", "groove", "A2", "break", "B2"],
+        ];
         const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
         function rngFrom(seed) {
           let a = seed >>> 0;
@@ -1135,35 +1174,53 @@
             scale = minor ? MINOR : MAJOR,
             key = Math.floor(r() * 12);
           const tone = (k) => key + scale[k % 7] + 12 * Math.floor(k / 7);
-          const bpm = Math.round(82 - 12 * night + r() * 8 - 4);
-          const chords = pick(PROGS[minor ? "minor" : "major"]).map((d) => {
-            // rootless 3-5-7-9 voicings, except where the 9th would clash (a flat 9th): then 1-3-5-7
+          // anywhere from 58 to 95, and the night tilts it slower
+          const bpm = Math.min(95, Math.round(58 + r() * 28 + 12 * (1 - night)));
+          const motif = [pick(MOVES), pick(MOVES), pick(MOVES)],
+            colourName = pick(Object.keys(COLOURS)),
+            colour = COLOURS[colourName];
+          const chordOn = (deg) => {
+            let d = ((deg % 7) + 7) % 7;
+            if (!minor && d === 6) d = 4; // the major key's diminished vii sounds wrong in a loop: V instead
+            // where the 2nd or 9th would clash (a half step over the root), a plain seventh chord instead
             const flat9 = (scale[(d + 1) % 7] - scale[d] + 12) % 12 === 1;
-            const keys = (flat9 ? [0, 2, 4, 6] : [2, 4, 6, 8]).map((k) => 48 + tone(d + k));
+            const keys = (flat9 && (colour.includes(1) || colour.includes(8)) ? COLOURS.seventh : colour).map(
+              (k) => 48 + tone(d + k),
+            );
             const lift = 12 * Math.ceil((52 - Math.min(...keys)) / 12); // lowest note in 52..63
             const pc = tone(d) % 12;
             return { root: pc < 7 ? 36 + pc : 24 + pc, keys: keys.map((n) => n + lift) };
-          });
+          };
+          // a four-bar loop unfolded from a degree: the degree, then the gene's three moves from it
+          const unfold = (deg) =>
+            [0, 1, 2, 3].map((i) => chordOn(deg + motif.slice(0, i).reduce((a, b) => a + b, 0)));
+          const start = pick(STARTS),
+            chords = unfold(start),
+            chordsB = unfold(start + motif[0]); // B starts where A's second chord is
           // melody: a walk on the pentatonic scale that lands on a chord tone at the start of each bar
           const pent = minor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9],
             pool = [];
           for (let n = 67; n <= 86; n++) if (pent.includes((n - key + 120) % 12)) pool.push(n);
           const nearest = (list, n) => list.reduce((b, p) => (Math.abs(p - n) < Math.abs(b - n) ? p : b));
           // keep[bar], when given, is a bar copied as it is (a returning phrase keeps its hook)
-          function phrase(from, cells, keep = []) {
+          function phrase(from, cells, keep = [], ch = chords) {
             let note = from;
             return cells.map((cell, bar) => {
+              // feedback: where the last bar ended turns this one (high goes down, low goes up)
+              const dir = note > 79 ? -1 : note < 73 ? 1 : bar % 2 ? -1 : 1;
               if (keep[bar]) {
                 note = keep[bar].at(-1)[1];
                 return keep[bar];
               }
-              const pcs = chords[bar].keys.concat(chords[bar].root).map((n) => n % 12),
+              const pcs = ch[bar].keys.concat(ch[bar].root).map((n) => n % 12),
                 landing = [];
               for (let n = 67; n <= 86; n++) if (pcs.includes(n % 12)) landing.push(n);
               return cell.map(([step, len], j) => {
                 if (j === 0) note = nearest(landing, note);
                 else {
-                  const i = pool.indexOf(nearest(pool, note)) + pick([-2, -1, -1, 0, 1, 1, 2]);
+                  const m = motif[(j - 1 + bar) % 3], // the gene again, at the size of notes
+                    move = r() < 0.2 ? pick([-1, 0, 1]) : dir * Math.sign(m) * Math.min(2, Math.abs(m)),
+                    i = pool.indexOf(nearest(pool, note)) + move;
                   note = pool[clamp(i, 0, pool.length - 1)];
                 }
                 return [step, note, len];
@@ -1172,16 +1229,16 @@
           }
           const other = (list, not) => pick(list.filter((x) => x !== not)) ?? not,
             busy = CELLS.filter((c) => c.length >= 4);
-          function tune(from) {
+          function tune(from, ch) {
             const c = pick(CELLS),
               end = pick(ENDS),
-              mel = phrase(from, [c, pick(CELLS), c, end]);
+              mel = phrase(from, [c, pick(CELLS), c, end], [], ch);
             // coming back: the same first and third bars, a new second bar and a different ending
-            const again = phrase(from, [c, other(CELLS, c), c, other(ENDS, end)], [mel[0], null, mel[2]]);
+            const again = phrase(from, [c, other(CELLS, c), c, other(ENDS, end)], [mel[0], null, mel[2]], ch);
             return [mel, again];
           }
-          const [melA, melA2] = tune(72),
-            [melB, melB2] = tune(81),
+          const [melA, melA2] = tune(72, chords),
+            [melB, melB2] = tune(81, chordsB),
             solo = phrase(79, [pick(busy), pick(busy), pick(busy), pick(ENDS)]);
           const bandName = pick(Object.keys(BANDS)),
             band = BANDS[bandName],
@@ -1191,8 +1248,9 @@
           const secLen = (4 * 240) / bpm,
             target = 120 + r() * 60;
           const count = clamp(Math.round(target / secLen), Math.ceil(120 / secLen), Math.floor(180 / secLen));
-          const form = ["intro", "groove"];
-          for (let i = 0; form.length < count - 1; i++) form.push(MIDDLE[i % MIDDLE.length]);
+          const middle = pick(FORMS),
+            form = ["intro"];
+          for (let i = 0; form.length < count - 1; i++) form.push(middle[i % middle.length]);
           form.push("outro");
           const swing = 0.1 + r() * 0.12;
           return {
@@ -1209,7 +1267,10 @@
             level: band.level,
             click: band.drums === "clicks" || r() < 0.35 ? pick(CLICKS) : "",
             loop,
+            motif,
+            colour: colourName,
             chords,
+            chordsB,
             melA,
             melB,
             melA2,
@@ -1524,7 +1585,9 @@
               sd = this.sd;
             const parts = (SECTIONS[s.form[Math.floor(bar / 4)]] || "").split(" "),
               has = (p) => parts.includes(p),
-              chord = s.chords[bar % 4],
+              chord = (s.chordsB && s.form[Math.floor(bar / 4)]?.startsWith("B") ? s.chordsB : s.chords)[
+                bar % 4
+              ],
               v = s.voices || { chords: "keys", lead: s.lead || "keys", bass: "bass" },
               hits = s.hits || [0, 8],
               human = () => 0.85 + Math.random() * 0.3;

@@ -9449,7 +9449,8 @@
         fullscreenButton.title = active ? "Exit fullscreen (F)" : "Enter fullscreen (F)";
         fullscreenButton.setAttribute("aria-pressed", String(active));
       }
-      fullscreenButton.hidden = !enterFullscreen || !exitFullscreen;
+      // the Android app is always full screen already
+      fullscreenButton.hidden = !enterFullscreen || !exitFullscreen || !!window.ClockscapesAndroid;
 
       // ---- toast ----
       let toastT;

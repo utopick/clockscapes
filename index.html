@@ -6103,7 +6103,7 @@
             [0.85, life.walkers[3]?.color],
           ];
           // Everyone uses the stairs at the nearer end: waiting people come down them early in the cycle and
-          // walk to their spot; the ones who got off walk back to them and climb out. A trip t seconds
+          // walk to their spot; the ones who got off walk back to them, climb out and walk off the screen. A trip t seconds
           // long: 1.75 s on the 7 steps, then 5 pixels a second along the platform.
           const into = clock % cycle;
           const along = (stair, home, t) =>
@@ -6121,8 +6121,14 @@
               walk = 1.75 + Math.abs(home - stair) / 5;
             let x, y;
             if (gone != null) {
-              if (i % 2 || gone > walk) return; // two got off; the others boarded
-              [x, y] = along(stair, home, walk - gone); // the way in, played backwards
+              if (i % 2) return; // two got off; the others boarded
+              if (gone <= walk)
+                [x, y] = along(stair, home, walk - gone); // the way in, played backwards
+              else {
+                // up on the street, they walk off to the nearer side of the screen
+                [x, y] = [Math.round(stair + (stair < life.width / 2 ? -6 : 6) * (gone - walk)), st.y - 7];
+                if (x < -2 || x > life.width) return;
+              }
             } else if (dwell != null && dwell > 1 + i)
               return; // boarded
             else if (into < i * 1.5)

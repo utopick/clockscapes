@@ -20,9 +20,10 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 
 - Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms), so people open umbrellas when it rains there. Trees follow the local season, bare in winter, in blossom in spring and orange in autumn.
 - Every city has the same street, so clocks side by side line up: a sidewalk, a road, a strip of park and a second road, then a railway inland or the water in coastal and river cities. Bigger cities have overhead wires and a station where the trains stop for travellers.
+- How many people and cars a city has depends on its real population, in four levels from few people to super crowded.
 - The streets follow each city's own week. Roads fill up in the weekday rush hours, people stroll at weekends, Friday and Saturday nights get busy with people going out, and the small hours are quiet.
 - On a city's holiday or local festival, such as Thanksgiving, Carnaval or Las Fallas, a small plane tows the festival's name across that clock every 15 minutes.
-- Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and rain in a city adds rain to the song.
+- Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and the place plays along, muffled like a lo-fi field recording: voices and traffic as busy as the city and the hour, a train passing now and then, birds by day, crickets on warm nights, waves in coastal cities, wind when it's windy, and rain with drops on the window and distant thunder in a storm. **City sounds** in the MUSIC tab switches them off. To hear the rain anywhere, press **R** three times (or swipe up, down, up and down on the clocks); do it again for a storm, and once more for the real weather.
 - Daily alarms carry a short message across your clocks for a minute, as explained [below](#alarms).
 - A screen filter can make the clocks look like an old CRT television or an LCD screen, as shown [below](#screen-filters).
 - Settings stay in this browser only. The only thing the page talks to is [Open-Meteo](https://open-meteo.com/), for the weather and the place search, and you can switch the weather off.
@@ -31,7 +32,7 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 
 You can show one to four clocks. Press **S** (or tap the screen, then **⚙ SETTINGS**) and use the **CLOCKS** tab:
 
-1. Under Zones, type in **Find a city** and pick one of about 390 capitals and big cities. That fills in its time zone, coordinates and scene.
+1. Under Zones, type in **Find a city** and pick one of about 3,000 cities: every national and regional capital, the province capitals of Spain, Italy and France, and every city of a million people or more. That fills in its time zone, coordinates and scene.
 2. For a place that isn't in the list, type its name in **Label** and press **FIND**, or type the time zone and coordinates yourself. It then gets a regional street scene.
 3. Press **+ ADD ZONE** for another clock, or **RANDOMIZE 3 CITIES** for a surprise, then **SAVE**.
 
@@ -39,7 +40,7 @@ The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 h
 
 ## Music
 
-Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks a band, such as a felt piano with a long echo, a jazz trio with vibraphone, a nylon guitar, a warm pad or a ticking clock kit, and its tunes change a little when a part comes back. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
+Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks one of ten bands, such as a felt piano with a long echo, a jazz trio with vibraphone, a Rhodes with a clean jazz guitar, a Wurlitzer with a kalimba and claps, a marimba over a ticking clock kit, or a music box and someone whistling, and its tunes change a little when a part comes back. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
 
 ## Alarms
 
@@ -84,6 +85,7 @@ The same SCREEN tab has three settings for leaving the clocks up for hours. **Ba
 | **F** | Full screen |
 | **M** | Music on or off |
 | **N** | Next song |
+| **R** three times | Rain in every city, then a storm, then the real weather again (on a touch screen, swipe up, down, up and down) |
 | **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again) |
 | **Esc** | Closes settings |
 
@@ -98,5 +100,5 @@ Everything about how it works, how to run it, change it and fix it is in the [ma
 ## Credits
 
 - Font: [Nunito](https://github.com/googlefonts/nunito), SIL Open Font License 1.1, embedded in the page.
-- City coordinates adapted from [countries_cities_data](https://github.com/katerinaSo/countries_cities_data).
+- Capital coordinates adapted from [countries_cities_data](https://github.com/katerinaSo/countries_cities_data). The other cities and the populations come from [GeoNames](https://www.geonames.org/) (CC BY 4.0), and the coastline used to find coastal cities from [Natural Earth](https://www.naturalearthdata.com/) (public domain). How the list was built is in [tools/atlas](tools/atlas/README.md).
 - Weather data by [Open-Meteo.com](https://open-meteo.com/), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The place search uses Open-Meteo's geocoding, which is based on [GeoNames](https://www.geonames.org/) (CC BY 4.0). The page shows this credit above its buttons, and the **LICENSE** tab in settings has the details.

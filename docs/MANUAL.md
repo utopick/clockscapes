@@ -35,7 +35,7 @@ Inside `index.html` the script is split into sections, each starting with a `// 
 
 | Section header | What lives there |
 |---|---|
-| `Config` | Default settings and `CITY_ATLAS`, the list of about 390 cities |
+| `Config` | Default settings and `CITY_ATLAS`, the list of about 3,000 cities with their populations |
 | `Astronomy` and `Lighting palette` | Sun and moon position, and the sky colours for each sun height |
 | `Weather` | Talking to Open-Meteo and caching the answer |
 | `Scene building blocks` | Buildings, streets, water, lamps, trees |
@@ -119,7 +119,8 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Cars, trucks, police cars, taxis | `VEHICLE_MIX` and `VEHICLE_HALF` in `Scene life`, drawn in `drawGroundLife` | The chances add up to 100. Each car rolls a new kind every time it crosses the screen |
 | Boats | `BOAT_MIX` and the boat loop in `drawGroundLife` | The chances add up to 100. Boats only appear where the scene has water |
 | Trains | `TRAIN_KINDS` (looks and speed), `TRAIN_LINES` (which country runs which trains), `railway` (the track, wires and station) and `drawTrain` | Inland cities have a railway in the bottom band. Capitals and big metro cities also get overhead wires and a station where passenger trains stop. Coastal cities in `TRAIN_LINES` get a raised line instead |
-| How busy the streets are | `busyness` in `Scene life` | It uses the city's local weekday and hour, and returns how many cars and walkers to show compared with a normal hour |
+| How busy the streets are | `busyness` and `CROWDS` in `Scene life` | `busyness` uses the city's local weekday and hour. `CROWDS` turns the city's population into one of four levels (few people, more people, crowded, super crowded), and both multiply the cars and walkers of a normal hour |
+| The list of cities | `CITY_ATLAS`, built with `tools/atlas/build.py` | Never rename an id, because saved settings point to it. The last field of a row is the population. The scripts read GeoNames and Natural Earth files you download yourself, and their README says how |
 | Holidays and festivals | `FESTIVALS` in `Festivities` | Rules look like `"07-14"`, `"03-15+4"` (and 4 more days), `"E-47"` (days from Easter) or `"11/4/Thu"` (fourth Thursday). Lunar New Year dates in `LUNAR_NEW_YEAR` end in 2030, so add the next years before then |
 | Planes and birds | `drawSkyLife` | Gulls need the city in `SEASIDE` (or a scene with water) |
 | Clouds | `cloudSprite` in `class Column` | Clouds are drawn once a minute, so keep them cheap |

@@ -6081,11 +6081,13 @@
         // people first: the sidewalk is behind the road, so a tall vehicle passes in front of them
         for (const person of life.walkers) {
           if (!inPlane(person.y)) continue;
-          // during a monster visit everyone runs off the way it is heading, arms up, then walks back
+          // during a monster visit everyone runs off the nearer side of the screen, arms up, and once it
+          // has gone they walk back in from that side to where they were
           const panic = life.panic,
-            fled = panic ? Math.round(panic.dir * panic.run * (0.6 + 0.8 * person.offset)) : 0,
             running = panic?.running;
-          const x = lifePosition(person, seconds, 3) + fled,
+          const walking = lifePosition(person, seconds, 3),
+            edge = walking < panic?.W / 2 ? -8 : panic?.W + 8;
+          const x = panic ? Math.round(walking + (edge - walking) * panic.away) : walking,
             y = person.y;
           const stride = Math.floor((seconds + person.offset) * (running ? 14 : 5)) % 2;
           g.fillStyle = life.skin;
@@ -7596,15 +7598,16 @@
         return { start, ...selectEncounter(rngFrom(hashStr(seed + "|" + start))) };
       }
       // Returns true on the frame a ground monster's foot lands (the column shakes a little).
-      // How far the people have run from the monster: they notice it after a moment, run off the way it is
-      // heading for 3 seconds, wait, and once it has gone they walk back over 6 seconds and carry on.
+      // How far the people have fled from the monster, from 0 (where they were walking) to 1 (off the
+      // nearer side of the screen): they notice it after a moment, run off in 3 seconds and hide, and once
+      // it has gone they walk back in over 6 seconds and carry on.
       function panicFor(encounter, now, W) {
         if (!encounter) return null;
         const t = (now - encounter.start) / 1000,
           visit = ENCOUNTER_DURATION / 1000;
         if (t < 0.6 || t > visit + 6) return null;
         const away = t < visit ? Math.min(1, (t - 0.6) / 3) : 1 - (t - visit) / 6;
-        return { dir: encounter.direction || 1, run: away * W * 0.35, running: t < visit && t < 3.6 };
+        return { W, away, running: t < 3.6 };
       }
 
       function drawEncounter(g, e, encounter, now, reducedMotion) {

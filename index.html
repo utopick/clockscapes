@@ -2138,7 +2138,7 @@
   ["yokohama-jp","Yokohama","JP",35.444,139.638,"Asia/Tokyo","harbor","",false],
   ["zagreb-hr","Zagreb","HR",45.8,16.0,"Europe/Zagreb","old","",true],
   ["zurich-ch","Zürich","CH",47.376,8.541,"Europe/Zurich","ridge","",false],
-].map(([id,label,country,lat,lon,tz,style,art,capital]) => [id,{id,label,country,lat,lon,tz,style,art,capital}]));
+].map(([id,label,country,lat,lon,tz,style,art,capital,population]) => [id,{id,label,country,lat,lon,tz,style,art,capital,population}]));
 
       const DEFAULT_CONFIG = {
         weather: true,
@@ -2732,6 +2732,35 @@
       }
 
       // River or sea from y0 to the bottom, with ripples; sets e.water so boats and the shimmer use it.
+      // The street as a bridge over the water band (London's Westminster Bridge, Austin's Congress Avenue
+      // Bridge): a deck edge under the last lane, then arches on piers standing in the water, about 34
+      // pixels apart. Returns the row under the arches, where Austin's bats come out.
+      function bridge(g, e, y0, deck, shadow) {
+        const { W, H } = e;
+        if (H - y0 < 8) return y0;
+        const fill = (color, x, y, w, h) => {
+          g.fillStyle = css(e.sh(color));
+          g.fillRect(x, y, w, h);
+        };
+        fill(deck, 0, y0, W, 2);
+        fill(mixc(deck, [255, 255, 255], 0.25), 0, y0, W, 1);
+        const span = 34,
+          rise = Math.min(5, H - y0 - 4), // the arch's height under the deck
+          start = Math.round((W % span) / 2) - span;
+        for (let x = start; x < W + span; x += span) {
+          // the pier: 4 pixels wide down to the bottom, with a cutwater line on the water
+          fill(deck, x - 2, y0 + 2, 4, H - y0 - 2);
+          fill(shadow, x + 1, y0 + 2, 1, H - y0 - 2);
+          // the arch to the next pier: solid spandrels at both ends, open (dark) underneath in the middle
+          for (let dx = 2; dx < span - 2; dx++) {
+            const k = (dx - span / 2) / (span / 2 - 2), // -1 at one pier, 1 at the next
+              open = Math.round(rise * Math.sqrt(Math.max(0, 1 - k * k)));
+            fill(deck, x + dx, y0 + 2, 1, rise - open);
+            if (open) fill(shadow, x + dx, y0 + 2 + rise - open, 1, 1); // the arch's lit underside edge
+          }
+        }
+        return y0 + 2 + rise;
+      }
       function water(g, e, y0) {
         const { W, H } = e;
         const base = mixc(e.bot, [18, 38, 62], 0.55);
@@ -3020,7 +3049,8 @@
         g.fillStyle = css(e.sh([175, 152, 106]));
         for (let xx = bx + 1; xx < bx + bw; xx += 2) g.fillRect(xx, bt + 23, 1, G - bt - 23);
         // the street every city has, with the Thames in the bottom band
-        ground(g, e, true);
+        const thames = ground(g, e, true);
+        if (thames < e.H) bridge(g, e, thames, [72, 112, 92], [40, 58, 52]); // Westminster Bridge, painted green
       }
 
       // ---- Scene: Austin ----
@@ -3096,7 +3126,9 @@
         g.fillRect(ccx, dt - 12, 1, 2);
         // shoreline trees, then the street every city has, with Lady Bird Lake in the bottom band
         for (let x = 5; x < W; x += 9) drawPlant(g, { ...e, flora: "liveOak" }, x, G, 1, 0);
-        e.batsY = ground(g, e, true); // the bats rise from the lake (or the street on a short screen)
+        // the bats rise from under the Congress Avenue Bridge (or from the street on a short screen)
+        const lake = ground(g, e, true);
+        e.batsY = lake < e.H ? bridge(g, e, lake, [176, 170, 156], [96, 92, 86]) : lake;
       }
       function animAustin(g, e, t) {
         // Congress Avenue bats around dusk
@@ -5802,6 +5834,18 @@
         "reykjavik-is rio-de-janeiro-br saint-helier-je saint-peter-port-gg saint-pierre-pm sao-tome-st shenzhen-cn " +
         "sri-jayawardenepura-kotte-lk stanley-fk tallinn-ee the-hague-nl tijuana-mx tokyo-jp torshavn-fo tripoli-ly " +
         "valletta-mt vancouver-ca victoria-sc").split(" "));
+      // How many people and cars a city has, from its population (GeoNames): four levels, each a multiplier
+      // on the walkers and the traffic of a normal hour. A place without a population (one you looked up
+      // yourself) counts as "more people".
+      const CROWDS = [
+        { name: "few people", from: 0, walkers: 0.55, traffic: 0.6 },
+        { name: "more people", from: 250000, walkers: 0.85, traffic: 0.85 },
+        { name: "crowded", from: 1000000, walkers: 1.15, traffic: 1.15 },
+        { name: "super crowded", from: 5000000, walkers: 1.5, traffic: 1.4 },
+      ];
+      function crowdFor(population) {
+        return [...CROWDS].reverse().find((c) => (population ?? 250000) >= c.from); // findLast is too new for old iPads
+      }
       // How busy a city's streets are at its local weekday and hour, as multipliers of a normal hour:
       // weekday rush hours fill the roads, weekends bring people out walking, Friday and Saturday nights
       // (until about 3 am) bring both out to party, and the small hours are quiet.
@@ -5850,7 +5894,13 @@
         const busy = busyness(e.weekday, e.hour);
         // a normal hour has about one car per 38 pixels of width (5 to 8); busyness scales it, 2 to 14
         const normalCars = Math.min(8, Math.max(5, Math.round(e.W / 38)));
-        const traffic = movers(e.road, clamp(Math.round(normalCars * busy.traffic), 2, 14), 18, 18);
+        const crowd = e.crowd || CROWDS[1];
+        const traffic = movers(
+          e.road,
+          clamp(Math.round(normalCars * busy.traffic * crowd.traffic), 2, 16),
+          18,
+          18,
+        );
         traffic.forEach((vehicle, i) => {
           vehicle.id = i + 1 + ((seed >>> 0) % 97);
           vehicle.direction = vehicle.y === e.G + SYNC_LANE ? -1 : 1;
@@ -5859,8 +5909,13 @@
         const cyclists = e.bike == null ? [] : movers({ lanes: [e.bike - 1, e.bike + 1] }, 2, 10, 12);
         // about one walker per 22 pixels (at least 4), scaled by busyness; at most 5 on a quiet night
         const normalWalkers = Math.max(4, Math.round(e.W / 22));
-        const maxWalkers = night && !busy.party ? 5 : 18;
-        const walkers = movers(e.walk, clamp(Math.round(normalWalkers * busy.walkers), 2, maxWalkers), 4, 7);
+        const maxWalkers = night && !busy.party ? 5 : 22;
+        const walkers = movers(
+          e.walk,
+          clamp(Math.round(normalWalkers * busy.walkers * crowd.walkers), 2, maxWalkers),
+          4,
+          7,
+        );
         // deep water gets a far lane too; the far boats are drawn first so near ones pass in front
         const deepWater = e.water && e.H - e.water.y0 >= 20;
         let boats = [];
@@ -8896,6 +8951,7 @@
           e.farG = this.far.getContext("2d");
           const scene = SCENE_FN[city?.art || z.scene];
           e.cityId = city?.id || z.label;
+          e.crowd = crowdFor(home?.population);
           e.windows = []; // filled by the scene, for windows that switch on and off at night
           e.lamps = [];
           // Hand-drawn landmarks have fixed pixel widths, so their heights get at most the room a phone has:
@@ -8985,18 +9041,26 @@
             // (the feet wander up and down along the layer, so neither the top nor the base is a line)
             let lift = 0;
             for (let x = 3; x < W - 3; x += 3 + Math.floor(r() * 4)) {
+              // near the ends the puffs shrink (half the distance to the end), so the layer's sides slope
               const edge = Math.min(x - 1, W - 2 - x);
               const rr = Math.max(
                 1,
-                Math.min(edge, Math.max(3, Math.round(cl.h * 0.35 + r() * cl.h * 0.45))),
+                Math.min(
+                  Math.round(edge * 0.5) + 1,
+                  Math.max(3, Math.round(cl.h * 0.35 + r() * cl.h * 0.45)),
+                ),
               );
               lift = clamp(lift + (r() - 0.5) * 3, 0, cl.h * 0.45);
               puffs.push([x, base - rr + 1 - Math.round(lift), rr]);
             }
             // a crown every 16 pixels or so, so a long deck is a lumpy layer and never a flat bar
             for (let i = 0, m = 1 + Math.floor(W / 16); i < m; i++) {
-              const x = Math.round(W * (0.12 + ((i + 0.2 + r() * 0.6) / m) * 0.76)),
-                rr = Math.max(3, Math.round(cl.h * (0.4 + r() * 0.4))); // 2 would draw a plus sign
+              // crowns stay well inside the layer and shrink towards its ends, and none is wider than a
+              // fifth of the layer, so a short, tall deck is a lumpy mound instead of a slab with flat sides
+              const t = 0.18 + ((i + 0.2 + r() * 0.6) / m) * 0.64,
+                x = Math.round(W * t),
+                taper = 1 - Math.abs(2 * t - 1) * 0.6,
+                rr = Math.max(3, Math.round(Math.min(cl.h * (0.4 + r() * 0.4), W * 0.2) * taper)); // 2 draws a plus
               puffs.push([x, Math.max(rr, base - cl.h * 0.5 - rr), rr, true]);
             }
           } else {

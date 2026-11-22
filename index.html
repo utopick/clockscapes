@@ -5671,8 +5671,10 @@
 
       // River or sea from y0 to the bottom, with ripples; sets e.water so boats and the shimmer use it.
       // The street as a bridge over the water band (London's Westminster Bridge, Austin's Congress Avenue
-      // Bridge): a deck edge under the last lane, then arches on piers standing in the water, about 34
-      // pixels apart. Returns the row under the arches, where Austin's bats come out.
+      // Bridge): a deck edge under the last lane, then low arches on short piers about 34 pixels apart.
+      // The water starts at the piers' feet, so boats (sailing lower, in e.boatLane) always pass in front,
+      // and e.piers keeps where the piers stand for the ripples drawn every frame. Returns the row under
+      // the arches, where Austin's bats come out.
       function bridge(g, e, y0, deck, shadow) {
         const { W, H } = e;
         if (H - y0 < 8) return y0;
@@ -5683,12 +5685,14 @@
         fill(deck, 0, y0, W, 2);
         fill(mixc(deck, [255, 255, 255], 0.25), 0, y0, W, 1);
         const span = 34,
-          rise = Math.min(5, H - y0 - 4), // the arch's height under the deck
+          rise = 2, // the arch's height under the deck, and the piers'
           start = Math.round((W % span) / 2) - span;
+        e.piers = [];
         for (let x = start; x < W + span; x += span) {
-          // the pier: 4 pixels wide down to the bottom, with a cutwater line on the water
-          fill(deck, x - 2, y0 + 2, 4, H - y0 - 2);
-          fill(shadow, x + 1, y0 + 2, 1, H - y0 - 2);
+          // the pier: 2 pixels wide and as tall as the arch, its shaded side to the right
+          fill(deck, x - 1, y0 + 2, 2, rise);
+          fill(shadow, x, y0 + 2, 1, rise);
+          e.piers.push(x);
           // the arch to the next pier: solid spandrels at both ends, open (dark) underneath in the middle
           for (let dx = 2; dx < span - 2; dx++) {
             const k = (dx - span / 2) / (span / 2 - 2), // -1 at one pier, 1 at the next
@@ -5697,6 +5701,8 @@
             if (open) fill(shadow, x + dx, y0 + 2 + rise - open, 1, 1); // the arch's lit underside edge
           }
         }
+        e.water = { y0: y0 + 2 + rise, y1: H };
+        e.boatLane = H - 3;
         return y0 + 2 + rise;
       }
       function water(g, e, y0) {
@@ -8858,7 +8864,7 @@
         const deepWater = e.water && e.H - e.water.y0 >= 20;
         let boats = [];
         if (e.water && e.H - e.water.y0 >= 6) {
-          const lanes = deepWater ? [e.H - 5, e.H - 11] : [e.H - 5];
+          const lanes = deepWater ? [e.H - 5, e.H - 11] : [e.boatLane ?? e.H - 5];
           const count = Math.max(1, Math.round(e.W / (deepWater ? 70 : 110))); // one boat per 70 or 110 pixels
           boats = movers({ lanes }, count, 6, 9).sort((a, b) => a.y - b.y);
         }
@@ -12224,6 +12230,15 @@
                   ? `rgba(255,205,120,${(a + 0.15).toFixed(2)})`
                   : `rgba(255,255,255,${(a * e.k).toFixed(2)})`;
               g.fillRect(x, y, 2 + (i % 3), 1);
+            }
+            // ripples where a bridge's piers stand in the water, lapping out and back
+            if (e.piers) {
+              g.fillStyle = `rgba(255,255,255,${(0.55 * e.k + (night ? 0.15 : 0)).toFixed(2)})`;
+              for (const [i, px] of e.piers.entries()) {
+                const lap = Math.round(1 + Math.sin(t * 0.004 + i * 1.7));
+                g.fillRect(px - 2 - lap, y0, 2, 1);
+                g.fillRect(px + 1 + lap, y0, 2, 1);
+              }
             }
           }
           if (this.anim) this.anim(g, e, t);

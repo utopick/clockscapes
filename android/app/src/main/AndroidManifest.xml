@@ -14,9 +14,13 @@
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
 
     <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
+    <!-- Google TV: the same app on a TV, where there is no touch screen; phones need no TV either -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
 
     <application
         android:icon="@mipmap/ic_launcher"
+        android:banner="@drawable/banner"
         android:label="${appLabel}"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
 
@@ -36,6 +40,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <!-- the TV home screen -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
 
@@ -61,6 +67,18 @@
             <meta-data
                 android:name="android.service.wallpaper"
                 android:resource="@xml/wallpaper" />
+        </service>
+
+        <!-- the screensaver, for an idle TV or a charging phone -->
+        <service
+            android:name=".ClockDream"
+            android:exported="true"
+            android:label="${appLabel}"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </service>
 
         <service

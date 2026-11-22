@@ -89,6 +89,16 @@ class MainActivity : Activity() {
         }
     }
 
+    // Back on a TV remote (or the phone's back gesture) first closes settings or hides the buttons in the
+    // page (tvBack), and only leaves the app when the page had nothing to close.
+    @Deprecated("The page decides asynchronously, which the predictive back callback cannot wait for")
+    override fun onBackPressed() {
+        web.evaluateJavascript("window.tvBack ? tvBack() : false") { used ->
+            @Suppress("DEPRECATION")
+            if (used != "true") super.onBackPressed()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         inFront = true

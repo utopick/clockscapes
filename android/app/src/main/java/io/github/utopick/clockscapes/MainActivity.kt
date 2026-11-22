@@ -50,17 +50,47 @@ class MainActivity : Activity() {
                     .build()
             )
             .setOnAudioFocusChangeListener { change ->
-                if (change == AudioManager.AUDIOFOCUS_LOSS) js(MusicNotice.JS_STOP)
+                when (change) {
+                    AudioManager.AUDIOFOCUS_LOSS -> js(MusicNotice.JS_STOP)
+                    // a call, a voice message or a navigation prompt: stop, keep the focus, and play again
+                    // once it is over
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> if (focused) {
+                        resumeOnGain = true
+                        stoppedForFocus = true
+                        js(MusicNotice.JS_STOP)
+                    }
+                    AudioManager.AUDIOFOCUS_GAIN -> if (resumeOnGain) {
+                        resumeOnGain = false
+                        js(MusicNotice.JS_PLAY)
+                    }
+                }
             }
             .build()
     }
+    private var focused = false
+    private var resumeOnGain = false
+    private var stoppedForFocus = false
 
     /** Shows the music notification (from the page, through ClockscapesAndroid.musicState). */
     fun musicState(playing: Boolean, title: String) = runOnUiThread {
         if (playing) {
             askForNotifications()
-            audio.requestAudioFocus(focus)
-        } else audio.abandonAudioFocusRequest(focus)
+            // asked once when the music starts, not on every song, which would take the sound back from
+            // another app playing meanwhile
+            if (!focused) {
+                if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                    js(MusicNotice.JS_STOP) // a call is on: no music
+                    return@runOnUiThread
+                }
+                focused = true
+            }
+        } else if (stoppedForFocus) {
+            stoppedForFocus = false // stopped for a call: keep the focus to hear when it ends
+        } else {
+            resumeOnGain = false
+            focused = false
+            audio.abandonAudioFocusRequest(focus)
+        }
         MusicNotice.show(this, playing, title)
     }
 

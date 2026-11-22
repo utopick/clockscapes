@@ -5850,7 +5850,13 @@
           trainPaint: Object.fromEntries(
             Object.entries(TRAIN_KINDS).map(([k, t]) => [
               k,
-              { body: paint(t.body), stripe: paint(t.stripe) },
+              // lit: the true colours, under the station's lamps
+              {
+                body: paint(t.body),
+                stripe: paint(t.stripe),
+                litBody: css(t.body),
+                litStripe: css(t.stripe),
+              },
             ]),
           ),
           width: e.W,
@@ -6159,9 +6165,11 @@
           if (x < -1 || x > life.width || within === TRAIN_CAR - 1) continue;
           const tail = L - 2 - px,
             h = Math.min(taper(px), taper(tail));
-          g.fillStyle = look.body;
+          // inside the lit station the train shows its true colours, so it brightens as it pulls in
+          const lit = life.station && x >= life.station.x0 && x < life.station.x1;
+          g.fillStyle = lit ? look.litBody : look.body;
           g.fillRect(x, y - h, 1, h);
-          g.fillStyle = look.stripe;
+          g.fillStyle = lit ? look.litStripe : look.stripe;
           g.fillRect(x, y - 2, 1, 1);
           // two wheels at each end of a car
           if (within === 3 || within === 5 || within === TRAIN_CAR - 6 || within === TRAIN_CAR - 4) {

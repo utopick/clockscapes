@@ -5983,24 +5983,20 @@
         g.fillStyle = css(e.sh([190, 195, 205]));
         line(g, ecx, ecy, ecx - Math.round(R * 0.55), G);
         line(g, ecx, ecy, ecx - Math.round(R * 0.2), G);
-        g.fillStyle = css(eyeC, 0.45);
-        for (let i = 0; i < 12; i++) {
-          const a = (i / 12) * Math.PI * 2;
-          line(g, ecx, ecy, ecx + Math.cos(a) * R, ecy + Math.sin(a) * R);
-        }
         g.fillStyle = css(eyeC);
         ring(g, ecx, ecy, R);
         g.fillRect(ecx - 1, ecy - 1, 3, 3);
-        g.fillStyle = css(night ? [255, 150, 200] : e.sh([245, 248, 255]));
-        for (let i = 0; i < 16; i++) {
-          const a = (i / 16) * Math.PI * 2;
-          g.fillRect(
-            Math.round(ecx + Math.cos(a) * (R + 1)) - 1,
-            Math.round(ecy + Math.sin(a) * (R + 1)) - 1,
-            2,
-            2,
-          );
-        }
+        // the spokes and the 32 capsules turn, so they are drawn each frame (drawWheels)
+        e.wheels.push({
+          x: ecx,
+          y: ecy,
+          r: R,
+          cr: R + 1,
+          spokes: 12,
+          caps: 16,
+          spoke: css(eyeC, 0.45),
+          cap: css(night ? [255, 150, 200] : e.sh([245, 248, 255])),
+        });
         // Palace of Westminster
         const sand = [208, 186, 136],
           px0 = Math.round(W * 0.02),
@@ -6144,6 +6140,46 @@
         // the bats rise from under the Congress Avenue Bridge (or from the street on a short screen)
         const lake = ground(g, e, true);
         e.batsY = lake < e.H ? bridge(g, e, lake, [176, 170, 156], [96, 92, 86]) : lake;
+      }
+      // Ferris wheels turn once every two minutes (the real London Eye takes thirty, too slow to see).
+      function drawWheels(g, e, t) {
+        const turn = (t / 120000) * Math.PI * 2;
+        for (const w of e.wheels || []) {
+          g.fillStyle = w.spoke;
+          for (let i = 0; i < w.spokes; i++) {
+            const a = turn + (i / w.spokes) * Math.PI * 2;
+            line(g, w.x, w.y, w.x + Math.cos(a) * w.r, w.y + Math.sin(a) * w.r);
+          }
+          g.fillStyle = w.cap;
+          for (let i = 0; i < w.caps; i++) {
+            const a = turn + (i / w.caps) * Math.PI * 2;
+            g.fillRect(
+              Math.round(w.x + Math.cos(a) * w.cr) - 1,
+              Math.round(w.y + Math.sin(a) * w.cr) - 1,
+              2,
+              2,
+            );
+          }
+        }
+      }
+      // A lighthouse at night: its beam sweeps round every 10 s, seen from the side as a ray that swings
+      // out to one side, shrinks to the lamp and swings out to the other, and the lamp flares as it faces us.
+      function drawBeams(g, e, t) {
+        if (!e.beams?.length || e.pal.lit <= 0.2) return;
+        const a = (t / 10000) * Math.PI * 2,
+          reach = Math.cos(a),
+          facing = Math.abs(Math.sin(a));
+        for (const b of e.beams) {
+          const len = Math.round(b.len * Math.abs(reach)),
+            dir = reach < 0 ? -1 : 1;
+          for (let k = 1; k <= len; k++) {
+            const spread = Math.floor((k / b.len) * 3); // the ray widens as it goes
+            g.fillStyle = `rgba(255,236,170,${(0.5 * (1 - k / (len + 1))).toFixed(2)})`;
+            g.fillRect(b.x + dir * k, b.y - spread, 1, 1 + 2 * spread);
+          }
+          g.fillStyle = `rgba(255,244,200,${(0.5 + 0.5 * facing).toFixed(2)})`;
+          g.fillRect(b.x - 1, b.y - 1, 3, 3);
+        }
       }
       function animAustin(g, e, t) {
         // Congress Avenue bats around dusk
@@ -8190,6 +8226,7 @@
             box(-tw, h + 4, 2 * tw + 1, 3, 3);
             cone(0, h + 4, tw + 1, 2, o.rc ?? 10);
             box(0, h + 8, 1, 2, 2);
+            e.beams?.push({ x: X(0), y: Y(h + 3), len: R(h * 1.6) }); // its light sweeps at night (drawBeams)
             break;
           }
           case "castle": {
@@ -8374,13 +8411,18 @@
             for (const p of [-1, 1]) stroke(p * Math.round(r * 0.5), 0, 0, hub, o.t ?? 8);
             g.fillStyle = ink[c];
             ring(g, X(0), Y(hub), R(r));
-            for (let a = 0; a < 16; a++) {
-              const dx = Math.round(Math.cos((a * Math.PI) / 8) * r),
-                dy = Math.round(Math.sin((a * Math.PI) / 8) * r);
-              if (a % 2 === 0) stroke(0, hub, dx, hub + dy, c);
-              box(dx - 1, hub + dy, 2, 2, t);
-            }
             orb(0, hub, 1, t);
+            // the spokes and capsules turn, so they are drawn each frame (drawWheels)
+            e.wheels?.push({
+              x: X(0),
+              y: Y(hub),
+              r: R(r),
+              cr: R(r),
+              spokes: 8,
+              caps: 16,
+              spoke: ink[c],
+              cap: ink[t],
+            });
             break;
           }
           case "stadium": {
@@ -12011,6 +12053,8 @@
           e.crowd = crowdFor(home?.population);
           e.windows = []; // filled by the scene, for windows that switch on and off at night
           e.lamps = [];
+          e.wheels = []; // Ferris wheels and lighthouses, which move: drawn each frame over the scene
+          e.beams = [];
           // Hand-drawn landmarks have fixed pixel widths, so their heights get at most the room a phone has:
           // a taller screen shows more sky over the same skyline instead of stretching Big Ben.
           if (scene) {
@@ -12284,6 +12328,8 @@
             this.flipWindow(e);
           }
           g.drawImage(this.fg, 0, 0);
+          drawWheels(g, e, REDUCED_MOTION.matches ? 0 : t);
+          drawBeams(g, e, REDUCED_MOTION.matches ? 0 : t);
           // water shimmer
           if (e.water) {
             const { y0, y1 } = e.water,

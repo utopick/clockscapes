@@ -11116,6 +11116,9 @@
         music.k++;
         queueMicrotask(() => mediaInfo(true)); // once the title below is set
         music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
+        // plan its first notes now: a press on play or next (or the lock screen's) may come long before
+        // the next tick when the screen is off
+        music.songs.at(-1).schedule(now + lookahead());
         let when;
         if (mood.alt > 6) when = "by day";
         else if (mood.alt < -6) when = "at night";
@@ -11124,11 +11127,19 @@
         $("#nowPlaying").textContent = "Now playing: " + music.title;
         toast("♪ " + music.title);
       }
+      const lookahead = () => Math.min(10, Math.max(document.hidden ? 5 : 1.2, (music.gap || 0) * 3));
       function musicTick() {
         const now = audioCtx.currentTime;
-        // a long lookahead, because timers slow down to once a second when the page is in the background
-        for (const song of music.songs) song.schedule(now + 1.2);
+        // Notes are planned ahead, because timers slow down when the page is in the background or the
+        // screen is off (to once a second or less). The lookahead is three times the longest recent gap
+        // between two ticks, at least 1.2 s and 5 s when hidden, at most 10 s, so a late tick never leaves
+        // the music without notes.
+        const gap = music.lastTick ? now - music.lastTick : 0;
+        music.lastTick = now;
+        music.gap = Math.max(gap, (music.gap || 0) * 0.98);
+        // a new song starts before planning, so its first notes are planned in this same tick
         if (now > music.songs.at(-1).end - 8) nextSong(8);
+        for (const song of music.songs) song.schedule(now + lookahead());
         // keep songs still sounding; dispose() frees the others and returns nothing, so they are dropped
         music.songs = music.songs.filter((song) => now < song.stopAt + 2 || song.dispose());
       }
@@ -11174,7 +11185,9 @@
       // If the browser won't play the element, the music goes straight to the speakers as before.
       function mediaOut(on) {
         if (!on) return void music.el?.pause();
-        if (!music.el && audioCtx.createMediaStreamDestination) {
+        // The Android app has its own media controls and audio focus, and the element can stall with
+        // the screen off, so there the music goes straight to the speakers.
+        if (!music.el && audioCtx.createMediaStreamDestination && !window.ClockscapesAndroid) {
           music.dest = audioCtx.createMediaStreamDestination();
           music.el = new Audio();
           music.el.srcObject = music.dest.stream;

@@ -88,6 +88,13 @@ object Web {
             (context as? Activity)?.runOnUiThread { context.moveTaskToBack(true) }
         }
 
+        /** The page's alarm list, as JSON, for the phone alarms (Alarms). */
+        @JavascriptInterface
+        fun setAlarms(json: String) {
+            Alarms.save(context.applicationContext, json)
+            (context as? MainActivity)?.askForNotifications()
+        }
+
         /** The page's music started, stopped or moved to a new song: updates the music notification. */
         @JavascriptInterface
         fun musicState(playing: Boolean, title: String) {

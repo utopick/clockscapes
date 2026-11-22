@@ -2,6 +2,9 @@ package io.github.utopick.clockscapes
 
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -20,14 +23,42 @@ class MainActivity : Activity() {
         fun js(code: String) {
             current?.let { it.runOnUiThread { it.web.evaluateJavascript(code, null) } }
         }
+
+        /** True while the app is on screen (its page then sounds the alarms itself). */
+        @Volatile
+        var inFront = false
+    }
+
+    /** Android 13 and newer ask the person once before an app may show notifications. */
+    fun askForNotifications() = runOnUiThread {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+    }
+
+    // Holding audio focus makes the music count as the phone's media: other players pause, and a call or
+    // another app taking over stops it.
+    private val audio by lazy { getSystemService(AudioManager::class.java) }
+    private val focus by lazy {
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setOnAudioFocusChangeListener { change ->
+                if (change == AudioManager.AUDIOFOCUS_LOSS) js(MusicNotice.JS_STOP)
+            }
+            .build()
     }
 
     /** Shows the music notification (from the page, through ClockscapesAndroid.musicState). */
     fun musicState(playing: Boolean, title: String) = runOnUiThread {
-        // Android 13 and newer ask the person once before an app may show notifications
-        if (playing && Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+        if (playing) {
+            askForNotifications()
+            audio.requestAudioFocus(focus)
+        } else audio.abandonAudioFocusRequest(focus)
         MusicNotice.show(this, playing, title)
     }
 
@@ -60,10 +91,12 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        inFront = true
         web.onResume()
     }
 
     override fun onPause() {
+        inFront = false
         web.onPause()
         super.onPause()
     }

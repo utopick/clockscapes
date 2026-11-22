@@ -732,8 +732,9 @@
               </p>
               <!-- only shown inside the Android app -->
               <p class="hint atlasHint" id="androidAlarmHint" hidden>
-                On the live wallpaper and the lock screen, alarms make no sound, and their message only shows
-                if the screen is on during that minute. For an alarm you can hear, keep this app open.
+                The app also rings each alarm as a phone alarm, with a notification and the alarm sound, even
+                when the app is closed. The message only crosses the clocks while the app or the wallpaper is
+                on screen.
               </p>
               <div id="alarms"></div>
               <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
@@ -9758,6 +9759,8 @@
         music.variation = CONFIG.music.variation;
         await store.set("config", CONFIG);
         settingsNews?.postMessage("saved");
+        // the Android app rings the alarms itself, even with the app closed
+        window.ClockscapesAndroid?.setAlarms(JSON.stringify(CONFIG.alarms || []));
         closeSettings();
         if (CONFIG.music.on !== musicOn()) musicPlay(CONFIG.music.on);
         else if (musicOn() && changedVariation) nextSong(3);
@@ -9914,6 +9917,7 @@
         CONFIG = (await savedConfig()) || CONFIG;
         CONFIG.music = vetMusic(CONFIG.music);
         music.variation = CONFIG.music.variation;
+        window.ClockscapesAndroid?.setAlarms(JSON.stringify(CONFIG.alarms || [])); // see the save handler
         buildColumns();
         if (PARAMS.has("enc")) triggerEncounter();
         requestAnimationFrame(loop);

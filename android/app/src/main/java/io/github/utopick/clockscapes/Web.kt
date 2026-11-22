@@ -88,6 +88,12 @@ object Web {
             (context as? Activity)?.runOnUiThread { context.moveTaskToBack(true) }
         }
 
+        /** The page's music started, stopped or moved to a new song: updates the music notification. */
+        @JavascriptInterface
+        fun musicState(playing: Boolean, title: String) {
+            (context as? MainActivity)?.musicState(playing, title)
+        }
+
         /** How much room the page leaves for the phone's navigation bar (see setSafeInsets in the page). */
         @JavascriptInterface
         fun insets(): String = safeInsets

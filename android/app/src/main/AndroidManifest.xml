@@ -3,6 +3,8 @@
 
     <!-- the weather comes from Open-Meteo -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- the music notification with its Stop and Next buttons -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Android Auto: a weather app that draws its own picture (the scene) on the car screen -->
     <uses-permission android:name="androidx.car.app.MAP_TEMPLATES" />
     <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
@@ -32,6 +34,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver android:name=".MusicButtons" android:exported="false" />
 
         <service
             android:name=".ClockWallpaper"

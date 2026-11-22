@@ -8229,6 +8229,7 @@
         music.title = `${z.label} ${when}${mood.rain ? " in the rain" : ""}, ${p.hour}:${p.minute}, variation ${CONFIG.music.variation}`;
         $("#nowPlaying").textContent = "Now playing: " + music.title;
         toast("♪ " + music.title);
+        window.ClockscapesAndroid?.musicState(true, music.title); // the Android app's music notification
       }
       function musicTick() {
         const now = audioCtx.currentTime;
@@ -8273,6 +8274,7 @@
         b.setAttribute("aria-pressed", String(on));
         b.textContent = on ? "❚❚ MUSIC" : "▶︎ MUSIC";
         $("#next").hidden = !on;
+        window.ClockscapesAndroid?.musicState(on, music.title || "Lo-fi music"); // the Android notification
       }
       function toggleMusic() {
         CONFIG.music.on = !musicOn();

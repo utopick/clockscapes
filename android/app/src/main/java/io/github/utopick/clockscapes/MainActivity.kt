@@ -1,6 +1,7 @@
 package io.github.utopick.clockscapes
 
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -12,8 +13,27 @@ import android.webkit.WebView
 class MainActivity : Activity() {
     private lateinit var web: WebView
 
+    companion object {
+        /** The open app, so the music notification's buttons can reach its page. */
+        private var current: MainActivity? = null
+
+        fun js(code: String) {
+            current?.let { it.runOnUiThread { it.web.evaluateJavascript(code, null) } }
+        }
+    }
+
+    /** Shows the music notification (from the page, through ClockscapesAndroid.musicState). */
+    fun musicState(playing: Boolean, title: String) = runOnUiThread {
+        // Android 13 and newer ask the person once before an app may show notifications
+        if (playing && Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+        MusicNotice.show(this, playing, title)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        current = this
         web = Web.make(this)
         setContentView(web)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -49,6 +69,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (current === this) current = null
+        MusicNotice.hide(this)
         web.destroy()
         super.onDestroy()
     }

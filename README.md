@@ -16,6 +16,18 @@ On a phone held upright the clocks stack in rows, with each clock beside its cit
 
 <img src="img/phone.png" alt="Phone view: Tokyo, Mexico City and Rio de Janeiro stacked in rows" width="245">
 
+## Android app
+
+There is also an Android app for phones, tablets and TVs (Android TV and Google TV). It shows the same page, with a few extras that only an app can do. The APK is attached to each [release](https://github.com/utopick/clockscapes/releases), and it isn't on the Play Store, so you install it by hand:
+
+1. Download the APK on the device, or copy it there on a USB stick. On a TV, the Downloader app or "Send Files to TV" are the easiest ways to get it there.
+2. Open it, and allow the app you opened it with to install unknown apps when Android asks.
+3. To update it later, install the new APK over the old one. Your settings stay.
+
+On a phone, **SET AS WALLPAPER** in the SCREEN tab puts the clocks on your home and lock screen as a live wallpaper. On a TV the app sits in the apps row, the remote moves around it as described under [Keys](#keys), and you can pick Clockscapes as the TV's screensaver in its screensaver settings (the screensaver is silent).
+
+The music behaves like any music app. On a phone it keeps playing in the background with a notification to stop or skip it, it stops when another app starts playing, and it pauses for a call and comes back when the call is over. On a TV it stops when you leave the app.
+
 ## What it does
 
 - Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. Ferris wheels such as the London Eye turn, and lighthouses sweep their beams at night. The light follows the real sun and moon, and the sky follows the live weather (rain, snow, fog, storms), so people open umbrellas when it rains there. Trees follow the local season, bare in winter, in blossom in spring and orange in autumn.

@@ -1416,7 +1416,7 @@
             src.start(t, Math.random() * 1.5);
             src.stop(t + long + 0.1);
           }
-          // A piece of filtered noise: the voices' syllables, the wheels' clacks and the train's rumble.
+          // A piece of filtered noise: the wheels' clacks and the train's rumble.
           noise(t, type, freq, q, peak, attack, len, endFreq) {
             const ctx = this.ctx,
               src = ctx.createBufferSource(),
@@ -1435,19 +1435,39 @@
             src.start(t, Math.random() * 1.5);
             src.stop(t + len + 0.05);
           }
-          // People talking nearby: one syllable of a murmur, a short vowel-like band of noise.
+          // Someone talking nearby: a short phrase of syllables, each a low hum (a person's pitch, gliding
+          // a little) through two vowel bands, so it murmurs instead of hissing.
           voice(t) {
-            const f = 380 + Math.random() * 900;
-            this.noise(
-              t,
-              "bandpass",
-              f,
-              4,
-              0.2 + Math.random() * 0.15,
-              0.03,
-              0.12 + Math.random() * 0.25,
-              f * (0.8 + Math.random() * 0.4),
-            );
+            const ctx = this.ctx,
+              pitch = 100 + Math.random() * 120,
+              out = ctx.createGain();
+            out.gain.value = 0.5 + Math.random() * 0.3;
+            out.connect(this.amb);
+            for (let n = 3 + Math.floor(Math.random() * 5), at = t; n > 0; n--) {
+              const len = 0.09 + Math.random() * 0.16,
+                o = ctx.createOscillator(),
+                g = ctx.createGain();
+              o.type = "sawtooth";
+              o.frequency.setValueAtTime(pitch * (0.9 + Math.random() * 0.25), at);
+              o.frequency.linearRampToValueAtTime(pitch * (0.85 + Math.random() * 0.2), at + len);
+              for (const [lo, hi] of [
+                [300, 800],
+                [900, 2000],
+              ]) {
+                const f = ctx.createBiquadFilter();
+                f.type = "bandpass";
+                f.frequency.value = lo + Math.random() * (hi - lo);
+                f.Q.value = 6;
+                o.connect(f).connect(g);
+              }
+              g.gain.setValueAtTime(0, at);
+              g.gain.linearRampToValueAtTime(0.25, at + 0.03);
+              g.gain.linearRampToValueAtTime(0, at + len);
+              g.connect(out);
+              o.start(at);
+              o.stop(at + len + 0.02);
+              at += len + 0.03 + Math.random() * 0.12;
+            }
           }
           // A train going past: a rumble that swells and fades, and the wheels clacking over each rail joint
           // (two bogies a car, ta-tak ... ta-tak), loudest as the middle of the train passes.
@@ -1492,7 +1512,7 @@
                 at = () => t + Math.random() * sd;
               if (Math.random() < 0.035 * this.s.birds) this.chirp(at());
               if (Math.random() < 0.3 * this.s.crickets) this.trill(at());
-              if (Math.random() < 0.8 * this.s.crowd) this.voice(at());
+              if (Math.random() < 0.06 * this.s.crowd) this.voice(at()); // a phrase every few seconds in a busy city
               if (this.s.trains && Math.random() < sd / 75) this.train(at()); // about one every 75 s
               if (Math.random() < 0.5 * this.s.rain) this.drop(at(), 0.02 + Math.random() * 0.03);
               if (this.s.thunder && Math.random() < sd / 25) this.thunder(at(), Math.random() < 0.25);

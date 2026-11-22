@@ -89,7 +89,7 @@ The same SCREEN tab has three settings for leaving the clocks up for hours. **Ba
 | **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again) |
 | **Esc** | Closes settings |
 
-On a touch screen, tap to show the buttons. There are a few easter eggs too. **K**eep poking and you'll maybe find some.
+On a touch screen, tap to show the buttons. With a TV remote, the arrows move between the buttons and the settings, OK presses, Back closes settings, and the remote's play and next keys control the music. There are a few easter eggs too. **K**eep poking and you'll maybe find some.
 
 ![Tokyo in the morning, Mexico City at sunset and Rio de Janeiro at night](img/screenshot.png)
 

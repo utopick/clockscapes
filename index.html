@@ -388,6 +388,11 @@
         outline: none;
         border-color: #ffd27a;
       }
+      /* the focus a TV remote or a keyboard moves around */
+      :is(button, a, summary):focus-visible {
+        outline: 3px solid #ffd27a;
+        outline-offset: 2px;
+      }
       #cfg button {
         background: #1d2360;
         color: #fff;
@@ -12911,6 +12916,73 @@
         screenCare();
         refreshAllWeather(false);
       });
+      // ---- TV remote: the arrows move the focus to the nearest control that way, OK presses it, Back
+      // (through tvBack, from the Android app) closes settings or hides the buttons, and the media keys
+      // play, pause and skip the music ----
+      const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+      function focusables() {
+        const root = modal.classList.contains("hidden") ? $("#controls") : modal;
+        return [...root.querySelectorAll("button, input, select, textarea, a[href], summary")].filter(
+          (el) => !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== "hidden",
+        );
+      }
+      // the nearest control from the focused one in direction [dx, dy], counting sideways distance double
+      function nearest(from, [dx, dy]) {
+        const r = from.getBoundingClientRect(),
+          cx = r.left + r.width / 2,
+          cy = r.top + r.height / 2;
+        let best = null,
+          score = Infinity;
+        for (const el of focusables()) {
+          if (el === from) continue;
+          const q = el.getBoundingClientRect(),
+            x = q.left + q.width / 2 - cx,
+            y = q.top + q.height / 2 - cy,
+            along = x * dx + y * dy,
+            side = Math.abs(x * dy - y * dx);
+          if (along > 2 && along + side * 2 < score) [best, score] = [el, along + side * 2];
+        }
+        return best;
+      }
+      addEventListener("keydown", (ev) => {
+        if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        const media = {
+          MediaPlayPause: toggleMusic,
+          MediaPlay: () => musicOn() || toggleMusic(),
+          MediaPause: () => musicOn() && toggleMusic(),
+          MediaStop: () => musicOn() && toggleMusic(),
+          MediaTrackNext: () => musicOn() && nextSong(3),
+          MediaFastForward: () => musicOn() && nextSong(3),
+          ContextMenu: () => (modal.classList.contains("hidden") ? openSettings() : closeSettings()),
+        }[ev.key];
+        if (media) return void (ev.preventDefault(), media());
+        const dir = ARROWS[ev.key],
+          el = document.activeElement,
+          inside = el && el !== document.body && focusables().includes(el);
+        if (!dir && !(ev.key === "Enter" && !inside)) return;
+        // a text box keeps left and right for its caret, and a slider for its value
+        if (
+          dir?.[0] &&
+          inside &&
+          (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !/button|checkbox|radio/.test(el.type)))
+        )
+          return;
+        ev.preventDefault();
+        poke();
+        const next = inside ? nearest(el, dir) : focusables().find((b) => b.id === "gear") || focusables()[0];
+        next?.focus();
+        next?.scrollIntoView({ block: "nearest" });
+      });
+      // Back on the remote: true when the page used it (closed settings or hid the buttons)
+      window.tvBack = () => {
+        if (!modal.classList.contains("hidden")) return (closeSettings(), true);
+        if (!document.body.classList.contains("idle")) {
+          document.activeElement?.blur();
+          document.body.classList.add("idle");
+          return true;
+        }
+        return false;
+      };
       addEventListener("keydown", (ev) => {
         const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "");
         if (ev.key === "Escape") closeSettings();

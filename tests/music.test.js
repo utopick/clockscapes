@@ -95,3 +95,14 @@ test("thunder only comes with rain in a storm", () => {
   assert.strictEqual(LOFI.song(7, { rain: 0.8 }).thunder, false);
   assert.strictEqual(LOFI.song(7, { rain: 0, thunder: true }).thunder, false);
 });
+
+test("birds sing by day, crickets on warm nights, and both stop in the rain", () => {
+  const day = LOFI.song(9, { night: 0 }),
+    warmNight = LOFI.song(9, { night: 1, warm: true }),
+    coldNight = LOFI.song(9, { night: 1 }),
+    rainyDay = LOFI.song(9, { night: 0, rain: 0.6 });
+  assert.ok(day.birds > 0 && day.crickets === 0);
+  assert.ok(warmNight.crickets > 0 && warmNight.birds === 0);
+  assert.strictEqual(coldNight.crickets, 0);
+  assert.ok(rainyDay.birds === 0 && rainyDay.crickets === 0);
+});

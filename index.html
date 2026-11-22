@@ -824,7 +824,9 @@
        * LOFI.song(seed, mood) writes a song "sheet" from a number; it is pure and tests/music.test.js checks it.
        *   mood = { night: 0 (day) to 1 (deep night), rain: 0 to 1, thunder: true in a storm }; night means
        *   minor keys, slower, darker. Rain plays a hiss, a low wash and drops on the window; thunder adds
-       *   distant rumbles and now and then a closer crack.
+       *   distant rumbles and now and then a closer crack. Without rain the place still sounds: mood.sea
+       *   (a coastal city) brings slow waves, mood.wind (0 to 1) a rising and falling wind, and birds sing by
+       *   day, crickets on warm nights (mood.warm).
        * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
@@ -1169,6 +1171,11 @@
             crackle: 0.25 + r() * 0.5,
             rain,
             thunder: Boolean(mood.thunder) && rain > 0,
+            sea: Boolean(mood.sea),
+            wind: clamp(+mood.wind || 0, 0, 1),
+            // birds by day and crickets on warm nights, both quiet in the rain
+            birds: rain ? 0 : clamp(1 - night * 1.6, 0, 1),
+            crickets: rain || !mood.warm ? 0 : clamp(night * 1.6 - 0.6, 0, 1),
           };
         }
 
@@ -1244,7 +1251,7 @@
             this.lfo.start(start);
             // vinyl crackle, and rain when it rains at that place
             this.beds = [this.lfo];
-            const bed = (buffer, type, freq, gain) => {
+            const bed = (buffer, type, freq, gain, swell = 0, period = 9) => {
               const src = ctx.createBufferSource(),
                 f = ctx.createBiquadFilter(),
                 g = ctx.createGain();
@@ -1253,6 +1260,17 @@
               f.type = type;
               f.frequency.value = freq;
               g.gain.value = gain;
+              if (swell) {
+                // a slow rise and fall: waves breaking, gusts of wind
+                const lfo = ctx.createOscillator(),
+                  depth = ctx.createGain();
+                lfo.frequency.value = 1 / (period * (0.8 + Math.random() * 0.4));
+                depth.gain.value = gain * swell;
+                lfo.connect(depth).connect(g.gain);
+                if (type === "bandpass") lfo.connect(depth).connect(f.frequency); // wind also whistles up and down
+                lfo.start(start);
+                this.beds.push(lfo);
+              }
               src.connect(f).connect(g).connect(this.fader);
               src.start(start, Math.random() * 2);
               this.beds.push(src);
@@ -1262,6 +1280,43 @@
               bed(k.noise, "bandpass", 2400, 0.12 * sheet.rain); // the hiss
               bed(k.noise, "lowpass", 420, 0.16 * sheet.rain * sheet.rain); // a low wash, for heavy rain
             }
+            if (sheet.sea) bed(k.noise, "lowpass", 650, 0.07, 0.9, 8); // waves, one every 8 s or so
+            if (sheet.wind > 0.15) bed(k.noise, "bandpass", 420, 0.05 * sheet.wind, 0.8, 13);
+          }
+          // A bird: two to four quick whistles sweeping up or down.
+          chirp(t) {
+            const ctx = this.ctx,
+              n = 2 + Math.floor(Math.random() * 3),
+              f = 2600 + Math.random() * 2400,
+              up = Math.random() < 0.5;
+            for (let i = 0; i < n; i++) {
+              const o = ctx.createOscillator(),
+                g = ctx.createGain(),
+                at = t + i * (0.07 + Math.random() * 0.03);
+              o.frequency.setValueAtTime(f * (up ? 0.85 : 1.15), at);
+              o.frequency.exponentialRampToValueAtTime(f, at + 0.05);
+              g.gain.setValueAtTime(0, at);
+              g.gain.linearRampToValueAtTime(0.018, at + 0.01);
+              g.gain.exponentialRampToValueAtTime(0.0001, at + 0.06);
+              o.connect(g).connect(this.fader);
+              o.start(at);
+              o.stop(at + 0.07);
+            }
+          }
+          // A cricket: three fast pulses of a high tone.
+          trill(t) {
+            const ctx = this.ctx,
+              o = ctx.createOscillator(),
+              g = ctx.createGain();
+            o.frequency.value = 4300 + Math.random() * 600;
+            g.gain.setValueAtTime(0, t);
+            for (let i = 0; i < 3; i++) {
+              g.gain.setValueAtTime(0.008, t + i * 0.045);
+              g.gain.setValueAtTime(0, t + i * 0.045 + 0.018);
+            }
+            o.connect(g).connect(this.fader);
+            o.start(t);
+            o.stop(t + 0.15);
           }
           // One drop on the window: a short high plink that falls a little in pitch.
           drop(t, gain) {
@@ -1319,7 +1374,10 @@
             }
           }
           play(step, t) {
-            // the weather, between the notes: drops on the window, and in a storm a rumble every 25 s or so
+            // the place, between the notes: birds by day, crickets at night
+            if (Math.random() < 0.035 * this.s.birds) this.chirp(t + Math.random() * this.sd);
+            if (Math.random() < 0.3 * this.s.crickets) this.trill(t + Math.random() * this.sd);
+            // the weather: drops on the window, and in a storm a rumble every 25 s or so
             if (this.s.rain > 0) {
               const sd = this.sd;
               if (Math.random() < 0.5 * this.s.rain)
@@ -5064,8 +5122,11 @@
           ok: true,
         };
       }
+      // The weather test (R three times, or swiping up, down, up, down): rain in every city, then a storm,
+      // then the real weather again. Like ?wx=, it changes what is drawn and heard, not what is saved.
+      let weatherTest = null;
       function debugWx() {
-        const c = PARAMS.get("wx");
+        const c = weatherTest || PARAMS.get("wx");
         if (!c) return null;
         const desc =
           {
@@ -11142,15 +11203,24 @@
       }
       // What the music should feel like at clock z now: night 0..1 (0 by day, 1 from 6 degrees below the
       // horizon) and rain 0..1 from the weather.
+      // November to March in the north (May to September in the south): no crickets when the temperature is unknown.
+      const wintry = (z) => {
+        const m = MONTHS.indexOf(timeParts(z.tz, Date.now()).month); // 0 is January
+        return +z.lat >= 0 ? m >= 10 || m <= 2 : m >= 4 && m <= 8;
+      };
       function moodAt(z) {
         const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sunPos(Date.now(), +z.lat, +z.lon).alt;
-        const wx = CONFIG.weather === false ? null : WX[wxKey(z)];
+        const wx = debugWx() || (CONFIG.weather === false ? null : WX[wxKey(z)]);
         const wet = wx && (wx.cat === "rain" || wx.cat === "thunder");
         return {
           alt,
           night: clamp((6 - alt) / 12, 0, 1),
           rain: wet ? clamp(wx.inten || 0.5, 0.2, 1) : 0,
           thunder: wx?.cat === "thunder",
+          // the place without rain: the sea in coastal cities, wind (from 3 m/s up to 15), warm nights
+          sea: ["harbor", "island"].includes(CITY_ATLAS[z.scene]?.style),
+          wind: wx ? clamp(((wx.wind || 0) - 3) / 12, 0, 1) : 0,
+          warm: wx?.temp == null ? !wintry(z) : wx.temp >= 14,
         };
       }
       function setMusicVolume(v) {
@@ -12060,7 +12130,7 @@
           }
           const off = (tp.timeZoneName || "").replace("GMT", "UTC") || "UTC";
           let wtxt = "";
-          if (PARAMS.get("wx") || wx.ok) {
+          if (debugWx() || wx.ok) {
             const t =
               wx.temp == null
                 ? ""
@@ -12627,6 +12697,8 @@
           triggerEncounter();
         if ((ev.key === "m" || ev.key === "M") && !ev.repeat) toggleMusic();
         if ((ev.key === "a" || ev.key === "A") && !ev.repeat && modal.classList.contains("hidden")) testKey();
+        if ((ev.key === "r" || ev.key === "R") && !ev.repeat && modal.classList.contains("hidden"))
+          testKey(cycleWeatherTest, "r");
         if ((ev.key === "n" || ev.key === "N") && !ev.repeat && musicOn()) nextSong(3);
         if (ev.key === "f" || ev.key === "F") {
           ev.preventDefault();
@@ -12687,28 +12759,47 @@
       window.nativeShake = () => Date.now() - lastMotion > 2000 && shaken();
 
       // ---- test alarm: A three times within 2 s, or one down-up-down zigzag stroke on the clocks ----
+      // ---- weather test: R three times, or one up-down-up-down stroke ----
       // (a vertical zigzag, because sideways swipes from the screen edge are the phone's back gesture)
       function playTestAlarm() {
         fireAlarm({ text: CONFIG.alarmTest || "Test alarm", sound: true });
         toast("Test alarm");
       }
-      let keyPresses = [];
-      function testKey() {
+      function cycleWeatherTest() {
+        weatherTest = { null: "rain", rain: "thunder", thunder: null }[weatherTest];
+        toast(
+          { rain: "Weather test: rain in every city", thunder: "Weather test: a storm in every city" }[
+            weatherTest
+          ] || "Weather test off: the real weather again",
+        );
+        buildColumns();
+        if (musicOn()) nextSong(3); // the next song brings the rain (or its end) to the music
+      }
+      // three presses of the same key within 2 s
+      const keyPresses = {};
+      function testKey(action = playTestAlarm, key = "a") {
         const now = Date.now();
-        keyPresses = keyPresses.filter((t) => now - t < 2000).concat(now);
-        if (keyPresses.length < 3) return;
-        keyPresses = [];
-        playTestAlarm();
+        keyPresses[key] = (keyPresses[key] || []).filter((t) => now - t < 2000).concat(now);
+        if (keyPresses[key].length < 3) return;
+        keyPresses[key] = [];
+        action();
       }
       const ZIG_LEG = 40, // CSS pixels each stroke of the zigzag must cover
         ZIG_TURN = 15; // moving back this far ends a stroke
       let zig = null;
+      // The first stroke sets the gesture: down, up, down is the test alarm; up, down, up, down the weather test.
       $("#cols").addEventListener("pointerdown", (ev) => {
-        zig = ev.isPrimary ? { dir: 1, from: ev.clientY, ext: ev.clientY, legs: 0, t: Date.now() } : null;
+        zig = ev.isPrimary
+          ? { dir: 0, first: 0, from: ev.clientY, ext: ev.clientY, legs: 0, t: Date.now() }
+          : null;
       });
       $("#cols").addEventListener("pointermove", (ev) => {
         if (!zig || !ev.isPrimary) return;
         const y = ev.clientY;
+        if (!zig.dir) {
+          if (Math.abs(y - zig.from) > ZIG_TURN) zig.first = zig.dir = Math.sign(y - zig.from);
+          return;
+        }
         if ((y - zig.ext) * zig.dir > 0) zig.ext = y;
         else if (Math.abs(y - zig.ext) > ZIG_TURN) {
           // a stroke too short, or one that starts upwards, cancels the gesture
@@ -12721,8 +12812,9 @@
       });
       $("#cols").addEventListener("pointerup", () => {
         if (zig && (zig.ext - zig.from) * zig.dir >= ZIG_LEG) zig.legs++;
-        if (zig?.legs >= 3 && zig.dir > 0 && Date.now() - zig.t < 2500 && modal.classList.contains("hidden"))
-          playTestAlarm();
+        const quick = zig && Date.now() - zig.t < 2500 && modal.classList.contains("hidden");
+        if (quick && zig.first > 0 && zig.legs === 3) playTestAlarm();
+        if (quick && zig.first < 0 && zig.legs === 4) cycleWeatherTest();
         zig = null;
       });
       $("#cols").addEventListener("pointercancel", () => (zig = null));

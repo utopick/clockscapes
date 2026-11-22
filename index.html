@@ -2443,7 +2443,8 @@
       // ==== Scene building blocks ====
       // The pieces every scene is made of: tower (a building with windows), filler (a row of random
       // towers), trees, lamp, street (sidewalk, lanes, median; it also sets e.road, e.walk and e.bike),
-      // water, drawBridge, and the train tables. Then the five hand-made scenes (sceneMadrid,
+      // ground (the street plus a railway or water band, the same in every city), water, railway, and the
+      // train tables. Then the five hand-made scenes (sceneMadrid,
       // sceneLondon, sceneAustin, sceneCity, sceneField) with their animations (animAustin, animField).
       // Every piece draws with e.rng(), so the same city always comes out the same.
       // To add a train kind, add a row to TRAIN_KINDS and, if it needs a new country, a row to TRAIN_LINES.
@@ -2530,12 +2531,13 @@
       // Every scene has a road lane exactly SYNC_LANE pixels below its ground line, with traffic going
       // right to left, so an alarm procession drives from one clock straight into the next one.
       const SYNC_LANE = 7;
-      // Trains: speed in pixels a second, cars of 20 pixels, a nose that tapers over that many pixels.
+      // Trains: speed in pixels a second, cars of 28 pixels (TRAIN_CAR), a nose that tapers over that many
+      // pixels.
       const TRAIN_KINDS = {
-        freight: { speed: 39, cars: 4, nose: 0, body: [218, 215, 203], stripe: [198, 81, 66] },
-        shinkansen: { speed: 85, cars: 6, nose: 8, body: [240, 240, 234], stripe: [36, 76, 160] },
-        commuter: { speed: 42, cars: 4, nose: 1, body: [204, 208, 212], stripe: [92, 168, 72] },
-        ave: { speed: 75, cars: 5, nose: 6, body: [236, 236, 238], stripe: [118, 48, 128] },
+        freight: { speed: 39, cars: 3, nose: 0, body: [218, 215, 203], stripe: [198, 81, 66] },
+        shinkansen: { speed: 85, cars: 4, nose: 8, body: [240, 240, 234], stripe: [36, 76, 160] },
+        commuter: { speed: 42, cars: 3, nose: 1, body: [204, 208, 212], stripe: [92, 168, 72] },
+        ave: { speed: 75, cars: 4, nose: 6, body: [236, 236, 238], stripe: [118, 48, 128] },
         cercanias: { speed: 42, cars: 3, nose: 1, body: [234, 232, 228], stripe: [204, 36, 44] },
       };
       // Countries whose cities get an elevated line, and the trains on it (repeats make a kind more common).
@@ -2548,7 +2550,8 @@
       // setting e.walk (people), e.road (cars) and e.bike; the first car lane is always at G + SYNC_LANE.
       function street(g, e, bottom = e.H) {
         const { W, G } = e;
-        const deep = bottom - G >= 27;
+        const deep = bottom - G >= 23,
+          bikes = bottom - G >= 27; // room for a bike lane under the second carriageway
         const paint = (color, y, h) => {
           g.fillStyle = css(e.sh(color));
           g.fillRect(0, y, W, h);
@@ -2580,10 +2583,12 @@
             planting.fillStyle = css(e.sh([167, 110, 75]));
             planting.fillRect(x + 11, G + 15, 4, 1);
           }
-          paint([81, 115, 112], G + 24, 3);
-          dashes(G + 25);
-          e.bike = G + 25;
-          e.walk = { lanes: [G + 2, G + 15, bottom - 2] };
+          if (bikes) {
+            paint([81, 115, 112], G + 24, 3);
+            dashes(G + 25);
+            e.bike = G + 25;
+          }
+          e.walk = { lanes: bikes ? [G + 2, G + 15, bottom - 2] : [G + 2, G + 15] };
           e.road = { lanes: [G + SYNC_LANE, G + 20] };
         } else {
           const two = bottom - G >= 13;
@@ -2594,40 +2599,9 @@
         for (let x = 8; x < W; x += 25) lamp(g, { ...e, G: G + 3 }, x, 8);
       }
 
-      // A continuous deck leads off both edges. The banks, arches and piers sit below it.
-      function drawBridge(g, e, deck, stone) {
-        const { W, H } = e;
-        const wide = H - deck >= 18;
-        const slab = deck + (wide ? 12 : 8);
-        const riverEnd = Math.max(slab + 3, H - 7);
-        const paint = (color, x, y, w, h) => {
-          g.fillStyle = css(e.sh(color));
-          g.fillRect(x, y, w, h);
-        };
-        const bank = Math.max(4, Math.round(W * 0.09));
-        for (const x of [0, W - bank]) paint(mulc(stone, 0.7), x, slab, bank, H - slab);
-        for (let x = bank; x < W - bank; x += 19) {
-          paint(mulc(stone, 0.72), x, slab, 3, riverEnd - slab);
-          paint(stone, x - 1, slab, 5, 2);
-        }
-        paint([104, 113, 115], 0, deck, W, 1);
-        paint([178, 168, 152], 0, deck + 1, W, 3);
-        paint([62, 66, 76], 0, deck + 4, W, wide ? 6 : 4);
-        if (wide) paint([81, 115, 112], 0, deck + 10, W, 2);
-        paint(stone, 0, slab, W, 2);
-        paint(mulc(stone, 0.68), 0, slab + 2, W, 1);
-        for (let x = 4; x < W; x += 12) paint(stone, x, deck - 1, 1, 2);
-        for (let x = 9; x < W; x += 25) lamp(g, { ...e, G: deck + 3 }, x, 7);
-        e.walk = { lanes: [deck + 1] }; // the back of the sidewalk, clear of the first car lane
-        e.road = { lanes: [e.G + SYNC_LANE] };
-        if (wide) e.bike = deck + 11;
-        e.water.y0 = slab + 3;
-        return slab + 3;
-      }
-
-      // Madrid's foreground: a small park on the boulevard and, if there is room below, a rail line (e.rail).
-      function madridParkAndRail(g, e, bottom) {
-        const { W, H, G } = e;
+      // Madrid's small park on the boulevard, between two blocks of the skyline.
+      function madridPark(g, e) {
+        const { W, G } = e;
         const parkTop = Math.floor(G - 6);
         // A small park occupies the space between two blocks on the boulevard.
         const x0 = Math.floor(W * 0.43),
@@ -2640,16 +2614,59 @@
         g.fillRect(x0 + Math.floor(width / 2) - 2, parkTop + 2, 5, 2);
         for (let x = x0 + 3; x < x0 + width - 1; x += 7)
           drawPlant(g, { ...e, flora: "mediterranean" }, x, parkTop + 4, 1, Math.floor((x - x0) / 7));
-        if (bottom === H) return;
-        g.fillStyle = css(e.sh([96, 90, 92]));
-        g.fillRect(0, bottom, W, H - bottom);
-        g.fillStyle = css(e.sh([142, 122, 106]));
-        for (let x = 1; x < W; x += 4) g.fillRect(x, bottom + 1, 2, 5);
-        g.fillStyle = css(e.sh([192, 181, 166]));
-        g.fillRect(0, bottom + 1, W, 1);
-        g.fillRect(0, bottom + 5, W, 1);
-        e.rail = bottom + 4;
+      }
+
+      // The ground every city shares, so clocks side by side line up band by band: the street (sidewalk,
+      // first road, a strip of park, second road, bike lane) and, when the column is deep enough, a band
+      // from G + 24 to the bottom: a railway inland, or water with boats in coastal and river cities.
+      // Returns where that band starts (e.H when there is no room for it).
+      function ground(g, e, waterBelow) {
+        const bottom = e.H - e.G >= 35 ? e.G + 24 : e.H;
+        street(g, e, bottom);
+        if (bottom < e.H) (waterBelow ? water : railway)(g, e, bottom);
+        return bottom;
+      }
+      // The railway band from b (its top row) down, 11 pixels and ballast below: the overhead wire at b on
+      // electric lines, trains 6 pixels tall with their wheels at b + 8 (e.rail), the rail at b + 9 and
+      // the sleepers at b + 10. Freight trains use it everywhere. A city with a metro or suburban trains
+      // (e.electric) also gets the wires and a station, where its passenger trains stop (e.station).
+      function railway(g, e, b) {
+        const { W, H } = e;
+        const fill = (color, x, y, w, h) => {
+          g.fillStyle = css(e.sh(color));
+          g.fillRect(x, y, w, h);
+        };
+        fill([96, 90, 92], 0, b, W, H - b);
+        fill([124, 116, 108], 0, b + 9, W, H - b - 9);
+        fill([110, 104, 100], 0, b, W, 1);
+        for (let x = 1; x < W; x += 4) fill([74, 62, 54], x, b + 10, 2, 1);
+        fill([206, 198, 186], 0, b + 9, W, 1);
+        e.rail = b + 8;
         e.freight = true;
+        if (!e.electric) return;
+        // the station: a platform behind the track with a yellow edge, a shelter and a sign
+        const mid = Math.round(W / 2),
+          half = Math.round(clamp(W * 0.25, 30, W / 2 - 4)),
+          x0 = mid - half,
+          x1 = mid + half;
+        fill([178, 172, 162], x0, b + 6, x1 - x0, 3);
+        fill([226, 190, 70], x0, b + 6, x1 - x0, 1);
+        const shelter = mid - 6;
+        fill([70, 74, 86], shelter, b + 1, 13, 1);
+        fill([70, 74, 86], shelter + 1, b + 2, 1, 4);
+        fill([70, 74, 86], shelter + 11, b + 2, 1, 4);
+        fill([150, 190, 200], shelter + 2, b + 2, 9, 3);
+        fill([238, 238, 232], x0 + 3, b + 1, 5, 3);
+        fill([60, 90, 170], x0 + 4, b + 2, 3, 1);
+        fill([70, 74, 86], x0 + 5, b + 4, 1, 2);
+        e.station = { x0, x1, y: b + 6 };
+        // overhead wires: masts every 40 pixels and the contact wire just over the trains
+        e.wire = b;
+        for (let x = 12; x < W; x += 40) {
+          fill([92, 94, 102], x, b - 1, 1, 10);
+          fill([92, 94, 102], x - 3, b - 1, 4, 1);
+        }
+        fill([46, 46, 54], 0, b, W, 1);
       }
 
       // River or sea from y0 to the bottom, with ripples; sets e.water so boats and the shimmer use it.
@@ -2678,10 +2695,33 @@
       function trees(g, e, x0, x1, y) {
         for (let x = x0; x < x1; x += 4 + ((e.rng() * 4) | 0)) {
           const r = 1 + ((e.rng() * 2) | 0);
-          g.fillStyle = css(e.sh(e.snow ? [215, 225, 230] : [55, 105, 55]));
+          // the season's colours (see leafSeason): a crown and one highlight pixel
+          const [crown, light] = {
+            bare: [
+              [118, 98, 82],
+              [140, 120, 100],
+            ],
+            spring: [
+              [92, 150, 76],
+              [170, 208, 112],
+            ],
+            blossom: [
+              [208, 119, 151],
+              [254, 198, 219],
+            ],
+            russet: [
+              [176, 86, 52],
+              [238, 152, 70],
+            ],
+            deciduous: [
+              [55, 105, 55],
+              [80, 135, 70],
+            ],
+          }[leafSeason(e.month ?? -1, e.latitude ?? 0, x)];
+          g.fillStyle = css(e.sh(e.snow ? [215, 225, 230] : crown));
           disc(g, x, y - r, r);
           if (!e.snow) {
-            g.fillStyle = css(e.sh([80, 135, 70]));
+            g.fillStyle = css(e.sh(light));
             g.fillRect(x - r + 1, y - 2 * r, 1, 1);
           }
         }
@@ -2791,9 +2831,9 @@
           [3, -5],
         ])
           g.fillRect(cx + dx, sy + dy, 1, 1);
-        const streetEnd = e.H - G >= 35 ? e.H - 7 : e.H;
-        street(g, e, streetEnd);
-        madridParkAndRail(g, e, streetEnd);
+        e.electric = true; // Metro and Cercanías
+        ground(g, e, false);
+        madridPark(g, e);
       }
 
       // ---- Scene: London ----
@@ -2917,12 +2957,8 @@
         g.fillRect(bx, bt + 22, bw, G - bt - 22);
         g.fillStyle = css(e.sh([175, 152, 106]));
         for (let xx = bx + 1; xx < bx + bw; xx += 2) g.fillRect(xx, bt + 23, 1, G - bt - 23);
-        // Thames and Westminster Bridge, with approaches continuing out of view. The embankment row at G
-        // closes the gap under the buildings, which a monster walking behind them would show through.
-        g.fillStyle = css(e.sh([120, 116, 106]));
-        g.fillRect(0, G, W, 1);
-        water(g, e, G + 1);
-        drawBridge(g, e, G + 2, [98, 142, 119]);
+        // the street every city has, with the Thames in the bottom band
+        ground(g, e, true);
       }
 
       // ---- Scene: Austin ----
@@ -2996,12 +3032,9 @@
         g.fillStyle = css(e.sh(pink));
         g.fillRect(ccx - 1, dt - 10, 3, 3);
         g.fillRect(ccx, dt - 12, 1, 2);
-        // shoreline trees, Lady Bird Lake, Congress Ave bridge
-        g.fillStyle = css(e.sh([86, 104, 66])); // the grassy bank under the skyline, so nothing shows through
-        g.fillRect(0, G, W, 1);
+        // shoreline trees, then the street every city has, with Lady Bird Lake in the bottom band
         for (let x = 5; x < W; x += 9) drawPlant(g, { ...e, flora: "liveOak" }, x, G, 1, 0);
-        water(g, e, G + 1);
-        e.batsY = drawBridge(g, e, G + 2, [174, 160, 143]);
+        e.batsY = ground(g, e, true); // the bats rise from the lake (or the street on a short screen)
       }
       function animAustin(g, e, t) {
         // Congress Avenue bats around dusk
@@ -3032,7 +3065,8 @@
           [190, 175, 150],
           [120, 125, 135],
         ]);
-        street(g, e);
+        e.electric = true;
+        ground(g, e, false);
         for (let lx = 7; lx < W; lx += 19) lamp(g, e, lx, 8);
       }
 
@@ -3890,6 +3924,28 @@
       // Which tree to draw: the city's profile (from cityFlora), the tree's number in its row (variant,
       // so a row mixes kinds), the month 0..11 (-1 when unknown), latitude and day of the month.
       // In the southern half of the world the seasons are shifted by six months.
+      // How leafy trees look this month away from the tropics: "bare" in winter, "spring" (fresh light
+      // green, with one tree in four in "blossom") in March and April, "russet" in October and November,
+      // and "deciduous" (summer green) the rest of the year. Within 30 degrees of the equator they stay green.
+      function leafSeason(
+        month,
+        lat,
+        variant,
+        months = { bare: [11, 0, 1], spring: [2, 3], russet: [9, 10] },
+      ) {
+        if (Math.abs(lat) < 30 || month < 0) return "deciduous";
+        const season = lat < 0 ? (month + 6) % 12 : month; // the month as it would be in the north
+        if (months.bare.includes(season)) return "bare";
+        if (months.spring.includes(season)) return variant % 4 === 0 ? "blossom" : "spring";
+        if (months.russet.includes(season)) return "russet";
+        return "deciduous";
+      }
+      // Flowering trees of warm and highland cities (jacaranda): purple in their spring, green otherwise.
+      function jacaranda(month, lat) {
+        const season = lat < 0 ? (month + 6) % 12 : month;
+        return month >= 0 && season >= 2 && season <= 4 ? "jacaranda" : "broadleaf";
+      }
+
       function plantKind(profile, variant, month, lat, day) {
         const season = lat < 0 ? (month + 6) % 12 : month; // the month as it would be in the north
         if (profile === "japanese") {
@@ -3897,7 +3953,7 @@
           if (variant % 3 === 1) {
             if (season === 10) return "ginkgo";
             if (season >= 11 || season <= 1) return "bare";
-            return "deciduous";
+            return season === 2 || season === 3 ? "spring" : "deciduous";
           }
           const blossom = (season === 2 && day >= 22) || (season === 3 && day <= 14); // cherry blossom
           if (blossom) return "blossom";
@@ -3906,26 +3962,29 @@
         if (profile === "korean") {
           if (variant % 2) return "pine";
           if (season === 3) return "blossom";
-          if (season === 9 || season === 10) return "russet";
-          return "deciduous";
+          return leafSeason(month, lat, variant + 1); // + 1: the blossom tree above already covers April
         }
-        if (profile === "mediterranean") return ["cypress", "olive", "stonePine"][variant % 3];
+        // plane trees among the evergreens, which lose their leaves like any temperate tree
+        if (profile === "mediterranean")
+          return variant % 4 === 3
+            ? leafSeason(month, lat, 1)
+            : ["cypress", "olive", "stonePine"][variant % 3];
         if (profile === "boreal") {
           if (variant % 3) return "spruce";
-          return season >= 10 || season <= 2 ? "bare" : "deciduous";
+          // birches: a later spring (May) and an earlier autumn (September, October)
+          return leafSeason(month, lat, 1, { bare: [10, 11, 0, 1, 2, 3], spring: [4], russet: [8, 9] });
         }
-        if (profile === "tropical") return variant % 3 ? "palm" : "broadleaf";
-        if (profile === "highland") return ["broadleaf", "eucalypt", "cypress"][variant % 3];
-        if (profile === "warm") return variant % 3 ? "broadleaf" : "shrub";
+        // the tropics flower (flame trees) rather than turn
+        if (profile === "tropical") return variant % 3 ? "palm" : variant % 2 ? "flame" : "broadleaf";
+        if (profile === "highland") return [jacaranda(month, lat), "eucalypt", "cypress"][variant % 3];
+        if (profile === "warm")
+          return variant % 3 ? (variant % 3 === 1 ? jacaranda(month, lat) : "broadleaf") : "shrub";
         if (profile === "datePalm") return variant % 3 ? "datePalm" : "shrub";
         if (profile === "dry" || profile === "subarctic") return "shrub";
         if (profile === "sonoran") return variant % 2 ? "cactus" : "shrub";
         if (profile === "eucalypt" || profile === "liveOak" || profile === "shrub") return profile;
-        // temperate: green, then autumn colours, then bare in winter (always green near the tropics)
-        if (Math.abs(lat) < 30 || month < 0) return "deciduous";
-        if (season >= 11 || season <= 1) return "bare";
-        if (season === 9 || season === 10) return "russet";
-        return "deciduous";
+        // temperate: spring leaves and blossom, summer green, autumn colours, then bare in winter
+        return leafSeason(month, lat, variant);
       }
 
       // One tree standing at (x, y), scaled by u pixels per art unit (1 in the street, more for big
@@ -4011,6 +4070,9 @@
           color(e.snow ? [214, 232, 232] : highlight);
           rect(-2, -9, 4, 1);
         } else if (kind === "blossom") foliage([208, 119, 151], [254, 198, 219]);
+        else if (kind === "spring") foliage([104, 164, 84], [178, 214, 118]);
+        else if (kind === "jacaranda") foliage([128, 98, 178], [182, 156, 222]);
+        else if (kind === "flame") foliage([62, 118, 70], [226, 84, 52]);
         else if (kind === "russet") foliage([181, 88, 55], [241, 156, 71]);
         else if (kind === "olive" || kind === "eucalypt") foliage([85, 124, 110], [151, 172, 140]);
         else foliage(leaf);
@@ -5608,20 +5670,19 @@
             left += (m.r - m.l) * u + gap;
           }
         }
-        if (TRAIN_LINES[city.country] && W >= 60) {
-          // an elevated line across the city for its regional and high-speed trains
+        // the ground's bottom band is water here, or a railway inland when the column is deep enough
+        const railBelow = !coastal && H - G >= 35;
+        if (TRAIN_LINES[city.country] && W >= 60 && !railBelow) {
+          // an elevated line across the city for its regional and high-speed trains, where the ground has no
+          // railway of its own (inland cities run them on the ground railway instead)
           const deck = G - 7;
           for (let x = 6; x < W; x += 22) fill(x, deck + 3, 2, G - deck - 3, [128, 126, 130], 0.08);
           fill(0, deck + 1, W, 2, e.snow ? [226, 232, 236] : [160, 158, 160], 0.06);
           fill(0, deck + 3, W, 1, [104, 102, 108], 0.08);
           e.rail = deck;
         }
-        const quay = coastal && H - G >= 28;
-        const waterline = quay ? G + 13 : G + SYNC_LANE + 2;
-        if (coastal) {
-          street(g, e, waterline);
-          water(g, e, waterline);
-        } else street(g, e);
+        e.electric = city.style === "metro" || city.capital || Boolean(TRAIN_LINES[city.country]);
+        const waterline = ground(g, e, coastal);
         const sidewalk = 3;
         fill(0, G, W, sidewalk, [105, 104, 114]);
         fill(0, G, W, 1, e.snow ? [228, 237, 241] : [186, 160, 135]);
@@ -5631,7 +5692,7 @@
           for (let x = 3; x < W; x += Math.max(12, unit * 13)) {
             const y = waterline + 2 + Math.floor(rng() * Math.max(1, H - waterline - 4));
             const w = 3 + Math.floor(rng() * 9) * unit;
-            fill(x, y, w, 1, mixc(e.bot, [136, 171, 172], 0.5), 0.35);
+            if (waterline < H) fill(x, y, w, 1, mixc(e.bot, [136, 171, 172], 0.5), 0.35);
             rng(); // Preserve the seeded foreground tree and lamp positions.
           }
         }
@@ -5741,7 +5802,7 @@
         // deep water gets a far lane too; the far boats are drawn first so near ones pass in front
         const deepWater = e.water && e.H - e.water.y0 >= 20;
         let boats = [];
-        if (e.water && e.H - e.water.y0 >= 12) {
+        if (e.water && e.H - e.water.y0 >= 6) {
           const lanes = deepWater ? [e.H - 5, e.H - 11] : [e.H - 5];
           const count = Math.max(1, Math.round(e.W / (deepWater ? 70 : 110))); // one boat per 70 or 110 pixels
           boats = movers({ lanes }, count, 6, 9).sort((a, b) => a.y - b.y);
@@ -5776,7 +5837,13 @@
           walkers,
           boats,
           rail: e.rail,
-          trains: [...(TRAIN_LINES[e.country] || []), ...(e.freight ? ["freight"] : [])],
+          // the country's own trains, or a suburban train where the city is electric; freight everywhere
+          trains: [
+            ...(TRAIN_LINES[e.country] || (e.electric && e.station ? ["commuter"] : [])),
+            ...(e.freight ? ["freight"] : []),
+          ],
+          station: e.station,
+          wire: e.wire,
           trainPaint: Object.fromEntries(
             Object.entries(TRAIN_KINDS).map(([k, t]) => [
               k,
@@ -5998,6 +6065,99 @@
       const vehicleKind = (vehicle, seconds) => lapKind(vehicle, seconds, 20, VEHICLE_MIX);
       // Boats, trains, walkers, cars and bikes, back to front. Only movers whose lane y is in
       // minDepth..maxDepth are drawn, so drawStreetPlanes can draw the road in two passes around the median.
+      // One train per cycle, rolling its kind and direction each cycle. Cars are 28 pixels long and 6 tall,
+      // with wheels on the rail at life.rail. Freight runs straight through; passenger trains stop at the
+      // station when there is one: they brake to a stop at the platform, wait while people get on and off,
+      // then speed up and leave. Electric trains reach up to the overhead wire with a pantograph.
+      const TRAIN_CAR = 28,
+        TRAIN_DWELL = 6; // seconds at the platform
+      function trainFront(t, into, dir, life) {
+        const start = dir > 0 ? -20 : life.width + 20,
+          st = life.station;
+        if (!st || t === TRAIN_KINDS.freight) return { front: start + dir * into * t.speed };
+        // the front stops at the far end of the platform
+        const stop = dir > 0 ? st.x1 - 2 : st.x0 + 2,
+          brake = Math.abs(stop - start),
+          arrive = (2 * brake) / t.speed; // braking evenly from full speed to a stop takes this long
+        if (into < arrive) {
+          const k = 1 - into / arrive;
+          return { front: stop - dir * brake * k * k };
+        }
+        if (into < arrive + TRAIN_DWELL) return { front: stop, dwell: into - arrive };
+        const go = into - arrive - TRAIN_DWELL, // 4 seconds to reach full speed, then cruise
+          run = go < 4 ? (t.speed * go * go) / 8 : 2 * t.speed + t.speed * (go - 4);
+        return { front: stop + dir * run, gone: go };
+      }
+      function drawTrain(g, life, seconds) {
+        const cycle = 40 + Math.round(life.width / 10),
+          clock = seconds + life.phase * cycle,
+          lap = Math.floor(clock / cycle),
+          roll = (Math.imul(lap + life.skyId, 2654435761) ^ (lap >>> 3)) >>> 0;
+        const kind = life.trains[roll % life.trains.length],
+          t = TRAIN_KINDS[kind],
+          look = life.trainPaint[kind];
+        const dir = roll & 64 ? 1 : -1,
+          y = life.rail,
+          L = t.cars * TRAIN_CAR;
+        const { front, dwell, gone } = trainFront(t, clock % cycle, dir, life);
+        const st = life.station;
+        if (st) {
+          // travellers: some wait on the platform and get on while the train stands; once it has left,
+          // the ones who got off walk away to both ends of the platform
+          const people = [
+            [0.2, life.walkers[0]?.color],
+            [0.45, life.walkers[1]?.color],
+            [0.6, life.walkers[2]?.color],
+            [0.85, life.walkers[3]?.color],
+          ];
+          people.forEach(([at, color], i) => {
+            const home = Math.round(st.x0 + (st.x1 - st.x0) * at);
+            let x = home;
+            if (gone != null) {
+              if (gone > 8 || i % 2) return; // two got off; the others boarded
+              x = Math.round(home + (at < 0.5 ? -1 : 1) * gone * 5);
+            } else if (dwell != null && dwell > 1 + i) return; // boarded
+            g.fillStyle = life.skin;
+            g.fillRect(x, st.y - 3, 1, 1);
+            g.fillStyle = color || life.ink;
+            g.fillRect(x, st.y - 2, 2, 2);
+          });
+        }
+        // height of the train d pixels from an end: 6, sloping down over the nose on fast trains
+        const taper = (d) => (t.nose && d < t.nose ? 2 + Math.ceil((4 * (d + 1)) / (t.nose + 1)) : 6);
+        for (let px = 0; px < L - 1; px++) {
+          const x = Math.round(front - dir * px),
+            within = px % TRAIN_CAR;
+          if (x < -1 || x > life.width || within === TRAIN_CAR - 1) continue;
+          const tail = L - 2 - px,
+            h = Math.min(taper(px), taper(tail));
+          g.fillStyle = look.body;
+          g.fillRect(x, y - h, 1, h);
+          g.fillStyle = look.stripe;
+          g.fillRect(x, y - 2, 1, 1);
+          // two wheels at each end of a car
+          if (within === 3 || within === 5 || within === TRAIN_CAR - 6 || within === TRAIN_CAR - 4) {
+            g.fillStyle = life.ink;
+            g.fillRect(x, y, 1, 1);
+          }
+          const cab = t.nose >= 3 && (px === t.nose || tail === t.nose);
+          // windows: two pixels on, one off, along the full-height part of each car; a door in the middle
+          const door = kind !== "freight" && (within === 13 || within === 14);
+          const passengerWindow =
+            kind !== "freight" && h === 6 && px > t.nose && tail > t.nose && within >= 3 && within <= 23;
+          if (cab || door || (passengerWindow && within % 3 !== 0)) {
+            g.fillStyle = cab || door ? life.ink : life.night ? "#ffdda1" : "#526984";
+            g.fillRect(x, y - 5, 1, door ? 4 : 2);
+          }
+          // the pantograph on electric trains: a thin arm up to the wire from the first car's roof
+          if (life.wire != null && kind !== "freight" && px === Math.floor(TRAIN_CAR / 2)) {
+            g.fillStyle = life.ink;
+            g.fillRect(x, life.wire + 1, 1, y - h - life.wire - 1);
+            g.fillRect(x - 1, life.wire + 1, 3, 1);
+          }
+        }
+      }
+
       function drawGroundLife(g, life, seconds, minDepth = -Infinity, maxDepth = Infinity) {
         const inPlane = (y) => y >= minDepth && y < maxDepth;
         for (const boat of life.boats) {
@@ -6056,44 +6216,7 @@
             g.fillRect(x - 2, y - 3, 4, 2);
           }
         }
-        if (life.rail != null && life.trains.length && inPlane(life.rail)) {
-          // one train per 30-second cycle; each cycle rolls its kind and direction
-          const cycle = 30,
-            clock = seconds + life.phase * cycle,
-            lap = Math.floor(clock / cycle),
-            roll = (Math.imul(lap + life.skyId, 2654435761) ^ (lap >>> 3)) >>> 0;
-          const kind = life.trains[roll % life.trains.length],
-            t = TRAIN_KINDS[kind],
-            look = life.trainPaint[kind];
-          const dir = roll & 64 ? 1 : -1,
-            y = life.rail,
-            L = t.cars * 20,
-            run = (clock % cycle) * t.speed,
-            front = dir > 0 ? run - 20 : life.width + 20 - run;
-          // height of the train d pixels from an end: 4, sloping down over the nose on fast trains
-          const taper = (d) => (t.nose && d < t.nose ? 1 + Math.ceil((3 * (d + 1)) / (t.nose + 1)) : 4);
-          for (let px = 0; px < L - 1; px++) {
-            const x = Math.round(front - dir * px),
-              within = px % 20;
-            if (x < -1 || x > life.width || within === 19) continue;
-            const tail = L - 2 - px,
-              h = Math.min(taper(px), taper(tail));
-            g.fillStyle = life.shade;
-            g.fillRect(x, y + 1, 1, 1);
-            g.fillStyle = look.body;
-            g.fillRect(x, y - h + 1, 1, h);
-            g.fillStyle = look.stripe;
-            g.fillRect(x, y - 1, 1, 1);
-            const cab = t.nose >= 3 && (px === t.nose || tail === t.nose);
-            // passenger windows: two pixels on, two off, along the full-height part of each 20-pixel car
-            const passengerWindow =
-              h === 4 && px > t.nose && tail > t.nose && within >= 2 && within <= 16 && within % 4 >= 2;
-            if (cab || passengerWindow) {
-              g.fillStyle = cab ? life.ink : life.night ? "#ffdda1" : "#526984";
-              g.fillRect(x, y - 2, 1, 1);
-            }
-          }
-        }
+        if (life.rail != null && life.trains.length && inPlane(life.rail)) drawTrain(g, life, seconds);
         // people first: the sidewalk is behind the road, so a tall vehicle passes in front of them
         for (const person of life.walkers) {
           if (!inPlane(person.y)) continue;
@@ -8221,6 +8344,7 @@
           [z.label, z.lat, z.lon, p.day, p.month, p.h, CONFIG.music.variation, round].join("|"),
         );
         music.k++;
+        queueMicrotask(() => mediaInfo(true)); // once the title below is set
         music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
         let when;
         if (mood.alt > 6) when = "by day";
@@ -8249,6 +8373,7 @@
           for (const song of old) song.fadeOut(now, 1.5);
           setTimeout(() => {
             for (const song of old) song.dispose();
+            if (!musicOn()) mediaOut(false);
             if (!arp && !musicOn()) audioCtx.suspend();
           }, 2000);
           showMusicState(false);
@@ -8258,10 +8383,8 @@
         if (musicOn()) return;
         if (!audioCtx) return toast("This browser cannot play sound");
         audioCtx.resume().catch(() => {});
-        if (!music.bus) {
-          music.bus = audioCtx.createGain();
-          music.bus.connect(audioCtx.destination);
-        }
+        if (!music.bus) music.bus = audioCtx.createGain();
+        mediaOut(true);
         music.bus.gain.value = (CONFIG.music.volume / 100) ** 2;
         // start from the first clock but at a random round, so starting twice in an hour gives other songs
         music.k = CONFIG.zones.length * Math.floor(Math.random() * 1000);
@@ -8270,11 +8393,55 @@
         showMusicState(true);
       }
       function showMusicState(on) {
+        mediaInfo(on);
         const b = $("#music");
         b.setAttribute("aria-pressed", String(on));
         b.textContent = on ? "❚❚ MUSIC" : "▶︎ MUSIC";
         $("#next").hidden = !on;
         window.ClockscapesAndroid?.musicState(on, music.title || "Lo-fi music"); // the Android notification
+      }
+      // The music plays through an <audio> element, fed from the Web Audio graph, so the phone treats it as
+      // media: it keeps playing in the background, goes to Bluetooth speakers like any music, and the
+      // lock screen, headphone and Bluetooth buttons can play, stop and skip it (mediaSession below).
+      // If the browser won't play the element, the music goes straight to the speakers as before.
+      function mediaOut(on) {
+        if (!on) return void music.el?.pause();
+        if (!music.el && audioCtx.createMediaStreamDestination) {
+          music.dest = audioCtx.createMediaStreamDestination();
+          music.el = new Audio();
+          music.el.srcObject = music.dest.stream;
+        }
+        const direct = () => {
+          music.bus.disconnect();
+          music.bus.connect(audioCtx.destination);
+        };
+        if (!music.el) return direct();
+        music.bus.disconnect();
+        music.bus.connect(music.dest);
+        music.el.play().catch(direct);
+      }
+      // What the lock screen and the media controls show, and what their buttons do.
+      function mediaInfo(on) {
+        const session = navigator.mediaSession;
+        if (!session) return;
+        session.metadata = new MediaMetadata({
+          title: music.title || "Lo-fi music",
+          artist: "Clockscapes",
+          artwork: [{ src: "icons/icon-512.png", sizes: "512x512", type: "image/png" }],
+        });
+        session.playbackState = on ? "playing" : "paused";
+      }
+      if (navigator.mediaSession) {
+        const actions = {
+          play: () => musicOn() || toggleMusic(),
+          pause: () => musicOn() && toggleMusic(),
+          stop: () => musicOn() && toggleMusic(),
+          nexttrack: () => musicOn() && nextSong(3),
+        };
+        for (const [action, handler] of Object.entries(actions))
+          try {
+            navigator.mediaSession.setActionHandler(action, handler);
+          } catch (e) {} // an older browser without this action
       }
       function toggleMusic() {
         CONFIG.music.on = !musicOn();

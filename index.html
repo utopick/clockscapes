@@ -2602,7 +2602,9 @@
         paint(mulc(stone, 0.68), 0, slab + 2, W, 1);
         for (let x = 4; x < W; x += 12) paint(stone, x, deck - 1, 1, 2);
         for (let x = 9; x < W; x += 25) lamp(g, { ...e, G: deck + 3 }, x, 7);
-        e.walk = { lanes: [deck + 1] }; // the back of the sidewalk, clear of the first car lane
+        // The deck sits at the ground line G, so the sidewalk (G+1 to G+3) and the road (from G+4) line up
+        // with every other city's street when clocks stand side by side; people walk at G+2 like there.
+        e.walk = { lanes: [deck + 2] };
         e.road = { lanes: [e.G + SYNC_LANE] };
         if (wide) e.bike = deck + 11;
         e.water.y0 = slab + 3;
@@ -2906,7 +2908,7 @@
         g.fillStyle = css(e.sh([120, 116, 106]));
         g.fillRect(0, G, W, 1);
         water(g, e, G + 1);
-        drawBridge(g, e, G + 2, [98, 142, 119]);
+        drawBridge(g, e, G, [98, 142, 119]);
       }
 
       // ---- Scene: Austin ----
@@ -2985,7 +2987,7 @@
         g.fillRect(0, G, W, 1);
         for (let x = 5; x < W; x += 9) drawPlant(g, { ...e, flora: "liveOak" }, x, G, 1, 0);
         water(g, e, G + 1);
-        e.batsY = drawBridge(g, e, G + 2, [174, 160, 143]);
+        e.batsY = drawBridge(g, e, G, [174, 160, 143]);
       }
       function animAustin(g, e, t) {
         // Congress Avenue bats around dusk

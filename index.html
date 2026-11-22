@@ -14312,9 +14312,16 @@
         await refreshAllWeather(false);
         setInterval(() => refreshAllWeather(true), 10 * 60 * 1000);
       })();
-      // Installable and offline when served over http(s); opening the file directly skips it.
+      // Installable and offline when served over http(s); opening the file directly skips it. The Android app
+      // serves the page from its own files (appassets.androidplatform.net), so it needs no worker there, and
+      // any left from an older build is removed.
+      const inApp = location.hostname === "appassets.androidplatform.net";
       if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
-        addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(console.warn));
+        addEventListener("load", () =>
+          inApp
+            ? navigator.serviceWorker.getRegistrations().then((list) => list.forEach((r) => r.unregister()))
+            : navigator.serviceWorker.register("sw.js").catch(console.warn),
+        );
     </script>
   </body>
 </html>

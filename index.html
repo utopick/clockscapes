@@ -7924,6 +7924,285 @@
         else foliage(leaf);
       }
 
+      // Original statue sprites, top row first. A dot leaves the skyline visible.
+      // S is the shadow plane, H the lit plane, B the base material, T the pose's trim.
+      const STATUE_ART = {
+        stand: [
+          ".....HB....",
+          "....HBB....",
+          "....HBS....",
+          ".....B.....",
+          "...HHBB....",
+          "..HHBBSS...",
+          ".HBHBBSSB..",
+          ".BBHBBSSB..",
+          ".B.HBBSSB..",
+          ".B.HBBSS.B.",
+          ".B.HBSS..B.",
+          ".B.HBSS..B.",
+          "...HBSS....",
+          "...HBBSS...",
+          "...HBBSS...",
+          "..BHBBBSS..",
+          "..BHBBBSS..",
+          "..HBBHBSS..",
+          "..HBBHBBSS.",
+          ".HBBBHBBSS.",
+          ".BBBBBSBSS.",
+        ],
+        finial: ["..H..", "..HB.", "..B..", ".HBB.", "B.HBS", "..BS.", ".BBS."],
+        angel: [
+          "......B......",
+          ".B...HB....B.",
+          ".HB...B...BS.",
+          "..HB.HBB.BS..",
+          "...HBHBBBS...",
+          "....SHBSB....",
+          ".....HBS.....",
+          "....HBBSS....",
+          "....BBBSS....",
+        ],
+        out: [
+          "..........HB.........",
+          ".........HBB.........",
+          ".........HBS.........",
+          "..........B..........",
+          "........HHBB.........",
+          "BBBBBHHHHHHBBBBBBBBBB",
+          "....BBBBBHBBBSSSS....",
+          "......SSBHBBBSS......",
+          "........BHBBBSS......",
+          "........BHBBSS.......",
+          "........BHBBSS.......",
+          "........BHBBSS.......",
+          "........HBBBSS.......",
+          "........HBBSSS.......",
+          "........HBBSSS.......",
+          ".......BHBBBSS.......",
+          ".......HBBBBSS.......",
+          ".......HBBHBSS.......",
+          ".......HBBHBSS.......",
+          ".......BBBHBBSS......",
+          ".......BBBBBSSS......",
+        ],
+        torch: [
+          ".............H.",
+          "............HT.",
+          "...........HTT.",
+          "...........HTT.",
+          "..........BBBB.",
+          "...........B...",
+          "..........HB...",
+          ".....HB...BB...",
+          "....HBB...BS...",
+          "....HBS..BB....",
+          ".....B...BS....",
+          "...HHBB.BS.....",
+          "..HBHBBBS......",
+          ".HBHBBSS.......",
+          ".B.HBBSS.......",
+          ".B.BHBSS.......",
+          ".B.BHBSS.......",
+          "...BHBSS.......",
+          "...BHBSS.......",
+          "...HBBSS.......",
+          "..BHBBBSS......",
+          "..BHBBBSS......",
+          "..HBBHBSS......",
+          "..HBBHBBSS.....",
+          ".HBBBHBBSS.....",
+          ".BBBBBBSSS.....",
+        ],
+        sword: [
+          "...............T.",
+          "..............HT.",
+          "..............HT.",
+          "..............HT.",
+          ".............HT..",
+          ".............HT..",
+          ".............HT..",
+          ".........HB.HBTB.",
+          "........HBB..B...",
+          "........HBS.BB...",
+          ".........B..BS...",
+          ".......HHB.BS....",
+          "....BBHHBBBBS....",
+          "..HHBBBHBSS......",
+          ".HBBBBBHBSS......",
+          ".HBBBBBHBSS......",
+          ".HBBBBBBBSS......",
+          "..BBBSSBBSS......",
+          "...SS.SBBSS......",
+          "......HBBBSS.....",
+          "......HBBBSS.....",
+          ".....BHBBBSS.....",
+          ".....HBBBBSS.....",
+          ".....HBBHBSS.....",
+          ".....HBBHBSS.....",
+          ".....BBBHBBSS....",
+          ".....BBBBBSSS....",
+        ],
+        seated: [
+          ".........B.........",
+          "........HB.........",
+          ".......HHBB........",
+          ".......HBBBS.......",
+          ".......HBBBS.......",
+          "......BHBBBSB......",
+          ".......HBBSS.......",
+          "........BBB........",
+          "......HHBBBB.......",
+          ".....HHHBBBSB......",
+          ".....HBHBBBSSB.....",
+          "....HBBBHBBSSB.....",
+          "....HBSBHBBSSB.....",
+          "....HB.BHBBSSB.....",
+          "....HB.BHBSSB......",
+          "....HBB.BBSB.......",
+          ".....HBBBBB........",
+          "...HHHBBBSSBBB.....",
+          "..HHBBBBSSSHBBB....",
+          ".HBBBBSSSBBBBSSB...",
+          ".HBBBSSBBBBSSSSB...",
+          "..BBBBBBBBBSSSS....",
+        ],
+        recline: [
+          "..HB................................",
+          ".HHBB...............................",
+          "HHBBBS..............................",
+          ".HBBBS..............................",
+          ".HBBSS..............................",
+          "..HBBS....HHBBB.....................",
+          "..HBSS..HHBBBBBHHBBBBBB.............",
+          "..HBBSSHBHBBBBBBBBBBBBBHHBBBB.......",
+          "..HBBBHBBBHBBBBSSBBBBBBBBBBBBHHBBBB.",
+          "..BBBBBBBBSSSSSSSBBBBBBSSSSBBBBBBBBS",
+          "...SSSSSSSSBBBBBBBBBBSSSSSSSSSBBSSBS",
+          "....BBBBBBBBBBSSSSSSSSSSSSSSSSSSSSS.",
+        ],
+        lenin: [
+          "......HHBBBB.......",
+          "....HHHBBBBBS......",
+          "...HHHBBBBBBSS.....",
+          "..HHHBBBBBBBBSS....",
+          "..HHBBBBBBBBBSS....",
+          "..HHBBBBBBBBBSS....",
+          "..HBBBBBBBBBBSS....",
+          "..HBBBBBBBBBBSS....",
+          ".HHHBBBBSSBBSSS....",
+          ".BSSHHBSSSSBSSBB...",
+          "..HHHBBBBBSBSBSB...",
+          ".HHHBBBBBBSBSSSB...",
+          "HHBBBBBBBSSBSSS....",
+          ".SSBBHBBBSSBSSS....",
+          "..SSSSBBSSBSSS.....",
+          "..HHBBSSSSSSS......",
+          "..HBBBSSSSSS.......",
+          "...HHBSSSSS........",
+          "....BBSSSS.........",
+          "....BSSSS..........",
+          ".....SSS...........",
+          ".....SS............",
+        ],
+        mao: [
+          "..........BBBBBBBBB......",
+          ".......BBBHHBBBBSSBBB....",
+          ".....BBHHBBBBBSSBBBBSSB..",
+          "...BBHHBBBBBSSBBBBBBBSSB.",
+          "..BHHBBBBSSSBBBBBBBBBBSSB",
+          "..BBBBSSSHHHBBBBBBBBBBSSB",
+          "..BBBHHHHHBBBBBBBBBBBBSSB",
+          "..BHHHHHBBBBBBBBBBBBBSSB.",
+          "..HHHHHBBBBBBBBBSSBBBSSB.",
+          "..HHHBBBBBSSSSSSSBBBBSSB.",
+          ".HHHHBSSSBBBBBSSBBBBSSB..",
+          ".HHHHHBBBBBBBBBSSBSSHSB..",
+          "HHHHBBBBBBBBBBSSBBBSBSB..",
+          ".BBHHBBBBBBBSSSBBBSSSSB..",
+          "..HHBBBBBHHBBSSBBBSSSS...",
+          "..HHHHBBBBBBBBBBSSSSS....",
+          "...HHBBBBBBBBBBSSSSS.....",
+          "...HHBBBBBBBBBSSSS.......",
+          "....HBBBBBBBSSSSB........",
+          ".....BBBBSSSSSSSBB.......",
+          "......SSSSSSSSBBBBBB.....",
+          ".......HHBSSSBBBBBBBBB...",
+          ".....HHHBBBBBBBBBBBBSSBB.",
+          "..HHHBBBBBBBBBBBSSSSSSSSB",
+        ],
+        redeemer: [
+          "..............HB...............",
+          ".............HHB...............",
+          ".............HBB...............",
+          ".............HBS...............",
+          "..............BS...............",
+          ".............HHHBB.............",
+          "..HHHHHHHHHBBBBBBBBBHHHHHBBBB..",
+          "BBHHHBBBBHHBBHBBBSSBBBBBBBBBBSS",
+          ".BBBBBBBBSSHBHBBBSSBBBBBBBBSSS.",
+          ".....SSSSSSSHBHBSSSSSSSSSS.....",
+          "............HBHBBBSS...........",
+          "............HBHBBBSS...........",
+          "............HBHBBBSS...........",
+          "............HBBHBSSS...........",
+          "............HBBHBSSS...........",
+          "...........BHBBHBSSS...........",
+          "...........BHBBHBBSS...........",
+          "...........HBBBHBSSS...........",
+          "...........HBBBBHBSSS..........",
+          "..........BHBBBBHBSSS..........",
+          "..........BBBBBBSSSSS..........",
+        ],
+        liberty: [
+          "...H.....................",
+          "...TH....................",
+          "..THT....................",
+          "..THHT...................",
+          ".TTHHT...................",
+          ".TTHT....................",
+          "..TTT....................",
+          "BHHHHBB..................",
+          ".BBBBB...................",
+          "..BBB....................",
+          "...B.....................",
+          "..HBB....................",
+          "..HBS.........B..........",
+          "..HBS......B..H..B.......",
+          "..HBS....B..B.H.B..B.....",
+          "...HBS....B.BHHHB.B......",
+          "...HBS.....HHHBBBB.......",
+          "...HBS.....HHHBBBS.......",
+          "...HBS......HBBSS........",
+          "....HBS.....HBBSS........",
+          "....HBS......HBS.........",
+          "....HBS.....HHBS.........",
+          ".....HBS..HHHHBBBS.......",
+          ".....HHBHHHHHBBBBSS......",
+          "......HBBHHHBBBBBSS......",
+          ".......BBHHBHBBBBSS.BHBBB",
+          "........SHHBBHBBBSS.BHHBS",
+          ".........HBBBBHBBSSBBHBBS",
+          ".........HBBBBBHBBBHBBBBS",
+          ".........HBBHBBBHHHBBBBBS",
+          ".........HBBBHBBBBHBBBBS.",
+          ".........HBBBBHBBBBBBSS..",
+          ".........HBBBBBHBBBSSS...",
+          ".........HBBBHBBSSSS.....",
+          ".........HBBHBBBSSSS.....",
+          ".........HBBHBBBBSSS.....",
+          "........HBBHBBBBBSSS.....",
+          "........HBBHBBBBBSSS.....",
+          "........HBHBBBBBSSSS.....",
+          "........HBHBBBBBSSSS.....",
+          ".......HBHBBBBBSSSSS.....",
+          ".......HBHBBBBBBSSSS.....",
+          ".......HHBBBBBBBSSSSS....",
+          "......HHBBBBBBBSSSSSS....",
+          "......BBBBBBBBBSSSSSS....",
+          "......BBBBBBBBSSSSSSS....",
+        ],
+      };
+
       // ==== Landmarks (the "art" field of CITY_ATLAS) ====
       // cityLandmark(g, e, kind, x, unit, o) draws one landmark centred on x. It is one long switch: a few
       // "archetypes" (church, mosque, sky, tower, palace, stadium...) shaped by the parameters o from
@@ -7963,7 +8242,7 @@
         const lean = o.lean || 0,
           L = (v, up) => v + up * lean;
         const box = (left, up, w, h, color = 0) => {
-          g.fillStyle = ink[color];
+          g.fillStyle = typeof color === "number" ? ink[color] : color;
           if (lean && h > 1) {
             for (let r = 0; r < h; r++) box(left, up - r, w, 1, color);
             return;
@@ -8048,27 +8327,52 @@
             box(cx, top + 4, 1, 3, 10);
           }
         };
-        // Standing figure on `base`, fh cells tall: a robe widening to the feet with a shaded side and a fold,
-        // arms at the sides, shoulders, a neck and a head. Returns the shoulder height for the poses.
-        const figure = (cx, base, fh, color) => {
-          const k = Math.max(1, Math.round(fh / 9)),
-            sh = base + fh - 2 * k - 1,
-            sc = { 6: 13, 13: 8, 8: 2, 12: 1, 4: 9, 10: 2 }[color] ?? 2;
-          for (let i = base + 1; i <= sh; i++) {
-            const flare = Math.round((k * (sh - i)) / fh);
-            box(cx - k - flare, i, 2 * k + 1 + 2 * flare, 1, color);
-            box(cx + k + flare, i, 1, 1, sc);
-            if (k > 1 && i < sh - 1 && i > base + 1) {
-              if (i > sh - fh * 0.45) box(cx - k + 1, i, 1, 1, sc); // the gap between arm and body
-              if (i - base < fh * 0.6) box(cx - 1, i, 1, 1, sc); // a fold in the robe
+        // A little reflected sky light on the sculpted planes keeps the relief visible at night.
+        const sculptedInk = (rgb, reflection = 0.28, reflected = [147, 159, 180]) => {
+          const dark = clamp((1 - (e.k ?? 1)) / 0.75, 0, 1);
+          return css(mixc(e.sh(rgb), reflected, reflection * dark));
+        };
+        const sculpture = (color, trim = color, flame = false) => {
+          const material = colors[color];
+          return {
+            B: sculptedInk(material),
+            S: sculptedInk(mixc(material, [41, 40, 54], 0.48), 0.15),
+            H: sculptedInk(mixc(material, [255, 248, 225], 0.32), 0.37),
+            T: sculptedInk(colors[trim], flame ? 0.65 : 0.34, flame ? colors[trim] : undefined),
+          };
+        };
+        // A cap, recessed shaft and stepped foot define three faces even on short bases.
+        const statuePlinth = (halfWidth, height, color, base = 0) => {
+          const { H, B, S } = sculpture(color);
+          const foot = Math.min(2, Math.floor(height / 2));
+          const shaft = height - foot - 1;
+          const side = Math.max(1, Math.round(halfWidth / 2));
+          if (foot > 0) {
+            box(-halfWidth - 1, base + foot, 2 * halfWidth + 3, foot, B);
+            box(halfWidth + 2 - side, base + foot, side, foot, S);
+          }
+          if (shaft > 0) {
+            box(-halfWidth + 1, base + height - 1, 2 * halfWidth - 1, shaft, B);
+            box(halfWidth - side, base + height - 1, side, shaft, S);
+          }
+          box(-halfWidth, base + height, 2 * halfWidth + 1, 1, H);
+          box(halfWidth + 1 - side, base + height, side, 1, B);
+        };
+        // Sample the artist's cell grid at the requested size and draw solid runs through box(), so
+        // landmarkSize measures exactly the same silhouette as the live skyline.
+        const sprite = (art, base, height, width, palette) => {
+          const columns = art[0].length;
+          const left = -Math.floor(width / 2);
+          for (let y = 0; y < height; y++) {
+            const row = art[Math.floor(((y + 0.5) * art.length) / height)];
+            for (let x = 0; x < width;) {
+              const cell = row[Math.floor(((x + 0.5) * columns) / width)];
+              let end = x + 1;
+              while (end < width && row[Math.floor(((end + 0.5) * columns) / width)] === cell) end++;
+              if (cell !== ".") box(left + x, base + height - y, end - x, 1, palette[cell]);
+              x = end;
             }
           }
-          box(cx - k - 1, sh + 1, 2 * k + 3, 2, color); // shoulders
-          box(cx + k + 1, sh + 1, 1, 2, sc);
-          box(cx, sh + 3, 1, 1, color); // neck
-          orb(cx, sh + k + 3, k, color);
-          box(cx + k - 1, sh + k + 2, 1, 1, sc);
-          return { k, sh: sh + 1 };
         };
         switch (kind) {
           case "tokyo-tower": {
@@ -8263,65 +8567,31 @@
             dome(0, 11, 3, 2);
             break;
           case "liberty": {
-            // Statue of Liberty: stepped granite pedestal, robed figure with the lit side in verdigris and the
-            // shaded side in green, folds, the tablet on the left arm, the spiked crown and the raised torch.
             box(-11, 3, 23, 3, 8);
             box(-8, 6, 17, 3, 13);
-            box(-5, 15, 11, 9, 13);
-            box(1, 15, 5, 9, 8);
-            box(-6, 16, 13, 1, 6);
-            for (let y = 17; y <= 36; y++) {
-              const hw = y < 20 ? 5 : y < 30 ? 4 : y < 33 ? 3 : 4;
-              for (let x = -hw; x <= hw; x++) box(x, y, 1, 1, x >= 2 ? 9 : 4);
-            }
-            for (let y = 20; y <= 29; y++) box(-2 + (y % 3 === 0 ? 0 : 0), y, 1, 1, 9);
-            for (let y = 18; y <= 25; y++) box(0, y, 1, 1, 9);
-            box(-1, 28, 1, 1, 9);
-            box(-4, 36, 9, 1, 9); // the hem of the cloak at the shoulders
-            box(-1, 37, 3, 1, 4); // neck
-            box(-2, 47, 5, 6, 4); // head
-            box(2, 47, 1, 6, 9);
-            box(-1, 45, 1, 1, 2);
-            box(1, 45, 1, 1, 2);
-            box(-3, 48, 7, 1, 4); // the crown and its rays
-            for (const [px, top] of [
-              [-4, 50],
-              [-2, 51],
-              [0, 52],
-              [2, 51],
-              [4, 50],
-            ]) {
-              box(px, top, 1, top - 48, 4);
-              box(px, top, 1, 1, 3);
-            }
-            box(4, 34, 5, 9, 6); // the tablet
-            box(5, 33, 3, 7, 13);
-            box(3, 31, 3, 3, 4);
-            for (let y = 36; y <= 50; y++)
-              box(-4 - Math.round(((y - 36) * 4) / 14), y, 2 + (y > 44 ? 1 : 0), 1, 4); // the raised arm
-            box(-10, 53, 4, 3, 4); // the hand
-            box(-12, 54, 7, 1, 3); // the torch: a platform, the flame
-            box(-10, 60, 3, 6, 3);
-            box(-9, 62, 1, 3, 3);
-            box(-9, 59, 1, 2, 5);
+            box(-7, 8, 15, 2, 8);
+            box(-6, 15, 13, 7, 13);
+            box(2, 15, 5, 7, 8);
+            box(-7, 16, 15, 1, 6);
+            box(-6, 17, 13, 1, 13);
+            sprite(STATUE_ART.liberty, 17, 46, 25, {
+              B: sculptedInk(colors[4]),
+              S: sculptedInk([62, 119, 111], 0.16),
+              H: sculptedInk([171, 216, 199], 0.37),
+              T: sculptedInk(colors[3], 0.66, colors[3]),
+            });
             break;
           }
           case "redeemer":
-            stack(
-              0,
-              [
-                [22, 3],
-                [16, 4],
-                [10, 9],
-              ],
-              1,
-            );
-            box(-3, 31, 7, 16, 4);
-            box(-6, 20, 13, 5, 4);
-            orb(0, 34, 3, 4);
-            box(-15, 31, 31, 4, 4);
-            box(-15, 29, 4, 2, 4);
-            box(12, 29, 4, 2, 4);
+            box(-11, 3, 22, 3, 8);
+            box(-8, 7, 16, 4, 13);
+            box(4, 7, 4, 4, 8);
+            statuePlinth(5, 9, 13, 7);
+            sprite(STATUE_ART.redeemer, 16, 21, 31, {
+              B: sculptedInk([188, 191, 181]),
+              S: sculptedInk([119, 132, 132], 0.16),
+              H: sculptedInk([221, 223, 209], 0.37),
+            });
             break;
           case "hallgrim":
             for (let i = 0; i < 7; i++) {
@@ -9061,49 +9331,13 @@
             break;
           }
           case "bust": {
-            // A giant head on a plinth (Ulan-Ude's Lenin, Changsha's young Mao): o.h the head, o.ph and o.pw the
-            // plinth, o.beard a pointed beard. A bearded head sits straight on the plinth; the others get shoulders.
-            const r = Math.max(3, Math.round((o.h ?? 20) / 2)),
+            const h = o.h ?? 20,
               ph = o.ph ?? 6,
-              pw = o.pw ?? r + 2,
-              pc = o.pc ?? 13,
-              dk = o.beard ? 2 : 8; // the shaded side and the features
-            box(-pw, ph, 2 * pw + 1, ph, pc);
-            box(pw - 2, ph, 3, ph, 8);
-            box(-pw - 1, ph + 1, 2 * pw + 3, 1, pc);
-            if (!o.beard) dome(0, ph, r + 1, c); // shoulders
-            const cy = ph + r + (o.beard ? 1 : 6),
-              hw = Math.max(3, Math.round(r * 0.82)),
-              bottom = cy - r;
-            // the skull: a dome on top, the cheeks widest at the brow, the jaw narrowing to the chin
-            for (let y = bottom; y < cy + r; y++) {
-              const f = (y - bottom) / (2 * r - 1); // 0 at the chin, 1 at the crown
-              const k = Math.round(
-                f < 0.45
-                  ? hw * (0.62 + 0.38 * Math.sqrt(f / 0.45))
-                  : hw * Math.sqrt(1 - ((f - 0.45) / 0.58) ** 2),
-              );
-              box(-k, y + 1, 2 * k + 1, 1, c);
-              if (k > 1) box(k - 1, y + 1, 2, 1, dk); // the shaded side
-            }
-            const at = (f) => bottom + Math.round(f * 2 * r), // a height as a fraction of the head, 0 chin to 1 crown
-              eye = Math.max(2, Math.round(hw / 2.2));
-            for (const sd of [-1, 1]) {
-              box(sd * eye - 1, at(0.7), 3, 1, dk); // the brow ridge
-              box(sd * eye - 1, at(0.62), 2, 2, dk); // the eye in its socket
-              box(sd * (hw + 1) - (sd < 0 ? 0 : 1), at(0.62), 1, 3, c); // the ears
-            }
-            box(0, at(0.58), 2, 4, c); // the nose, shaded on the right and under the tip
-            box(1, at(0.58), 1, 4, dk);
-            box(-1, at(0.38), 3, 1, dk);
-            if (o.beard) {
-              box(-3, at(0.36), 7, 2, dk); // the moustache
-              box(-2, at(0.2), 5, 3, dk); // the goatee, ending in a point
-              box(-1, at(0.07), 3, 2, dk);
-              box(0, bottom, 1, 1, dk);
-            } else {
-              box(-2, at(0.26), 5, 1, dk); // mouth
-            }
+              pw = o.pw ?? Math.round(h / 2) + 2,
+              pc = o.pc ?? 13;
+            statuePlinth(pw, ph + 1, pc);
+            const art = o.beard ? STATUE_ART.lenin : STATUE_ART.mao;
+            sprite(art, ph + 1, h, Math.round((h * art[0].length) / art.length), sculpture(c));
             break;
           }
           case "skijump": {
@@ -9195,15 +9429,24 @@
               ph = o.ph ?? 4,
               top = o.top ?? "point",
               pc = o.pc ?? c;
-            box(-pw - 1, 2, 2 * pw + 3, 2, pc);
-            box(-pw, ph, 2 * pw + 1, ph - 2, pc);
+            const sculptedTop = top === "statue" || top === "angel";
+            const columnSide = sculptedTop ? sculpture(c).S : null;
+            if (sculptedTop) statuePlinth(pw, ph, pc);
+            else {
+              box(-pw - 1, 2, 2 * pw + 3, 2, pc);
+              box(-pw, ph, 2 * pw + 1, ph - 2, pc);
+            }
             let k = s;
             // o.n: a row of columns (temple ruins) under one entablature, centred on the plinth
             const n = o.n ?? 1,
               x0 = -2 * (s + 1) * (n - 1);
             for (let i = ph + 1; i <= h; i++) {
               k = o.taper ? Math.round(s - (s * o.taper * (i - ph)) / (h - ph)) : s;
-              for (let j = 0; j < n; j++) box(x0 + j * 4 * (s + 1) - k, i, 2 * k + 1, 1, c);
+              for (let j = 0; j < n; j++) {
+                const center = x0 + j * 4 * (s + 1);
+                box(center - k, i, 2 * k + 1, 1, c);
+                if (columnSide && k > 0) box(center + k, i, 1, 1, columnSide);
+              }
             }
             if (n > 1) box(x0 - k - 1, h + 2, 4 * (s + 1) * (n - 1) + 2 * k + 3, 2, c);
             if (top === "point") cone(0, h, k, k + 2, c);
@@ -9220,8 +9463,15 @@
             } else if (top === "capital") box(-k - 1, h + 1, 2 * k + 3, 1, c);
             else if (top !== "none") {
               box(-k - 1, h + 1, 2 * k + 3, 1, c);
-              const { k: fk, sh } = figure(0, h + 1, o.fh ?? 7, t);
-              if (top === "angel") for (const p of [-1, 1]) box(p > 0 ? fk + 1 : -fk - 3, sh + 1, 2, 3, t);
+              const fh = o.fh ?? 7,
+                art = top === "angel" ? STATUE_ART.angel : fh < 11 ? STATUE_ART.finial : STATUE_ART.stand;
+              sprite(
+                art,
+                h + 1,
+                fh,
+                Math.max(5, Math.round((fh * art[0].length) / art.length)),
+                sculpture(t),
+              );
             }
             break;
           }
@@ -9418,50 +9668,23 @@
             break;
           }
           case "statue": {
-            // Statue on a plinth; pose "stand", "out" (arms out), "torch", "sword", "seated" (Buddha) or "recline"
-            // (a reclining Buddha, o.h long, on a low base).
             const fh = o.h ?? 20,
               ph = o.ph ?? 8,
               pw = o.pw ?? 5,
               pose = o.pose ?? "stand",
               pc = o.pc ?? 13;
-            box(-pw - 1, 2, 2 * pw + 3, 2, pc);
-            box(-pw, ph, 2 * pw + 1, ph - 2, pc);
-            if (pose === "recline") {
-              // lying on its side, head on the left resting on a raised arm
-              const half = Math.round(fh / 2),
-                bh = Math.max(3, Math.round(fh / 7));
-              for (let i = -half + 3; i <= half; i++) {
-                const k = Math.round(bh * (0.75 + 0.25 * Math.sin(((i + half) / fh) * Math.PI)));
-                box(i, ph + k, 1, k, c);
-              }
-              box(-half, ph + bh + 2, 3, bh + 2, c); // the arm under the head
-              orb(-half + 2, ph + bh + 4 + Math.round(bh / 2), Math.round(bh / 2) + 1, c);
-              box(-half + 2, ph + 2 * bh + 6, 1, 2, t); // the flame on the crown
-              break;
-            } else if (pose === "seated") {
-              const k = Math.round(fh * 0.42);
-              box(-k, ph + 3, 2 * k + 1, 3, c);
-              for (let i = 0; i < fh - 8; i++) {
-                const kk = Math.round(k * 0.62 * (1 - (0.35 * i) / (fh - 8)));
-                box(-kk, ph + 4 + i, 2 * kk + 1, 1, c);
-              }
-              const hr = Math.max(1, Math.round(fh / 9));
-              orb(0, ph + fh - 4 + hr, hr + 1, c);
-              box(0, ph + fh - 2 + 3 * hr, 1, 2, c);
-              orb(0, ph + Math.round(fh * 0.25), 1, t);
-              break;
-            }
-            const { k, sh } = figure(0, ph, fh, c);
-            if (pose === "out") box(-Math.round(fh * 0.42), sh, 2 * Math.round(fh * 0.42) + 1, 2, c);
-            else if (pose === "torch") {
-              stroke(k, sh, k + 2, sh + 4 * k + 2, c);
-              box(k + 1, sh + 4 * k + 5, 3, 3, 3);
-            } else if (pose === "sword") {
-              stroke(k, sh, k + 3, sh + 4, c);
-              stroke(k + 3, sh + 4, k + 4, sh + Math.round(fh * 0.6), 8);
-              orb(-k - 2, sh - 3, k + 1, o.t ?? 8);
-            }
+            statuePlinth(pw, ph, pc);
+            const art = ["out", "sword", "torch", "seated", "recline"].includes(pose)
+              ? STATUE_ART[pose]
+              : STATUE_ART.stand;
+            const height =
+              pose === "recline"
+                ? Math.round(fh / 3)
+                : pose === "sword" || pose === "torch"
+                  ? Math.round(fh * 1.28)
+                  : fh;
+            const width = pose === "recline" ? fh : Math.round((height * art[0].length) / art.length);
+            sprite(art, ph, height, width, sculpture(c, pose === "torch" ? 3 : (o.t ?? 8), pose === "torch"));
             break;
           }
           case "wheel": {

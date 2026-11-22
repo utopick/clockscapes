@@ -764,12 +764,12 @@
                     maxlength="36"
                     placeholder="Up to 36 characters"
                     spellcheck="false"
-                    title="Plays like an alarm when you press A three times or swipe down, up and down on the clocks"
+                    title="Plays like an alarm when you press A three times, press Up six times on a TV remote, or swipe down, up and down on the clocks"
                 /></label>
               </div>
               <p class="hint" style="margin: 0 0 10px">
-                To try it, save, then press <b>A</b> three times, or swipe down, up and down again on the
-                clocks in one stroke.
+                To try it, save, then press <b>A</b> three times, press Up six times on a TV remote, or swipe
+                down, up and down again on the clocks in one stroke.
               </p>
             </fieldset>
           </div>
@@ -14106,19 +14106,44 @@
         const dir = ARROWS[ev.key],
           el = document.activeElement,
           inside = el && el !== document.body && focusables().includes(el);
+        // OK on a text box reached with the arrows unlocks it, and only then does the keyboard come up
+        if (ev.key === "Enter" && el?.dataset.remote === "lock") {
+          ev.preventDefault();
+          el.readOnly = false;
+          el.blur(); // and focus again, which brings the keyboard up
+
+          el.focus();
+          return;
+        }
         if (!dir && !(ev.key === "Enter" && !inside)) return;
-        // a text box keeps left and right for its caret, and a slider for its value
+        // a text box being typed in keeps left and right for its caret, and a slider for its value
         if (
           dir?.[0] &&
           inside &&
+          el.dataset.remote !== "lock" &&
           (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && !/button|checkbox|radio/.test(el.type)))
         )
           return;
         ev.preventDefault();
         poke();
         const next = inside ? nearest(el, dir) : focusables().find((b) => b.id === "gear") || focusables()[0];
+        // A TV opens its keyboard as soon as a text box gets the focus, so the arrows reach it locked
+        if (
+          next &&
+          (next.tagName === "TEXTAREA" ||
+            (next.tagName === "INPUT" && /^(text|search|number|time)$/.test(next.type)))
+        ) {
+          next.readOnly = true;
+          next.dataset.remote = "lock";
+        }
         next?.focus();
         next?.scrollIntoView({ block: "nearest" });
+      });
+      // a box locked by the remote goes back to normal for touch and mouse once it loses the focus
+      addEventListener("focusout", (ev) => {
+        if (!ev.target.dataset?.remote) return;
+        ev.target.readOnly = false;
+        delete ev.target.dataset.remote;
       });
       // Back on the remote: true when the page used it (closed settings or hid the buttons)
       window.tvBack = () => {
@@ -14230,6 +14255,19 @@
         keyPresses[key] = [];
         action();
       }
+      // ---- the same on a TV remote, on the clocks: Up six times plays the test alarm, and Up Up Down Down
+      // Left Right Left Right calls a monster ----
+      const ARROW_LETTER = { ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R" };
+      let arrowKeys = [];
+      addEventListener("keydown", (ev) => {
+        const k = ARROW_LETTER[ev.key];
+        if (!k || ev.repeat || !modal.classList.contains("hidden")) return;
+        const now = Date.now();
+        arrowKeys = arrowKeys.filter((a) => now - a.t < 5000).concat({ k, t: now });
+        const keys = arrowKeys.map((a) => a.k).join("");
+        if (keys.endsWith("UUDDLRLR")) ((arrowKeys = []), triggerEncounter());
+        else if (keys.endsWith("UUUUUU")) ((arrowKeys = []), playTestAlarm());
+      });
       const ZIG_LEG = 40, // CSS pixels each stroke of the zigzag must cover
         ZIG_TURN = 15; // moving back this far ends a stroke
       let zig = null;

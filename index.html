@@ -2912,7 +2912,10 @@
         g.fillRect(bx, bt + 22, bw, G - bt - 22);
         g.fillStyle = css(e.sh([175, 152, 106]));
         for (let xx = bx + 1; xx < bx + bw; xx += 2) g.fillRect(xx, bt + 23, 1, G - bt - 23);
-        // Thames and Westminster Bridge, with approaches continuing out of view.
+        // Thames and Westminster Bridge, with approaches continuing out of view. The embankment row at G
+        // closes the gap under the buildings, which a monster walking behind them would show through.
+        g.fillStyle = css(e.sh([120, 116, 106]));
+        g.fillRect(0, G, W, 1);
         water(g, e, G + 1);
         drawBridge(g, e, G + 2, [98, 142, 119]);
       }
@@ -2989,6 +2992,8 @@
         g.fillRect(ccx - 1, dt - 10, 3, 3);
         g.fillRect(ccx, dt - 12, 1, 2);
         // shoreline trees, Lady Bird Lake, Congress Ave bridge
+        g.fillStyle = css(e.sh([86, 104, 66])); // the grassy bank under the skyline, so nothing shows through
+        g.fillRect(0, G, W, 1);
         for (let x = 5; x < W; x += 9) drawPlant(g, { ...e, flora: "liveOak" }, x, G, 1, 0);
         water(g, e, G + 1);
         e.batsY = drawBridge(g, e, G + 2, [174, 160, 143]);
@@ -5416,6 +5421,7 @@
       // One PEAKS row drawn column by column: the shape gives the height at each x, and snow covers what
       // rises above a wavy snow line when snow is due (or when it is snowing now).
       function drawPeak(g, e, [, shape, at, tall, snow], room, rock) {
+        g = e.farG || g; // mountains go on their own layer, behind the monsters (see build)
         const [spread, profile] = PEAK_SHAPES[shape];
         const H = Math.min(Math.round(room * tall), e.G - e.T - 2),
           hw = Math.max(4, Math.round(H * spread)),
@@ -5443,6 +5449,7 @@
       // rises above the back row of buildings (about 0.6 of `room`) so the range shows. `far` adds haze.
       // Uses its own rng so building layouts never shift.
       function drawMountains(g, e, id, [size, snow, cone], room, rock, far = 0) {
+        g = e.farG || g; // mountains go on their own layer, behind the monsters (see build)
         const rng = rngFrom(hashStr(id + "/mountains"));
         const peak = room * [0.55, 0.74, 0.92][size - 1];
         const season = (e.latitude ?? 0) < 0 ? (e.month + 6) % 12 : e.month;
@@ -5510,11 +5517,17 @@
         if (PEAKS[city.id]) drawPeak(g, e, PEAKS[city.id], available, arid ? [174, 119, 106] : undefined);
 
         if (city.art === "table") {
+          // Table Mountain, on the far layer like the other mountains
+          const far = e.farG || g,
+            farFill = (x, y, w, h, color, haze) => {
+              far.fillStyle = css(e.hz(color, haze));
+              far.fillRect(x, y, w, h);
+            };
           for (let x = 0; x < W; x++) {
             const rise = Math.max(0, Math.min(1, (x / W - 0.12) * 7, (0.87 - x / W) * 5));
             const y = G - Math.floor(available * (0.36 + 0.29 * rise));
-            fill(x, y, 1, G - y, [94, 108, 129], 0.22);
-            if (x % 4 === 0 && rise > 0.84) fill(x, y, 1, 2, [140, 153, 156], 0.23);
+            farFill(x, y, 1, G - y, [94, 108, 129], 0.22);
+            if (x % 4 === 0 && rise > 0.84) farFill(x, y, 1, 2, [140, 153, 156], 0.23);
           }
         }
 
@@ -6079,11 +6092,16 @@
         // people first: the sidewalk is behind the road, so a tall vehicle passes in front of them
         for (const person of life.walkers) {
           if (!inPlane(person.y)) continue;
-          const x = lifePosition(person, seconds, 3),
+          // during a monster visit everyone runs off the way it is heading, arms up, then walks back
+          const panic = life.panic,
+            fled = panic ? Math.round(panic.dir * panic.run * (0.6 + 0.8 * person.offset)) : 0,
+            running = panic?.running;
+          const x = lifePosition(person, seconds, 3) + fled,
             y = person.y;
-          const stride = Math.floor((seconds + person.offset) * 5) % 2;
+          const stride = Math.floor((seconds + person.offset) * (running ? 14 : 5)) % 2;
           g.fillStyle = life.skin;
           g.fillRect(x, y - 3, 1, 1);
+          if (running) g.fillRect(x + (stride ? -1 : 1), y - 4, 1, 1); // a waving hand
           g.fillStyle = person.color;
           g.fillRect(x, y - 2, 2, 2);
           g.fillStyle = life.shade;
@@ -7589,6 +7607,17 @@
         return { start, ...selectEncounter(rngFrom(hashStr(seed + "|" + start))) };
       }
       // Returns true on the frame a ground monster's foot lands (the column shakes a little).
+      // How far the people have run from the monster: they notice it after a moment, run off the way it is
+      // heading for 3 seconds, wait, and once it has gone they walk back over 6 seconds and carry on.
+      function panicFor(encounter, now, W) {
+        if (!encounter) return null;
+        const t = (now - encounter.start) / 1000,
+          visit = ENCOUNTER_DURATION / 1000;
+        if (t < 0.6 || t > visit + 6) return null;
+        const away = t < visit ? Math.min(1, (t - 0.6) / 3) : 1 - (t - visit) / 6;
+        return { dir: encounter.direction || 1, run: away * W * 0.35, running: t < visit && t < 3.6 };
+      }
+
       function drawEncounter(g, e, encounter, now, reducedMotion) {
         if (!encounter) return false;
         const elapsed = now - encounter.start;
@@ -8578,6 +8607,10 @@
           // --- foreground scene ---
           this.fg = mkCanvas(W, H);
           const fg = this.fg.getContext("2d");
+          // Mountains are drawn on their own canvas (e.farG), shown behind a monster, which then stands
+          // in front of them instead of looking as tall as a mountain range.
+          this.far = mkCanvas(W, H);
+          e.farG = this.far.getContext("2d");
           const scene = SCENE_FN[city?.art || z.scene];
           e.cityId = city?.id || z.label;
           e.windows = []; // filled by the scene, for windows that switch on and off at night
@@ -8833,7 +8866,10 @@
           if (this.manualEncounter && now - this.manualEncounter.start >= ENCOUNTER_DURATION)
             this.manualEncounter = null;
           const encounter = this.manualEncounter || scheduledEncounter(now, tp, this.seed);
+          g.drawImage(this.far, 0, 0);
           const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
+          if (encounter) this.lastEncounter = encounter;
+          this.life.panic = panicFor(this.lastEncounter, now, W);
           // a footstep jolts the column by one pixel
           this.cv.style.transform = stomp ? `translateY(${this.P}px)` : "";
           if (t > this.nextFlip && !REDUCED_MOTION.matches) {

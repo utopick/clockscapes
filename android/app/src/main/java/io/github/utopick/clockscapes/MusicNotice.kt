@@ -20,7 +20,7 @@ import android.media.session.PlaybackState
  */
 object MusicNotice {
     private const val CHANNEL = "music"
-    private const val ID = 1
+    const val ID = 1
     const val TOGGLE = "io.github.utopick.clockscapes.TOGGLE"
     const val NEXT = "io.github.utopick.clockscapes.NEXT"
 
@@ -31,6 +31,9 @@ object MusicNotice {
     const val JS_NEXT = "musicOn() && nextSong(3)"
 
     private var session: MediaSession? = null
+    /** The last notification shown, for MusicService. */
+    var last: Notification? = null
+    private var service = false
 
     fun show(activity: MainActivity, playing: Boolean, title: String) {
         val manager = activity.getSystemService(NotificationManager::class.java)
@@ -93,10 +96,27 @@ object MusicNotice {
             .addAction(button(NEXT, android.R.drawable.ic_media_next, "Next"))
             .setStyle(Notification.MediaStyle().setMediaSession(media.sessionToken).setShowActionsInCompactView(0, 1))
             .build()
+        last = notice
+        // while the music plays, the notification belongs to MusicService, which keeps the app running
+        val intent = Intent(activity, MusicService::class.java)
+        if (playing && !service) {
+            try {
+                activity.startForegroundService(intent)
+                service = true
+            } catch (e: Exception) {
+                // Android doesn't let an app start one from the background: the music still plays,
+                // but it may stop once the screen has been off for a while
+            }
+        } else if (!playing && service) {
+            activity.stopService(intent)
+            service = false
+        }
         manager.notify(ID, notice)
     }
 
     fun hide(context: Context) {
+        if (service) context.stopService(Intent(context, MusicService::class.java))
+        service = false
         context.getSystemService(NotificationManager::class.java).cancel(ID)
         session?.release()
         session = null

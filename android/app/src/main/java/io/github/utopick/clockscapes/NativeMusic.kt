@@ -6,6 +6,7 @@ import android.media.AudioTrack
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.webkit.WebView
 
 /**
  * The native music engine (android/native/lofi.c), the MUSIC tab's "Sound engine: Native". The page still
@@ -37,10 +38,29 @@ object NativeMusic {
         if (available) setup(RATE)
     }
 
+    /** The page playing, nudged by beat() (only one page plays at a time). */
+    private var page: WebView? = null
+    private val main = Handler(Looper.getMainLooper())
+
     @Synchronized
-    fun play(id: Int, text: String, delay: Float, fade: Float) {
+    fun play(id: Int, text: String, delay: Float, fade: Float, from: WebView) {
         start(id, text, delay, fade)
-        if (thread == null) thread = Thread(::loop, "lofi").apply { start() }
+        page = from
+        if (thread == null) {
+            thread = Thread(::loop, "lofi").apply { start() }
+            main.post(::beat)
+        }
+    }
+
+    /**
+     * The page writes each next song, but with the screen off Chromium all but stops a silent page's timers,
+     * so the page would never start it. Every 2 s while the engine runs, the app runs the page's musicTick
+     * itself, which a throttled page still does at once.
+     */
+    private fun beat() {
+        if (thread == null) return
+        page?.evaluateJavascript("typeof musicOn == \"function\" && musicOn() && musicTick()", null)
+        main.postDelayed(::beat, 2000)
     }
 
     /**
@@ -54,6 +74,7 @@ object NativeMusic {
                 running = false
                 thread?.join()
                 thread = null
+                page = null
                 return
             }
         }

@@ -98,6 +98,9 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         current = this
         web = Web.make(this)
+        // the page writes the songs, so with the screen off its process keeps the app's priority (which
+        // MusicService raises while the music plays) instead of being frozen as hidden pages are
+        web.setRendererPriorityPolicy(android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT, false)
         setContentView(web)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")

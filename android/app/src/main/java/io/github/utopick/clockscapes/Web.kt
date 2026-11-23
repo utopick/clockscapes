@@ -50,7 +50,7 @@ object Web {
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = !autoplay
             setBackgroundColor(Color.BLACK)
-            addJavascriptInterface(Bridge(context), "ClockscapesAndroid")
+            addJavascriptInterface(Bridge(context, this), "ClockscapesAndroid")
             webViewClient = object : WebViewClientCompat() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                     loader.shouldInterceptRequest(request.url)
@@ -69,7 +69,7 @@ object Web {
     }
 
     /** What the page can ask of Android: window.ClockscapesAndroid in JavaScript. */
-    class Bridge(private val context: Context) {
+    class Bridge(private val context: Context, private val web: WebView) {
         /** Opens the system screen that sets Clockscapes as the live wallpaper. */
         @JavascriptInterface
         fun setWallpaper() {
@@ -109,7 +109,7 @@ object Web {
 
         @JavascriptInterface
         fun songStart(id: Int, text: String, delay: Double, fade: Double) =
-            NativeMusic.play(id, text, delay.toFloat(), fade.toFloat())
+            NativeMusic.play(id, text, delay.toFloat(), fade.toFloat(), web)
 
         @JavascriptInterface
         fun songFade(id: Int, delay: Double, secs: Double) = NativeMusic.fade(id, delay.toFloat(), secs.toFloat())

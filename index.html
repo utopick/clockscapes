@@ -12853,7 +12853,7 @@
         arp = null;
       // Browsers only allow sound after the page has been touched, so the first tap or key creates the
       // audio (then suspends it, so it does not hold the sound device while idle).
-      function unlockAudio(ev) {
+      function makeAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (audioCtx || !AC) return;
         // "playback" renders in bigger blocks, so a phone's busy moment doesn't make the music crackle
@@ -12862,6 +12862,11 @@
         } catch {
           audioCtx = new AC();
         }
+      }
+      function unlockAudio(ev) {
+        if (audioCtx) return;
+        makeAudio();
+        if (!audioCtx) return;
         // Music saved as on starts with this first touch, unless this touch is the music button or key itself.
         const ownControl = ev.target?.closest?.("#music") || /^[mn]$/i.test(ev.key || "");
         if (CONFIG.music.on && !ownControl) musicPlay(true);
@@ -13062,6 +13067,9 @@
           return;
         }
         if (musicOn()) return;
+        // A page that is never touched (the Android Auto player, which may play without a tap) makes its
+        // sound here; in a browser, play is always pressed, so the tap has made it already.
+        makeAudio();
         if (!audioCtx) return toast("This browser cannot play sound");
         audioCtx.resume().catch(() => {});
         if (!music.bus) music.bus = audioCtx.createGain();

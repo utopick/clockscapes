@@ -14731,6 +14731,12 @@
       // A short sound for an event, through the music's volume and muffled like the city sounds; only
       // while the music and its city sounds are on. Each note is made just before it plays, since a
       // planned note costs work all the time it waits (see lookahead).
+      // The event sounds' soft clipper: it takes them a third as loud (out's gain above) and gives back
+      // 0.8 tanh(x / 0.8), the same as the input until about 0.4 and never over 0.8.
+      const EVENT_CLIP = Float32Array.from(
+        { length: 1025 },
+        (_, i) => 0.8 * Math.tanh((3 * (i / 512 - 1)) / 0.8),
+      );
       function eventSound(kind, tp) {
         if (!audioCtx || !musicOn() || CONFIG.music.places === false || document.hidden) return;
         // With the app's native engine the music doesn't go through music.bus, so the event sounds go
@@ -14748,8 +14754,17 @@
           start = ctx.currentTime + 0.1;
         muffle.type = "lowpass";
         muffle.frequency.value = 2600;
-        out.gain.value = 0.5;
-        out.connect(muffle).connect(music.bus);
+        // the bells are low, so they get louder than the other sounds to be heard over the music: about as
+        // loud as the test alarm
+        out.gain.value = ({ bigben: 1.4, bells: 2.4, midnight: 2.4 }[kind] || 0.5) / 3;
+        // one soft clipper for all of them (see EVENT_CLIP), so two cities striking the hour together don't
+        // clip at full volume
+        if (!music.bus.clip) {
+          music.bus.clip = ctx.createWaveShaper();
+          music.bus.clip.curve = EVENT_CLIP;
+          music.bus.clip.connect(music.bus);
+        }
+        out.connect(muffle).connect(music.bus.clip);
         let end = start;
         const note = (midi, at, dur, type = "sine", vol = 0.25) => {
           end = Math.max(end, start + at + dur);
@@ -14778,7 +14793,7 @@
           note(midi - 12, at, dur, "sine", vol * 0.3);
         };
         SOUNDS[kind](note, bell, tp);
-        setTimeout(() => out.disconnect(), (end - start) * 1000 + 3000);
+        setTimeout(() => muffle.disconnect(), (end - start) * 1000 + 3000);
       }
       // a tune as [midi note, beats] pairs, played from `at` seconds with beat seconds per beat
       const tune = (note, notes, beat, type, vol, at = 0) => {

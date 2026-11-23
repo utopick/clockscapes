@@ -19,4 +19,11 @@ class MusicService : Service() {
         else startForeground(MusicNotice.ID, notice)
         return START_NOT_STICKY
     }
+
+    // The app was swiped away from the recent apps: the music stops, as closing the app should.
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        MainActivity.js(MusicNotice.JS_STOP)
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
 }

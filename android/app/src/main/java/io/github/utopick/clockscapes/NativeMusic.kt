@@ -38,13 +38,16 @@ object NativeMusic {
         if (available) setup(RATE)
     }
 
-    /** The page playing, nudged by beat() (only one page plays at a time). */
+    /** The page playing, nudged by beat() (only one page plays at a time), and the songs it started. */
     private var page: WebView? = null
+    private val songs = mutableSetOf<Int>()
     private val main = Handler(Looper.getMainLooper())
 
     @Synchronized
     fun play(id: Int, text: String, delay: Float, fade: Float, from: WebView) {
         start(id, text, delay, fade)
+        if (page !== from) songs.clear()
+        songs += id
         page = from
         if (thread == null) {
             thread = Thread(::loop, "lofi").apply { start() }
@@ -79,6 +82,21 @@ object NativeMusic {
             }
         }
         if (tries > 0) Handler(Looper.getMainLooper()).postDelayed({ stopIfIdle(tries - 1) }, 200)
+    }
+
+    /**
+     * The page is going away (the app was closed): its songs stop and the sound with them at once. Without
+     * this the engine, which runs apart from the page, went on playing with nothing left to stop it.
+     */
+    @Synchronized
+    fun release(from: WebView) {
+        if (page !== from) return
+        songs.forEach { stop(it) }
+        songs.clear()
+        running = false
+        thread?.join()
+        thread = null
+        page = null
     }
 
     private fun loop() {

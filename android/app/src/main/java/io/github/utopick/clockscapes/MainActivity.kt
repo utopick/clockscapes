@@ -157,6 +157,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         if (current === this) current = null
         MusicNotice.hide(this)
+        NativeMusic.release(web) // the native engine plays apart from the page, so it must be stopped
         web.destroy()
         super.onDestroy()
     }

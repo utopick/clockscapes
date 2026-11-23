@@ -132,3 +132,36 @@ test("B is A's shape again, starting from A's second chord", () => {
     if (s.minor) assert.strictEqual(s.chordsB[0].root % 12, s.chords[1].root % 12, `seed ${seed}`);
   }
 });
+
+// The Android app's native engine (native/lofi.c) plays LOFI.score's list, so it must know every voice.
+test("the native engine knows every voice a song calls, and when each one plays", () => {
+  const c = fs.readFileSync(path.join(__dirname, "..", "native", "lofi.c"), "utf8");
+  const known = new Set([...c.matchAll(/IS\("(\w+)"\)/g)].map((m) => m[1]));
+  const notes = new Set(c.match(/NOTES\[\] = \{([^}]*)\}/)[1].match(/\w+/g));
+  // voices that take (note, time, ...) are the bands' chord, lead and bass voices, and no others
+  const melodic = new Set(Object.values(LOFI.BANDS).flatMap((b) => [b.chords, b.bass, ...b.leads]));
+  assert.deepStrictEqual([...melodic].filter((v) => !notes.has(v)), []);
+  const moods = [{ crowd: 1, trains: true, rain: 0.8, thunder: true }, { night: 1, warm: true }, { night: 0 }];
+  for (const seed of SEEDS.slice(0, 60))
+    for (const mood of moods) {
+      const sheet = LOFI.song(seed, mood);
+      for (const [name, ...args] of LOFI.score(sheet)) {
+        assert.ok(known.has(name), `lofi.c has no voice "${name}"`);
+        const t = notes.has(name) ? args[1] : args[0];
+        assert.ok(t >= 0 && t <= sheet.seconds + 1, `${name} at ${t} s in a ${sheet.seconds} s song`);
+        assert.ok(args.every(Number.isFinite), `${name} ${args}`);
+      }
+    }
+});
+
+// Browsers play the same engine compiled to WebAssembly (script#lofi-wasm), rebuilt by tools/lofi-wasm.sh.
+test("the page's WebAssembly engine was built from the current lofi.c", () => {
+  const c = fs.readFileSync(path.join(__dirname, "..", "native", "lofi.c"));
+  const stamp = require("crypto").createHash("sha256").update(c).digest("hex").slice(0, 16);
+  const built = html.match(/<script id="lofi-wasm"[^>]*data-c="(\w+)"/)?.[1];
+  assert.strictEqual(built, stamp, "lofi.c changed: run sh tools/lofi-wasm.sh");
+  const wasm = Buffer.from(html.match(/<script id="lofi-wasm"[^>]*>([\s\S]*?)<\/script>/)[1], "base64");
+  const exports = WebAssembly.Module.exports(new WebAssembly.Module(wasm)).map((e) => e.name);
+  for (const name of ["lofi_init", "lofi_render", "lofi_start", "lofi_fade", "lofi_stop", "malloc"])
+    assert.ok(exports.includes(name), `the WebAssembly engine has no ${name}`);
+});

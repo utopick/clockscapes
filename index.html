@@ -8799,6 +8799,20 @@
         "london-gb": [["08/-1/Mon", "Notting Hill Carnival"]],
         "edinburgh-gb": [["12-31", "Hogmanay"]],
         "new-orleans-us": [["E-47", "Mardi Gras"]],
+        "venice-it": [
+          ["E-52+5", "Carnevale"],
+          ["07/3/Sun", "Festa del Redentore"],
+        ],
+        "cologne-de": [["E-48", "Rosenmontag"]],
+        "basel-ch": [["E-41+2", "Fasnacht"]],
+        "nice-fr": [["E-48+1", "Carnaval de Nice"]],
+        "santa-cruz-de-tenerife-es": [["E-48+1", "Carnaval"]],
+        "las-palmas-es": [["E-48+1", "Carnaval"]],
+        "cadiz-es": [["E-48+1", "Carnaval"]],
+        "barranquilla-co": [["E-51+3", "Carnaval de Barranquilla"]],
+        "port-of-spain-tt": [["E-48+1", "Carnival"]],
+        "oruro-bo": [["E-51+1", "Carnaval de Oruro"]],
+        "montevideo-uy": [["E-48+1", "Carnaval"]],
         "boston-us": [["04/3/Mon", "Patriots' Day"]],
         "honolulu-us": [["06-11", "Kamehameha Day"]],
         "kyoto-jp": [["07-17", "Gion Matsuri"]],
@@ -8807,7 +8821,6 @@
         "milan-it": [["12-07", "Sant'Ambrogio"]],
         "florence-it": [["06-24", "San Giovanni"]],
         "naples-it": [["09-19", "San Gennaro"]],
-        "venice-it": [["07/3/Sun", "Festa del Redentore"]],
         "lyon-fr": [["12-08+3", "Fete des Lumieres"]],
         "lisbon-pt": [["06-13", "Santo Antonio"]],
         "porto-pt": [["06-24", "Sao Joao"]],
@@ -13698,7 +13711,7 @@
           if (!ev.at && !ev.every) return since;
         }
         if (ev.at) {
-          for (const hm of ev.at) {
+          for (const hm of typeof ev.at === "function" ? ev.at(e) : ev.at) {
             const since = sec - +hm.slice(0, 2) * 3600 - +hm.slice(3) * 60;
             if (since >= 0 && since < ev.len * 60) return since;
           }
@@ -13722,6 +13735,9 @@
         ...new Set([
           ...(CITY_EVENTS[home?.id] || []),
           ...(CITY_EVENTS[home?.country] || []),
+          ...(PRAYER_PLACES.has(home?.id) || PRAYER_PLACES.has(home?.country) ? ["adhan"] : []),
+          ...(LNY_PLACES.has(home?.country) ? ["lnyEve", "lnyParade"] : []),
+          ...(hasCarnival(home) ? ["carnival"] : []),
           "newYear",
           "fireworks",
         ]),
@@ -14439,43 +14455,560 @@
         g.fillRect(x - 1, y - 5, 1, 1);
         g.fillRect(x + 1, y - 5, 1, 1);
       }
-      // The Cabalgata de Reyes: floats with the Three Kings throwing sweets to the crowd, pages leading
-      // camels, and a band, moving down the street.
+      // ---- parades: the Cabalgata, carnivals, the Lunar New Year and Thanksgiving ----
+      // Where a parade's head is, since seconds after it began: it comes in on the left and moves right at
+      // speed px/s, and comes back after its whole length has passed and a gap of empty street.
+      const paradeHead = (e, since, speed, length) => (since * speed) % (length + e.W + 40);
+      // Confetti falling over the street from x0 to x1, in colours (BRIGHT by default).
+      function drawConfetti(g, e, x0, x1, t, colors = BRIGHT) {
+        const y = sidewalk(e),
+          top = y - 44;
+        x0 = Math.max(0, Math.round(x0));
+        x1 = Math.min(e.W, Math.round(x1));
+        for (let k = 0; k * 3 < x1 - x0; k++) {
+          const fall = (((t / 1000) * (10 + 6 * h01(k + 2)) + h01(k * 3) * 44) % 44) / 44,
+            x = x0 + Math.round(h01(k + 7) * (x1 - x0) + Math.sin(t * 0.004 + k) * 2);
+          g.fillStyle = css(e.sh(colors[k % colors.length]));
+          g.fillRect(x, Math.round(top + fall * 44), 1, (k + Math.floor(t / 200)) % 3 ? 1 : 2);
+        }
+      }
+      // Party balloons let go from (x, y), rising and swaying away on their strings.
+      function drawLooseBalloons(g, e, x, y, t, seed) {
+        for (let k = 0; k < 2; k++) {
+          const rise = ((t / 1000) * 6 + h01(seed * 5 + k) * 60) % 60,
+            bx = Math.round(x + k * 5 + Math.sin(t * 0.002 + k + seed) * 2 + rise * 0.15),
+            by = Math.round(y - 8 - rise);
+          if (by < e.T) continue;
+          g.fillStyle = css(e.sh(BRIGHT[(seed + k) % BRIGHT.length]));
+          g.fillRect(bx, by, 2, 3);
+          g.fillRect(bx + (k ? 1 : 0), by + 3, 1, 1);
+          g.fillStyle = css([235, 235, 235], 0.5);
+          g.fillRect(bx + 1, by + 4, 1, 3);
+        }
+      }
+      // A giant parade balloon floating at (x, by): 0 a turkey, 1 a pumpkin, 2 a star, 3 a puppy.
+      function giantBalloon(g, e, x, by, kind) {
+        const c = (rgb) => (g.fillStyle = css(e.sh(rgb)));
+        if (kind === 0) {
+          for (const [dx, col] of [
+            [-6, [200, 60, 40]],
+            [-3, [240, 150, 40]],
+            [0, [250, 210, 60]],
+            [3, [240, 150, 40]],
+            [6, [200, 60, 40]],
+          ]) {
+            c(col);
+            g.fillRect(x + dx - 1, by - 10, 3, 8);
+          }
+          c([140, 90, 50]);
+          disc(g, x, by, 7);
+          c([170, 120, 70]);
+          g.fillRect(x + 5, by - 8, 4, 4);
+          c([220, 40, 40]);
+          g.fillRect(x + 8, by - 4, 1, 3);
+          c([250, 190, 60]);
+          g.fillRect(x + 9, by - 6, 2, 1);
+          c([30, 30, 36]);
+          g.fillRect(x + 7, by - 7, 1, 1);
+        } else if (kind === 1) {
+          c([240, 130, 30]);
+          disc(g, x, by, 8);
+          c([200, 100, 20]);
+          g.fillRect(x - 3, by - 7, 1, 15);
+          g.fillRect(x + 3, by - 7, 1, 15);
+          c([60, 140, 60]);
+          g.fillRect(x, by - 11, 2, 4);
+        } else if (kind === 2) {
+          c([250, 215, 60]);
+          disc(g, x, by, 4);
+          for (const [dx, dy] of [
+            [0, -9],
+            [-9, -3],
+            [9, -3],
+            [-6, 7],
+            [6, 7],
+          ]) {
+            line(g, x, by, x + dx, by + dy);
+            line(g, x + 1, by, x + dx + 1, by + dy);
+          }
+          c([255, 250, 220]);
+          g.fillRect(x - 1, by - 1, 2, 2);
+        } else {
+          c([240, 236, 226]);
+          disc(g, x, by, 7);
+          disc(g, x + 7, by - 5, 4);
+          c([150, 100, 60]);
+          g.fillRect(x + 4, by - 10, 2, 5);
+          g.fillRect(x + 10, by - 10, 2, 5);
+          c([30, 30, 36]);
+          g.fillRect(x + 11, by - 5, 1, 1);
+          g.fillRect(x + 8, by - 6, 1, 1);
+          c([200, 40, 40]);
+          g.fillRect(x - 2, by + 3, 6, 1);
+        }
+      }
+      // Three handlers holding a giant balloon's lines, walking at x on the street y.
+      function heldBalloon(g, e, x, y, t, i, kind, coat) {
+        const by = Math.round(y - 36 - e.A * 0.1 + Math.sin(t * 0.0018 + i) * 2);
+        for (const h of [-7, 0, 7]) {
+          person(g, e, x + h, y, coat, true);
+          g.fillStyle = css([235, 235, 235], 0.55);
+          line(g, x + h, y - 4, x + Math.sign(h) * 3, by + 7);
+        }
+        giantBalloon(g, e, x, by, kind);
+      }
+      // A king on his throne: skin, beard and cape (0 Melchor, white beard; 1 Gaspar, brown; 2 Baltasar).
+      function throneKing(g, e, x, y, k) {
+        king(g, e, x, y, k);
+        g.fillStyle = css(
+          e.sh(
+            [
+              [240, 240, 240],
+              [120, 70, 40],
+              [30, 24, 24],
+            ][k],
+          ),
+        );
+        g.fillRect(x + 1, y - 3, 1, 1); // the beard
+        if (k === 2) {
+          g.fillStyle = css(e.sh([110, 70, 45]));
+          g.fillRect(x, y - 3, 1, 1);
+        }
+      }
+      // The Cabalgata de Reyes as Madrid's goes down the Castellana: the giant Star of Bethlehem leading,
+      // heralds on horseback, a toy train, the Royal Postman's mailbox for the children's letters, pages
+      // with camels, then Melchor, Gaspar and Baltasar on their thrones throwing sweets, and the band, under
+      // confetti (fireworks behind, as EVENTS.cabalgata's also).
       function drawCabalgata(g, e, since, t) {
-        const { W } = e,
-          y = sidewalk(e),
-          gap = 44,
-          span = W + gap * 2;
-        for (let i = 0; i * gap < span; i++) {
-          const x = Math.round((((t / 1000) * 5 + i * gap) % span) - gap),
-            k = i % 3;
-          // the float: a decorated wagon with the king on top
-          g.fillStyle = css(e.sh([230, 190, 70]));
+        const y = sidewalk(e),
+          LENGTH = 230,
+          head = paradeHead(e, since, 5, LENGTH),
+          step = Math.floor(t / 250) % 2,
+          on = (x, w) => x > -w && x < e.W + w;
+        drawConfetti(g, e, head - LENGTH, head + 10, t);
+        // the Star
+        if (on(head, 14)) heldBalloon(g, e, Math.round(head), y, t, 0, 2, [30, 50, 120]);
+        // heralds
+        for (const [off, i] of [
+          [20, 1],
+          [28, 0],
+        ])
+          if (on(head - off, 6)) SPRITES.horse(g, e, Math.round(head - off), y, 1, step, i);
+        // a toy train: the engine with its funnel and puffs, two carriages of waving children
+        let x = Math.round(head - 46);
+        if (on(x, 30)) {
+          g.fillStyle = css(e.sh([200, 40, 40]));
+          g.fillRect(x - 3, y - 6, 8, 4);
+          g.fillRect(x - 3, y - 9, 3, 3);
+          g.fillStyle = css(e.sh([40, 40, 48]));
+          g.fillRect(x + 3, y - 9, 2, 3);
+          g.fillStyle = css([240, 240, 240], 0.6);
+          const puff = Math.floor(t / 400) % 3;
+          g.fillRect(x + 3 - puff, y - 11 - puff * 2, 2 + puff, 2);
+          for (const [cx, col] of [
+            [x - 12, [40, 90, 200]],
+            [x - 21, [240, 190, 40]],
+          ]) {
+            g.fillStyle = css(e.sh(col));
+            g.fillRect(cx - 3, y - 5, 8, 3);
+            person(g, e, cx - 1, y - 5, BRIGHT[cx & 3], step === 1);
+            person(g, e, cx + 2, y - 5, BRIGHT[(cx + 1) & 3], step === 0);
+          }
+          g.fillStyle = css(e.sh([45, 42, 57]));
+          for (let w = x - 24; w < x + 5; w += 4) g.fillRect(w, y - 2, 2, 2);
+        }
+        // the Royal Postman: a yellow mailbox with a crown, and letters fluttering up into it
+        x = Math.round(head - 82);
+        if (on(x, 12)) {
+          g.fillStyle = css(e.sh([90, 60, 140]));
           g.fillRect(x - 7, y - 5, 15, 4);
-          for (let c = 0; c < 15; c += 2) {
-            g.fillStyle = css(e.sh(BRIGHT[(c + i) % BRIGHT.length]));
-            g.fillRect(x - 7 + c, y - 6, 1, 1);
+          g.fillStyle = css(e.sh([250, 200, 30]));
+          g.fillRect(x - 2, y - 14, 6, 9);
+          g.fillStyle = css(e.sh([40, 40, 48]));
+          g.fillRect(x - 1, y - 12, 4, 1);
+          g.fillStyle = css(e.sh([250, 220, 90]));
+          g.fillRect(x - 1, y - 16, 4, 2);
+          g.fillRect(x - 1, y - 17, 1, 1);
+          g.fillRect(x + 2, y - 17, 1, 1);
+          person(g, e, x - 5, y - 5, [200, 40, 40], true);
+          for (let k = 0; k < 3; k++) {
+            const p = (t / 1400 + k / 3) % 1;
+            g.fillStyle = css(e.sh([250, 250, 245]));
+            g.fillRect(Math.round(x + 9 - p * 8), Math.round(y - 4 - p * 9), 2, 1);
           }
           g.fillStyle = css(e.sh([45, 42, 57]));
           g.fillRect(x - 5, y - 1, 2, 2);
           g.fillRect(x + 4, y - 1, 2, 2);
-          king(g, e, x, y - 7, k);
-          // sweets thrown up from the float and falling to the sidewalk
+        }
+        // pages leading camels
+        for (const off of [100, 110])
+          if (on(head - off, 8)) {
+            SPRITES.camel(g, e, Math.round(head - off), y, 1, step, 1);
+            person(g, e, Math.round(head - off + 4), y, [240, 230, 200]);
+          }
+        // the Kings' floats, Melchor first
+        for (let k = 0; k < 3; k++) {
+          x = Math.round(head - 132 - k * 28);
+          if (!on(x, 16)) continue;
+          const [base, trim] = [
+            [
+              [120, 40, 140],
+              [240, 200, 70],
+            ],
+            [
+              [30, 120, 80],
+              [240, 200, 70],
+            ],
+            [
+              [170, 30, 40],
+              [240, 200, 70],
+            ],
+          ][k];
+          g.fillStyle = css(e.sh(base));
+          g.fillRect(x - 10, y - 6, 21, 5);
+          g.fillStyle = css(e.sh(trim));
+          g.fillRect(x - 10, y - 7, 21, 1);
+          for (let c = -9; c < 11; c += 3) g.fillRect(x + c, y - 4, 1, 1);
+          // the canopy over the throne, on two columns, and its dome
+          g.fillRect(x - 5, y - 17, 1, 10);
+          g.fillRect(x + 5, y - 17, 1, 10);
+          g.fillRect(x - 6, y - 18, 13, 1);
+          g.fillStyle = css(e.sh(base));
+          g.fillRect(x - 4, y - 20, 9, 2);
+          g.fillRect(x - 2, y - 22, 5, 2);
+          g.fillStyle = css(e.sh(trim));
+          g.fillRect(x, y - 24, 1, 2);
+          throneKing(g, e, x, y - 8, k);
+          // sweets thrown to the crowd on both sides
           for (let j = 0; j < 4; j++) {
-            const p = (t / 900 + j * 0.25 + h01(i + j)) % 1,
+            const p = (t / 900 + j * 0.25 + h01(k + j)) % 1,
               side = j % 2 ? 1 : -1;
-            g.fillStyle = css(e.sh(BRIGHT[(i + j) % BRIGHT.length]));
-            g.fillRect(Math.round(x + side * (3 + 14 * p)), Math.round(y - 11 - 14 * p + 24 * p * p), 1, 1);
+            g.fillStyle = css(e.sh(BRIGHT[(k + j) % BRIGHT.length]));
+            g.fillRect(Math.round(x + side * (4 + 16 * p)), Math.round(y - 12 - 12 * p + 22 * p * p), 1, 1);
           }
-          // a page leading a camel, and two musicians behind
-          const step = Math.floor(t / 250 + i) % 2;
-          SPRITES.camel(g, e, x - 16, y, 1, step, 0);
-          person(g, e, x - 12, y, [240, 230, 200]);
-          for (const m of [24, 28]) {
-            person(g, e, x - m, y, [30, 60, 140]);
+          g.fillStyle = css(e.sh([45, 42, 57]));
+          g.fillRect(x - 7, y - 1, 2, 2);
+          g.fillRect(x + 6, y - 1, 2, 2);
+          drawLooseBalloons(g, e, x - 12, y, t, k);
+        }
+        // the band
+        for (let m = 0; m < 4; m++) {
+          x = Math.round(head - 214 - m * 4);
+          if (!on(x, 4)) continue;
+          const lift = (step + m) % 2;
+          person(g, e, x, y - lift, [30, 60, 140]);
+          g.fillStyle = css(e.sh([250, 210, 60]));
+          g.fillRect(x + 2, y - 2 - lift, 1, 1);
+        }
+      }
+      // A carnival on the festival day: decorated floats and dancers, each place in its own style.
+      const CARNIVAL = /Carn|Mardi|Rosenmontag|Fasnacht/;
+      const CARNIVAL_STYLES = {
+        // feathered samba dancers
+        samba: [
+          [250, 210, 40],
+          [40, 180, 90],
+          [240, 70, 140],
+          [60, 140, 240],
+        ],
+        // purple, green and gold, with beads thrown from the floats
+        mardi: [
+          [120, 40, 160],
+          [40, 150, 60],
+          [230, 190, 50],
+        ],
+        // masks and capes
+        venice: [
+          [150, 30, 40],
+          [230, 200, 120],
+          [40, 40, 80],
+          [240, 240, 240],
+        ],
+        // jesters in motley
+        jester: [
+          [220, 40, 40],
+          [240, 200, 40],
+          [40, 90, 200],
+          [240, 240, 240],
+        ],
+      };
+      const carnivalStyle = (e) =>
+        e.scene === "new-orleans-us"
+          ? "mardi"
+          : e.scene === "venice-it"
+            ? "venice"
+            : ["DE", "CH", "FR"].includes(e.country) || e.scene === "cadiz-es"
+              ? "jester"
+              : "samba";
+      function drawCarnival(g, e, since, t) {
+        const y = sidewalk(e),
+          style = carnivalStyle(e),
+          pal = CARNIVAL_STYLES[style],
+          gap = 50,
+          span = e.W + gap * 2,
+          step = Math.floor(t / 220) % 2;
+        drawConfetti(g, e, 0, e.W, t, pal);
+        for (let i = 0; i * gap < span; i++) {
+          const x = Math.round((((t / 1000) * 5 + i * gap) % span) - gap),
+            col = pal[i % pal.length],
+            col2 = pal[(i + 1) % pal.length];
+          // the float, with a big figure on it: a mask, a jester's head or a fan of feathers
+          g.fillStyle = css(e.sh(col));
+          g.fillRect(x - 9, y - 6, 19, 5);
+          g.fillStyle = css(e.sh(col2));
+          for (let c = -9; c < 10; c += 2) g.fillRect(x + c, y - 7, 1, 1);
+          if (style === "venice" || style === "mardi") {
+            g.fillStyle = css(e.sh([245, 240, 230]));
+            g.fillRect(x - 4, y - 18, 9, 8);
+            g.fillStyle = css(e.sh(col2));
+            g.fillRect(x - 3, y - 16, 3, 2);
+            g.fillRect(x + 1, y - 16, 3, 2);
+            g.fillStyle = css(e.sh([200, 40, 50]));
+            g.fillRect(x - 1, y - 12, 3, 1);
+            g.fillStyle = css(e.sh(pal[(i + 2) % pal.length]));
+            g.fillRect(x - 6, y - 20, 13, 2);
+          } else if (style === "jester") {
+            g.fillStyle = css(e.sh([247, 194, 150]));
+            disc(g, x, y - 13, 4);
+            g.fillStyle = css(e.sh(col2));
+            g.fillRect(x - 6, y - 19, 5, 2);
+            g.fillRect(x + 2, y - 19, 5, 2);
+            g.fillRect(x - 7, y - 20, 1, 1);
+            g.fillRect(x + 7, y - 20, 1, 1);
+            g.fillStyle = css(e.sh([200, 40, 50]));
+            g.fillRect(x - 2, y - 11, 5, 1);
+          } else
+            for (let f = -3; f <= 3; f++) {
+              g.fillStyle = css(e.sh(pal[(i + f + 4) % pal.length]));
+              line(g, x, y - 8, x + f * 3, y - 20 + Math.abs(f));
+            }
+          g.fillStyle = css(e.sh([45, 42, 57]));
+          g.fillRect(x - 7, y - 1, 2, 2);
+          g.fillRect(x + 6, y - 1, 2, 2);
+          // dancers behind the float
+          for (let m = 0; m < 5; m++) {
+            const dx = x - 15 - m * 5,
+              lift = (step + m) % 2,
+              c = pal[(i + m) % pal.length];
+            person(g, e, dx, y - lift, c, lift === 1);
+            g.fillStyle = css(e.sh(pal[(i + m + 1) % pal.length]));
+            if (style === "samba") {
+              g.fillRect(dx - 1, y - 6 - lift, 1, 2);
+              g.fillRect(dx, y - 7 - lift, 2, 3);
+              g.fillRect(dx + 2, y - 6 - lift, 1, 2);
+            } else if (style === "jester") {
+              g.fillRect(dx - 1, y - 4 - lift, 1, 1);
+              g.fillRect(dx + 2, y - 4 - lift, 1, 1);
+            } else if (style === "venice") {
+              g.fillRect(dx, y - 5 - lift, 2, 1);
+              g.fillStyle = css(e.sh([245, 240, 230]));
+              g.fillRect(dx, y - 3 - lift, 1, 1);
+            }
+          }
+          // Mardi Gras beads thrown from the float in arcs
+          if (style === "mardi")
+            for (let j = 0; j < 3; j++) {
+              const p = (t / 1100 + j / 3 + h01(i)) % 1;
+              g.fillStyle = css(e.sh(pal[j]));
+              const bx = Math.round(x + (j - 1) * 6 * p + 14 * p),
+                by = Math.round(y - 14 - 10 * p + 20 * p * p);
+              g.fillRect(bx, by, 2, 1);
+              g.fillRect(bx + 1, by + 1, 1, 1);
+            }
+          if (i % 2) drawLooseBalloons(g, e, x + 12, y, t, i);
+        }
+      }
+      // Red lanterns strung over the street, swaying, glowing at night.
+      function drawLanterns(g, e, t) {
+        const y0 = sidewalk(e) - 22,
+          night = e.k < 0.45;
+        for (let x = 4; x < e.W; x += 11) {
+          const sag = Math.round(Math.sin(((x % 44) / 44) * Math.PI) * 3),
+            sway = Math.round(Math.sin(t * 0.0015 + x) * 0.6);
+          g.fillStyle = css([60, 40, 30], 0.6);
+          g.fillRect(x, y0 + sag - 1, 11, 1);
+          if (night) softGlow(g, x + 1 + sway, y0 + sag + 3, 4, "255,80,50", 0.35);
+          g.fillStyle = night ? "#ff5a3c" : css(e.sh([210, 40, 40]));
+          g.fillRect(x + sway, y0 + sag + 1, 3, 4);
+          g.fillStyle = css(e.sh([240, 200, 60]));
+          g.fillRect(x + sway, y0 + sag, 3, 1);
+          g.fillRect(x + 1 + sway, y0 + sag + 5, 1, 2);
+        }
+      }
+      // Strings of firecrackers going off on the sidewalk: flashes and red paper flying.
+      function drawFirecrackers(g, e, t, x0 = 0, x1 = e.W) {
+        const y = sidewalk(e);
+        for (let k = 0; k < Math.max(3, (x1 - x0) / 40); k++) {
+          const c = (t / 90 + k * 7.3) % 12;
+          if (c > 3) continue;
+          const x = Math.round(x0 + h01(k + Math.floor((t / 90 + k * 7.3) / 12)) * (x1 - x0));
+          softGlow(g, x, y - 2, 3, "255,230,150", 0.7 * (1 - c / 3));
+          g.fillStyle = "#fff4c0";
+          g.fillRect(x, y - 2, 1, 1);
+          g.fillStyle = css(e.sh([220, 40, 40]));
+          for (let s = 0; s < 4; s++)
+            g.fillRect(Math.round(x + (s - 1.5) * c * 1.5), Math.round(y - 2 - c * 2 + s), 1, 1);
+        }
+      }
+      // Lunar New Year's Eve: lanterns over the street and firecrackers (fireworks behind).
+      function drawLnyEve(g, e, since, t) {
+        drawLanterns(g, e, t);
+        drawFirecrackers(g, e, t);
+      }
+      // The Lunar New Year parade: the dragon dance (the long dragon on its dancers' poles, chasing the pearl),
+      // two lions bouncing to a drum, firecrackers and red and gold confetti, under the lanterns.
+      function drawLnyParade(g, e, since, t) {
+        const y = sidewalk(e),
+          gap = 110,
+          span = e.W + gap * 2,
+          gold = [240, 200, 60],
+          red = [210, 40, 40];
+        drawLanterns(g, e, t);
+        drawConfetti(g, e, 0, e.W, t, [red, gold, red, [250, 240, 200]]);
+        for (let i = 0; i * gap < span; i++) {
+          const x = Math.round((((t / 1000) * 6 + i * gap) % span) - gap),
+            wave = (k) => Math.round(Math.sin(t * 0.006 - k * 0.8) * 3);
+          // the pearl on its pole ahead of the dragon
+          const px = x + 10,
+            py = y - 16 + wave(-2);
+          person(g, e, px, y, red);
+          g.fillStyle = css(e.sh([110, 70, 40]));
+          g.fillRect(px, py + 2, 1, y - 4 - py - 2);
+          softGlow(g, px, py, 3, "255,240,200", 0.6);
+          g.fillStyle = "#fff6d8";
+          g.fillRect(px - 1, py - 1, 3, 3);
+          // the body, back to front, each part on a dancer's pole
+          for (let k = 10; k >= 1; k--) {
+            const sx = x - 4 - k * 4,
+              sy = y - 14 + wave(k);
+            person(g, e, sx + 1, y, k % 2 ? gold : red);
+            g.fillStyle = css(e.sh([110, 70, 40]));
+            g.fillRect(sx + 1, sy + 3, 1, y - 4 - sy - 3);
+            g.fillStyle = css(e.sh(k % 2 ? red : gold));
+            g.fillRect(sx, sy, 5, 3);
+            g.fillStyle = css(e.sh([40, 160, 90]));
+            g.fillRect(sx + 1, sy - 1, 2, 1);
+          }
+          g.fillStyle = css(e.sh(gold));
+          g.fillRect(x - 47, y - 13 + wave(11), 3, 2); // the tail
+          // the head: red with a gold mane, white eyes, horns and whiskers, the jaw opening and shutting
+          const hy = y - 16 + wave(0),
+            jaw = Math.floor(t / 300) % 2;
+          person(g, e, x, y, red);
+          g.fillStyle = css(e.sh([110, 70, 40]));
+          g.fillRect(x + 1, hy + 4, 1, y - 4 - hy - 4);
+          g.fillStyle = css(e.sh(red));
+          g.fillRect(x - 3, hy, 7, 4);
+          g.fillRect(x + 1, hy + 4 + jaw, 4, 1);
+          g.fillStyle = css(e.sh(gold));
+          g.fillRect(x - 4, hy - 1, 4, 2);
+          g.fillRect(x - 2, hy - 3, 1, 2);
+          g.fillRect(x + 1, hy - 3, 1, 2);
+          g.fillStyle = "#ffffff";
+          g.fillRect(x + 1, hy + 1, 1, 1);
+          g.fillStyle = css(e.sh([250, 240, 220]));
+          g.fillRect(x + 4, hy + 2, 2, 1);
+          // two lions, each two dancers under a big head and a furry back, bouncing
+          for (const [lx, col] of [
+            [x - 62, gold],
+            [x - 76, [240, 240, 235]],
+          ]) {
+            const b = Math.abs(Math.round(Math.sin(t * 0.008 + lx) * 2)),
+              ly = y - 4 - b;
+            g.fillStyle = css(e.sh(col));
+            g.fillRect(lx - 4, ly - 2, 6, 3);
+            g.fillStyle = css(e.sh(red));
+            g.fillRect(lx + 1, ly - 5, 4, 4);
+            g.fillStyle = "#ffffff";
+            g.fillRect(lx + 3, ly - 4, 1, 1);
+            g.fillStyle = css(e.sh(gold));
+            g.fillRect(lx + 1, ly - 6, 4, 1);
+            g.fillStyle = css(e.sh([45, 42, 57]));
+            for (const fx of [-4, -2, 1, 3]) g.fillRect(lx + fx, ly + 1, 1, y - ly - 1);
+          }
+          // the drummer with a big red drum
+          const dx = x - 90;
+          person(g, e, dx, y, [240, 200, 60], Math.floor(t / 250) % 2 === 1);
+          g.fillStyle = css(e.sh(red));
+          g.fillRect(dx + 2, y - 4, 4, 3);
+          g.fillStyle = css(e.sh(gold));
+          g.fillRect(dx + 2, y - 4, 4, 1);
+          drawFirecrackers(g, e, t, x - 100, x + 20);
+        }
+      }
+      // The call to prayer: rings of sound spreading from the mosque's minaret (or the city's first landmark).
+      function drawCall(g, e, since, t, ev) {
+        const m = markOf(e, ev.mark),
+          cx = m ? Math.round((m.x0 + m.x1) / 2) : Math.round(e.W * 0.7),
+          cy = m ? m.top + 2 : Math.round(e.G - e.A * 0.6);
+        for (let r = 0; r < 3; r++) {
+          const R = ((since * 8 + r * 10) % 30) + 3;
+          g.fillStyle = `rgba(255,244,214,${(0.6 * (1 - R / 33)).toFixed(2)})`;
+          for (let a = 0; a < 24; a++) {
+            const ang = Math.PI * (1.08 + (a / 23) * 0.84);
+            g.fillRect(Math.round(cx + Math.cos(ang) * R), Math.round(cy + Math.sin(ang) * R * 0.7), 1, 1);
+          }
+        }
+      }
+      // The day's five prayer times at a place, as "HH:MM" in its local time: dawn (sun 18 degrees below
+      // the horizon), just after noon, the afternoon (a shadow as long as the thing plus its noon shadow),
+      // sunset and nightfall (17 below). Worked out with sunPos a minute at a time, once a day per place.
+      const prayerCache = new Map();
+      function prayerTimes(e) {
+        const key = `${e.latitude},${e.longitude},${e.year}-${e.month}-${e.day}`;
+        if (prayerCache.has(key)) return prayerCache.get(key);
+        if (prayerCache.size > 40) prayerCache.clear();
+        const midnight = Math.floor(Date.now() / 60000) * 60000 - (e.hour * 60 + e.min) * 60000,
+          at = (ms) => sunPos(ms, e.latitude, e.longitude),
+          hm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`,
+          times = [];
+        let prev = at(midnight),
+          asrAlt = null;
+        for (let m = 1; m < 1440; m++) {
+          const cur = at(midnight + m * 60000),
+            down = (alt) => cur.H > 0 && prev.alt > alt && cur.alt <= alt;
+          if (cur.H < 0 && prev.alt < -18 && cur.alt >= -18) times.push(hm(m));
+          if (prev.H < 0 && cur.H >= 0) {
+            times.push(hm(Math.min(1439, m + 2)));
+            asrAlt = deg(Math.atan(1 / (1 + Math.tan(rad(90 - cur.alt)))));
+          }
+          if (asrAlt !== null && down(asrAlt)) times.push(hm(m));
+          if (down(-0.833) || down(-17)) times.push(hm(m));
+          prev = cur;
+        }
+        prayerCache.set(key, times);
+        return times;
+      }
+      // Where the call to prayer is heard, the Lunar New Year is kept with a dragon, and which cities
+      // have a carnival (those whose festival list has one, see FESTIVALS).
+      const PRAYER_PLACES = new Set(
+        (
+          "AF AZ BA BD BH BN DJ DZ EG GM GN ID IQ IR JO KG KM KW LB LY MA ML MR MV MY NE OM PK PS QA SA SD " +
+          "SN SO SY TD TJ TM TN TR AE UZ YE kano-ng"
+        ).split(" "),
+      );
+      const LNY_PLACES = new Set(["CN", "HK", "MO", "TW", "SG", "MY"]);
+      const hasCarnival = (home) =>
+        [FESTIVALS[home?.id], FESTIVALS[home?.country]].some((l) =>
+          l?.some(([, name]) => CARNIVAL.test(name)),
+        );
+      // Thanksgiving: the parade's giant balloons float down the avenue on their handlers' lines, with
+      // marching bands between them and party balloons let go.
+      function drawParade(g, e, since, t) {
+        const y = sidewalk(e),
+          gap = 60,
+          span = e.W + gap * 2;
+        for (let i = 0; i * gap < span; i++) {
+          const x = Math.round((((t / 1000) * 4 + i * gap) % span) - gap);
+          heldBalloon(g, e, x, y, t, i, i % 4, [40, 90, 180]);
+          for (let m = 0; m < 4; m++) {
+            const mx = x - 24 - m * 4,
+              lift = Math.floor(t / 300 + m) % 2;
+            person(g, e, mx, y - lift, m % 2 ? [190, 30, 40] : [240, 240, 240]);
             g.fillStyle = css(e.sh([250, 210, 60]));
-            g.fillRect(x - m + 2, y - 2, 1, 1);
+            g.fillRect(mx + 2, y - 2 - lift, 1, 1);
           }
+          drawLooseBalloons(g, e, x - 42, y, t, i);
         }
       }
       // The night before Epiphany: the Three Kings ride their camels across the sky after the star.
@@ -14554,83 +15087,6 @@
           g.fillRect(px, py, 2, 2);
           g.fillStyle = "#fff4c0";
           g.fillRect(px + 1, py - 1, 1, 1);
-        }
-      }
-      // Thanksgiving: the parade's giant balloons float down the avenue on their handlers' lines, with
-      // marching bands between them.
-      function drawParade(g, e, since, t) {
-        const { W } = e,
-          y = sidewalk(e),
-          gap = 56,
-          span = W + gap * 2;
-        for (let i = 0; i * gap < span; i++) {
-          const x = Math.round((((t / 1000) * 4 + i * gap) % span) - gap),
-            by = Math.round(y - 30 - e.A * 0.1 + Math.sin(t * 0.0018 + i) * 1.5),
-            kind = i % 4;
-          // three handlers holding the lines
-          for (const h of [-6, 0, 6]) {
-            person(g, e, x + h, y, [40, 90, 180], true);
-            g.fillStyle = css([235, 235, 235], 0.55);
-            line(g, x + h, y - 4, x + Math.sign(h) * 2, by + 6);
-          }
-          // the balloon: a turkey, a pumpkin, a star or a puppy
-          const c = (rgb) => (g.fillStyle = css(e.sh(rgb)));
-          if (kind === 0) {
-            for (const [dx, col] of [
-              [-5, [200, 60, 40]],
-              [-2, [240, 150, 40]],
-              [1, [250, 210, 60]],
-              [4, [200, 60, 40]],
-            ]) {
-              c(col);
-              g.fillRect(x + dx - 1, by - 8, 3, 6);
-            }
-            c([140, 90, 50]);
-            disc(g, x, by, 5);
-            c([170, 120, 70]);
-            g.fillRect(x + 4, by - 6, 3, 3);
-            c([220, 40, 40]);
-            g.fillRect(x + 6, by - 3, 1, 2);
-            c([250, 190, 60]);
-            g.fillRect(x + 7, by - 5, 1, 1);
-          } else if (kind === 1) {
-            c([240, 130, 30]);
-            disc(g, x, by, 6);
-            c([200, 100, 20]);
-            g.fillRect(x - 2, by - 5, 1, 11);
-            g.fillRect(x + 2, by - 5, 1, 11);
-            c([60, 140, 60]);
-            g.fillRect(x, by - 8, 2, 3);
-          } else if (kind === 2) {
-            c([250, 215, 60]);
-            disc(g, x, by, 3);
-            for (const [dx, dy] of [
-              [0, -6],
-              [-6, -2],
-              [6, -2],
-              [-4, 5],
-              [4, 5],
-            ])
-              line(g, x, by, x + dx, by + dy);
-          } else {
-            c([240, 236, 226]);
-            disc(g, x, by, 5);
-            disc(g, x + 5, by - 4, 3);
-            c([150, 100, 60]);
-            g.fillRect(x + 3, by - 7, 2, 4);
-            g.fillRect(x + 7, by - 7, 2, 4);
-            c([30, 30, 36]);
-            g.fillRect(x + 8, by - 4, 1, 1);
-            g.fillRect(x + 6, by - 5, 1, 1);
-          }
-          // a marching band behind the balloon
-          for (let m = 0; m < 4; m++) {
-            const mx = x - 22 - m * 4,
-              lift = Math.floor(t / 300 + m) % 2;
-            person(g, e, mx, y - lift, m % 2 ? [190, 30, 40] : [240, 240, 240]);
-            g.fillStyle = css(e.sh([250, 210, 60]));
-            g.fillRect(mx + 2, y - 2 - lift, 1, 1);
-          }
         }
       }
       // Petals drifting down all over the column, and the ones already fallen on the sidewalk.
@@ -14739,7 +15195,8 @@
         muffle.frequency.value = 2600;
         // the bells are low, so they get louder than the other sounds to be heard over the music: about as
         // loud as the test alarm
-        out.gain.value = ({ bigben: 1.4, bells: 2.4, midnight: 2.4 }[kind] || 0.5) / 3;
+        out.gain.value =
+          ({ bigben: 1.4, bells: 2.4, midnight: 2.4, adhan: 3.4, firecrackers: 1.2 }[kind] || 0.5) / 3;
         // one soft clipper for all of them (see EVENT_CLIP), so two cities striking the hour together don't
         // clip at full volume
         if (!music.bus.clip) {
@@ -14775,7 +15232,45 @@
           note(midi + 19, at, dur * 0.3, "sine", vol * 0.2);
           note(midi - 12, at, dur, "sine", vol * 0.3);
         };
-        SOUNDS[kind](note, bell, tp);
+        // a voice: a glide through [midi, seconds] pairs, a buzz through two vowel formants, with vibrato
+        const voice = (points, at, vol = 0.3) => {
+          const t0 = start + at,
+            o = ctx.createOscillator(),
+            vib = ctx.createOscillator(),
+            depth = ctx.createGain(),
+            env = ctx.createGain(),
+            f1 = ctx.createBiquadFilter(),
+            f2 = ctx.createBiquadFilter();
+          let t = t0;
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(440 * 2 ** ((points[0][0] - 69) / 12), t0);
+          for (const [midi, dur] of points) {
+            o.frequency.exponentialRampToValueAtTime(440 * 2 ** ((midi - 69) / 12), t + 0.12);
+            t += dur;
+            o.frequency.setValueAtTime(440 * 2 ** ((midi - 69) / 12), t);
+          }
+          vib.frequency.value = 5.5;
+          depth.gain.value = 18;
+          vib.connect(depth).connect(o.detune);
+          f1.type = f2.type = "bandpass";
+          f1.frequency.value = 700;
+          f2.frequency.value = 1150;
+          f1.Q.value = 5;
+          f2.Q.value = 6;
+          env.gain.setValueAtTime(0, t0);
+          env.gain.linearRampToValueAtTime(vol, t0 + 0.25);
+          env.gain.setValueAtTime(vol, t - 0.5);
+          env.gain.linearRampToValueAtTime(0, t);
+          o.connect(f1).connect(env);
+          o.connect(f2).connect(env);
+          env.connect(out);
+          o.start(t0);
+          vib.start(t0);
+          o.stop(t + 0.05);
+          vib.stop(t + 0.05);
+          end = Math.max(end, t);
+        };
+        SOUNDS[kind](note, bell, tp, voice);
         setTimeout(() => muffle.disconnect(), (end - start) * 1000 + 3000);
       }
       // a tune as [midi note, beats] pairs, played from `at` seconds with beat seconds per beat
@@ -14805,6 +15300,72 @@
             at += 4;
           }
           for (let k = 0; k < (tp.h % 12 || 12); k++) bell(52, at + 1.5 + k * 2.6, 4, 0.3);
+        },
+        // the call to prayer: a few long phrases in the Hijaz mode, each with a melisma, rising and falling
+        adhan(note, bell, tp, voice) {
+          let at = 0;
+          for (const phrase of [
+            [
+              [55, 0.5],
+              [57, 0.5],
+              [57, 1.2],
+              [58, 0.25],
+              [57, 0.25],
+              [55, 0.25],
+              [54, 0.25],
+              [55, 1.8],
+            ],
+            [
+              [57, 0.5],
+              [58, 0.5],
+              [60, 1],
+              [58, 0.3],
+              [57, 0.3],
+              [58, 0.3],
+              [57, 0.3],
+              [55, 0.4],
+              [57, 2],
+            ],
+            [
+              [54, 0.5],
+              [55, 0.5],
+              [57, 0.8],
+              [55, 0.3],
+              [54, 0.3],
+              [51, 0.4],
+              [50, 2.2],
+            ],
+            [
+              [57, 0.6],
+              [57, 0.4],
+              [58, 0.3],
+              [60, 0.3],
+              [62, 1.2],
+              [60, 0.3],
+              [58, 0.3],
+              [57, 0.3],
+              [55, 0.3],
+              [57, 2],
+            ],
+            [
+              [55, 0.5],
+              [54, 0.4],
+              [51, 0.4],
+              [54, 0.4],
+              [55, 0.6],
+              [54, 0.3],
+              [51, 0.3],
+              [50, 2.6],
+            ],
+          ]) {
+            voice(phrase, at);
+            at += phrase.reduce((sum, [, d]) => sum + d, 0) + 2.5;
+          }
+        },
+        // a string of firecrackers: quick sharp pops, faster and faster
+        firecrackers(note) {
+          for (let k = 0, at = 0; k < 60; k++, at += 0.04 + 0.12 * h01(k) * (1 - k / 60))
+            note(86 + Math.floor(h01(k + 9) * 14), at, 0.04, "square", 0.06);
         },
         // midnight on New Year's Eve: a peal, then the twelve strokes
         midnight(note, bell) {
@@ -14981,11 +15542,15 @@
         santJoanFireworks: { label: "Sant Joan night: fireworks all over the city", on: (e) => e.month === 5 && ((e.day === 23 && e.hour >= 21) || (e.day === 24 && e.hour < 4)), sky: "night", layer: "back", draw: drawFireworks },
         santJoanFires: { label: "Sant Joan night: bonfires on the beach", on: (e) => e.month === 5 && ((e.day === 23 && e.hour >= 21) || (e.day === 24 && e.hour < 4)), sky: "night", layer: "street", draw: drawBonfires },
         santJordi: { label: "Sant Jordi: books and roses on every street", on: (e) => e.month === 3 && e.day === 23, hours: [9, 21], sky: "day", layer: "street", draw: drawMarket, roses: true },
-        cabalgata: { label: "La Cabalgata de Reyes", on: (e) => e.month === 0 && e.day === 5, hours: [9, 18], sky: "day", layer: "street", draw: drawCabalgata },
+        cabalgata: { label: "La Cabalgata de Reyes", on: (e) => e.month === 0 && e.day === 5, hours: [9, 18], sky: "day", layer: "street", draw: drawCabalgata, also: { back: drawFireworks } },
         reyes: { label: "The Three Kings ride across the sky after the star", on: (e) => e.month === 0 && ((e.day === 5 && e.hour >= 18) || (e.day === 6 && e.hour < 8)), sky: "night", layer: "front", draw: drawKings, life: (life) => (life.noPlanes = true) },
         santa: { label: "Santa's sleigh drops presents over the city", on: (e) => e.month === 11 && ((e.day === 24 && e.hour >= 18) || (e.day === 25 && e.hour < 8)), sky: "night", layer: "front", draw: drawSanta, life: (life) => (life.noPlanes = true) },
         thanksgivingParade: { label: "The Thanksgiving Day Parade", on: (e) => e.festival === "Thanksgiving", hours: [9, 18], sky: "day", layer: "street", draw: drawParade },
-        newYear: { label: "Happy New Year: the bells strike twelve and an hour of fireworks", on: (e) => e.month === 0 && e.day === 1, hours: [0, 1], sky: "night", layer: "back", draw: drawFireworks, over: drawNewYear, sound: "midnight" },
+        carnival: { label: "The carnival parade", on: (e) => CARNIVAL.test(e.festival), hours: [10, 20], sky: "day", layer: "street", draw: drawCarnival, also: { back: drawFireworks } },
+        adhan: { label: "The call to prayer from the minarets", at: prayerTimes, len: 4, sky: "dusk", layer: "front", draw: drawCall, mark: "Mosque", sound: "adhan" },
+        lnyEve: { label: "Lunar New Year's Eve: lanterns, firecrackers and fireworks", on: (e) => (daysFrom("LNY", e) === -1 && e.hour >= 18) || (daysFrom("LNY", e) === 0 && e.hour < 1), sky: "night", layer: "street", draw: drawLnyEve, also: { back: drawFireworks }, sound: "firecrackers" },
+        lnyParade: { label: "The Lunar New Year parade and its dragon dance", on: (e) => daysFrom("LNY", e) === 0, hours: [9, 18], sky: "day", layer: "street", draw: drawLnyParade, also: { back: drawFireworks }, sound: "firecrackers" },
+        newYear: { label: "Happy New Year: the bells strike twelve and an hour of fireworks", on: (e) => e.month === 0 && e.day === 1, hours: [0, 1], sky: "night", layer: "back", draw: drawFireworks, also: { front: drawNewYear }, sound: "midnight" },
         fireworks: { label: "Fireworks for the festival", on: (e) => e.festival && e.hour >= 20, sky: "night", layer: "back", draw: drawFireworks },
         feux: { label: "Fireworks over the river on summer Saturdays", months: [5, 6], days: ["Sat"], at: ["22:00"], len: 30, sky: "night", layer: "back", draw: drawFireworks },
         symphony: { label: "The Symphony of Lights", at: ["20:00"], len: 10, sky: "night", layer: "front", draw: drawLightShow },
@@ -15967,6 +16532,7 @@
           e.month = MONTHS.indexOf(tp.month);
           e.day = +tp.day;
           e.latitude = +z.lat;
+          e.longitude = +z.lon;
           e.year = +tp.year;
           e.festival = this.festival;
           this.env = e;
@@ -16351,7 +16917,7 @@
             layer = (name) => {
               for (const [ev, since] of events)
                 if (ev.layer === name) ev.draw(g, e, since, still, ev);
-                else if (name === "front") ev.over?.(g, e, since, still, ev); // a second part above the city
+                else ev.also?.[name]?.(g, e, since, still, ev); // an event's other parts, in other layers
             };
           layer("back");
           const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);

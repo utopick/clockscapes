@@ -466,26 +466,28 @@ static void voiceBlock(Voice *v, Song *s, double T) {
         Src *sr = &v->src[k];
         float y, dt = inc[k];
         if (v->fm) dt += idx * sinp(v->fmPh), v->fmPh += mInc, v->fmPh -= (int)v->fmPh;
-        if (dt < 0) dt = 0;
+        // a deep FM swing takes the frequency below zero, and then the wave runs backwards, as in Web Audio.
+        // Clamping it at 0 cut the downward half off and left the note sharp until the swing narrowed.
+        float adt = fabsf(dt);
         switch (sr->wave) {
           case SINE: y = sinp(sr->ph); break;
           case TRI: y = sr->ph < 0.25f ? 4 * sr->ph : sr->ph < 0.75f ? 2 - 4 * sr->ph : 4 * sr->ph - 4; break;
           case SAW: {
             float p = sr->ph + 0.5f;
             p -= (int)p;
-            y = 2 * p - 1 - blep(p, dt);
+            y = 2 * p - 1 - blep(p, adt);
             break;
           }
           case SQR: {
             float p = sr->ph + 0.5f;
             p -= (int)p;
-            y = (sr->ph < 0.5f ? 1 : -1) + blep(sr->ph, dt) - blep(p, dt);
+            y = (sr->ph < 0.5f ? 1 : -1) + blep(sr->ph, adt) - blep(p, adt);
             break;
           }
           default: y = noise[sr->pos], sr->pos = (sr->pos + 1) % NN;
         }
         sr->ph += dt;
-        sr->ph -= (int)sr->ph;
+        sr->ph -= floorf(sr->ph); // into 0..1 either way
         x += y * (g0[k] + (g1[k] - g0[k]) * fr);
       }
       if (v->par) x = bq(&v->flt[0].b, x) + bq(&v->flt[1].b, x);

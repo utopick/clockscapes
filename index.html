@@ -8884,7 +8884,7 @@
             const [start, days] = festivalStart(rule, y);
             if (today >= start && today < start + days * DAY_MS) return name;
           }
-        return month === 1 && day === 1 ? "Happy New Year" : "";
+        return month === 1 && day === 1 ? `Happy New Year ${y}` : "";
       }
       // Which tree to draw: the city's profile (from cityFlora), the tree's number in its row (variant,
       // so a row mixes kinds), the month 0..11 (-1 when unknown), latitude and day of the month.
@@ -13736,7 +13736,12 @@
         CITY_ATLAS[z.scene] ||
         CITY_ATLAS[{ madrid: "madrid-es", london: "london-gb", austin: "austin-us" }[z.scene]];
       const cityEvents = (home) => [
-        ...new Set([...(CITY_EVENTS[home?.id] || []), ...(CITY_EVENTS[home?.country] || []), "fireworks"]),
+        ...new Set([
+          ...(CITY_EVENTS[home?.id] || []),
+          ...(CITY_EVENTS[home?.country] || []),
+          "newYear",
+          "fireworks",
+        ]),
       ];
       const markOf = (e, name) => e.marks?.find((m) => m.name.includes(name)) || e.marks?.[0];
       const sidewalk = (e) => e.walk?.lanes[0] ?? e.G + 2;
@@ -13896,6 +13901,14 @@
         }
       }
       // Rockets that climb and burst into a ring of sparks, a few at a time, each at a new place.
+      // New Year's banner, in front of the city (the fireworks are behind it): a plane towing the greeting
+      // every 30 seconds. The event test, outside January, shows the coming year.
+      function drawNewYear(g, e, since, t) {
+        const word = `HAPPY NEW YEAR ${e.month === 0 ? e.year : e.year + 1}`,
+          s = e.W >= 240 ? 2 : 1,
+          x = Math.round(e.W + 4 - (since % 30) * ALARM_STYLES.planes.speed);
+        if (x > -(wordWidth(word, s) + 24)) ALARM_DRAW.planes(g, e, word, x, s, 0, t / 1000, true);
+      }
       function drawFireworks(g, e, since, t) {
         const { W, G, T } = e,
           CYCLE = 2600,
@@ -14795,6 +14808,11 @@
           }
           for (let k = 0; k < (tp.h % 12 || 12); k++) bell(52, at + 1.5 + k * 2.6, 4, 0.3);
         },
+        // midnight on New Year's Eve: a peal, then the twelve strokes
+        midnight(note, bell) {
+          [67, 64, 62, 60, 67, 64, 62, 60].forEach((m, i) => bell(m, i * 0.5, 1.6, 0.15));
+          for (let k = 0; k < 12; k++) bell(50, 5 + k * 2, 3.5, 0.3);
+        },
         // bells striking the hour, after a short peal
         bells(note, bell, tp) {
           [67, 64, 62, 60].forEach((m, i) => bell(m, i * 0.5, 1.6, 0.15));
@@ -14969,7 +14987,8 @@
         reyes: { label: "The Three Kings ride across the sky after the star", on: (e) => e.month === 0 && ((e.day === 5 && e.hour >= 18) || (e.day === 6 && e.hour < 8)), sky: "night", layer: "front", draw: drawKings, life: (life) => (life.noPlanes = true) },
         santa: { label: "Santa's sleigh drops presents over the city", on: (e) => e.month === 11 && ((e.day === 24 && e.hour >= 18) || (e.day === 25 && e.hour < 8)), sky: "night", layer: "front", draw: drawSanta, life: (life) => (life.noPlanes = true) },
         thanksgivingParade: { label: "The Thanksgiving Day Parade", on: (e) => e.festival === "Thanksgiving", hours: [9, 18], sky: "day", layer: "street", draw: drawParade },
-        fireworks: { label: "Fireworks for the festival", on: (e) => e.festival && (e.hour >= 20 || (e.month === 0 && e.day === 1 && e.hour === 0 && e.min < 30)), sky: "night", layer: "back", draw: drawFireworks },
+        newYear: { label: "Happy New Year: the bells strike twelve and an hour of fireworks", on: (e) => e.month === 0 && e.day === 1, hours: [0, 1], sky: "night", layer: "back", draw: drawFireworks, over: drawNewYear, sound: "midnight" },
+        fireworks: { label: "Fireworks for the festival", on: (e) => e.festival && e.hour >= 20, sky: "night", layer: "back", draw: drawFireworks },
         feux: { label: "Fireworks over the river on summer Saturdays", months: [5, 6], days: ["Sat"], at: ["22:00"], len: 30, sky: "night", layer: "back", draw: drawFireworks },
         symphony: { label: "The Symphony of Lights", at: ["20:00"], len: 10, sky: "night", layer: "front", draw: drawLightShow },
         spectra: { label: "The Spectra light and water show", at: ["20:00", "21:00"], len: 15, sky: "night", layer: "front", draw: drawLightShow },
@@ -16334,7 +16353,9 @@
           const events = this.eventsNow(tp, now),
             still = REDUCED_MOTION.matches ? 0 : t,
             layer = (name) => {
-              for (const [ev, since] of events) if (ev.layer === name) ev.draw(g, e, since, still, ev);
+              for (const [ev, since] of events)
+                if (ev.layer === name) ev.draw(g, e, since, still, ev);
+                else if (name === "front") ev.over?.(g, e, since, still, ev); // a second part above the city
             };
           layer("back");
           const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
@@ -16390,7 +16411,7 @@
                 eventSound(ev.sound, tp);
               }
             }
-          if (this.festival && !this.alarm) {
+          if (this.festival && !this.alarm && !events.some(([ev]) => ev === EVENTS.newYear)) {
             // every quarter hour a banner plane crosses from right to left with the festival's name
             const word = this.festival
               .normalize("NFD")

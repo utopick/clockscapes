@@ -13025,13 +13025,16 @@
         $("#nowPlaying").textContent = "Now playing: " + music.title;
         toast("♪ " + music.title);
       }
-      const lookahead = () => Math.min(10, Math.max(document.hidden ? 5 : 1.2, (music.gap || 0) * 3));
+      // Every planned note is processed from the moment it is planned, so planning far ahead is costly: 5 s
+      // ahead made a busy city crackle on a phone. The Android app's timers keep running when hidden.
+      const lookahead = () =>
+        Math.min(10, Math.max(document.hidden && !window.ClockscapesAndroid ? 2 : 1.2, (music.gap || 0) * 3));
       function musicTick() {
         const now = audioCtx.currentTime;
         // Notes are planned ahead, because timers slow down when the page is in the background or the
         // screen is off (to once a second or less). The lookahead is three times the longest recent gap
-        // between two ticks, at least 1.2 s and 5 s when hidden, at most 10 s, so a late tick never leaves
-        // the music without notes.
+        // between two ticks, at least 1.2 s (2 s in a hidden browser tab) and at most 10 s, so a late tick
+        // never leaves the music without notes.
         const gap = music.lastTick ? now - music.lastTick : 0;
         music.lastTick = now;
         music.gap = Math.max(gap, (music.gap || 0) * 0.98);

@@ -28,7 +28,7 @@ On a phone, **SET AS WALLPAPER** in the SCREEN tab puts the clocks on your home 
 
 The music behaves like any music app. On a phone it keeps playing in the background with a notification to stop or skip it, it stops when another app starts playing, and it pauses for a call and comes back when the call is over. On a TV it stops when you leave the app.
 
-The app's MUSIC tab also has a **Sound engine** setting. Native plays the same songs with the app's own engine instead of the browser's. It uses far less of the phone's processor, so the music doesn't crackle when the phone is busy.
+In the app, the music plays with the app's own native sound engine instead of the browser's. The songs are the same, but it uses far less of the phone's processor, so it doesn't crackle on an old phone or a TV and barely touches the battery with the screen off. The MUSIC tab's **Sound engine** setting can switch back to Browser.
 
 ## What it does
 

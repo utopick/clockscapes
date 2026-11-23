@@ -753,8 +753,8 @@
                 title="Plays the music with the app's own sound engine instead of the browser's, so it doesn't crackle when the phone is busy"
                 >Sound engine
                 <select name="musicNative">
-                  <option value="0">Browser</option>
                   <option value="1">Native</option>
+                  <option value="0">Browser</option>
                 </select></label
               >
               <p class="hint" id="nowPlaying" style="margin: 0 0 10px"></p>
@@ -13045,7 +13045,7 @@
           volume: num(m?.volume, 0, 100, 60),
           variation: num(m?.variation, 1, 9999, 1),
           places: m?.places !== false,
-          native: m?.native === true,
+          native: m?.native !== false, // the app's native engine unless Browser was picked (the web ignores it)
         };
       }
       // What the music should feel like at clock z now: night 0..1 (0 by day, 1 from 6 degrees below the

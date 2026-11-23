@@ -1974,7 +1974,7 @@
        *   appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00 local time.
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
        *   saved settings are lost), store "kv": "config" (zones, display, alarms, music) and the weather cache "wx:open-meteo:...".
-       * Network: only Open-Meteo (weather every 10 minutes, and the FIND button's place lookup).
+       * Network: only Open-Meteo (weather and air quality every 10 minutes, and the FIND button's place lookup).
        * Music: lo-fi synthesized live by script#lofi (no files); the "Music" section below picks each song's
        *   seed from a clock's place, local date and hour, and the variation number, and crossfades songs.
        */
@@ -5389,7 +5389,8 @@
       };
       const WX = {};
       const wxKey = (z) => (+z.lat).toFixed(3) + "," + (+z.lon).toFixed(3) + ":" + CONFIG.units;
-      // WMO weather interpretation codes returned by Open-Meteo.
+      // WMO weather interpretation codes returned by Open-Meteo: [category, description, intensity, look], where
+      // the look (drizzle, freezing, grains, hail) changes how the category is drawn.
       const WEATHER_CODES = {
         0: ["clear", "clear sky"],
         1: ["partly", "mainly clear"],
@@ -5397,83 +5398,138 @@
         3: ["cloudy", "overcast"],
         45: ["fog", "fog", 0.6],
         48: ["fog", "rime fog", 0.7],
-        51: ["rain", "light drizzle", 0.25],
-        53: ["rain", "drizzle", 0.35],
-        55: ["rain", "heavy drizzle", 0.45],
-        56: ["rain", "freezing drizzle", 0.3],
-        57: ["rain", "heavy freezing drizzle", 0.45],
+        51: ["rain", "light drizzle", 0.25, "drizzle"],
+        53: ["rain", "drizzle", 0.35, "drizzle"],
+        55: ["rain", "heavy drizzle", 0.45, "drizzle"],
+        56: ["rain", "freezing drizzle", 0.3, "freezing"],
+        57: ["rain", "heavy freezing drizzle", 0.45, "freezing"],
         61: ["rain", "light rain", 0.4],
         63: ["rain", "moderate rain", 0.65],
         65: ["rain", "heavy rain", 0.95],
-        66: ["rain", "light freezing rain", 0.45],
-        67: ["rain", "heavy freezing rain", 0.85],
+        66: ["rain", "light freezing rain", 0.45, "freezing"],
+        67: ["rain", "heavy freezing rain", 0.85, "freezing"],
         71: ["snow", "light snow", 0.4],
         73: ["snow", "moderate snow", 0.65],
         75: ["snow", "heavy snow", 0.95],
-        77: ["snow", "snow grains", 0.35],
+        77: ["snow", "snow grains", 0.35, "grains"],
         80: ["rain", "light showers", 0.4],
         81: ["rain", "showers", 0.65],
         82: ["rain", "heavy showers", 0.95],
         85: ["snow", "snow showers", 0.55],
         86: ["snow", "heavy snow showers", 0.9],
         95: ["thunder", "thunderstorm", 0.85],
-        96: ["thunder", "thunderstorm with hail", 0.9],
-        99: ["thunder", "thunderstorm with heavy hail", 1],
+        96: ["thunder", "thunderstorm with hail", 0.9, "hail"],
+        99: ["thunder", "thunderstorm with heavy hail", 1, "hail"],
       };
-      function wxFromOpenMeteo({ current }) {
+      // Skies where nothing falls, so dust, smoke, haze or a rainbow can show.
+      const DRY = new Set(["clear", "partly", "cloudy"]);
+      // Dust and smoke come from Open-Meteo's air quality (µg/m³ of desert dust, and of fine particles, PM2.5),
+      // haze from the visibility in metres. Returns the look, or undefined for clean air.
+      function airLook(air, visibility) {
+        if (air?.dust >= 150) return "dust";
+        if (air?.pm2_5 >= 75) return "smoke";
+        if (visibility < 5000) return "haze";
+      }
+      const AIR_DESC = { dust: "dust", smoke: "smoke haze", haze: "haze" };
+      // prev is this place's weather before, for the rainbow: sun after rain shows one for 40 minutes.
+      function wxFromOpenMeteo({ current }, air, prev) {
         if (!current || !Number.isFinite(current.temperature_2m)) throw new Error("Missing current weather");
-        const [cat, desc, inten = 0] = WEATHER_CODES[current.weather_code] || ["cloudy", ""];
-        return {
+        const [cat, desc, inten = 0, sub] = WEATHER_CODES[current.weather_code] || ["cloudy", ""];
+        const wx = {
           cat,
           inten,
           desc,
+          sub,
           temp: current.temperature_2m,
           wind: current.wind_speed_10m || 0,
           ts: Date.now(),
           ok: true,
         };
+        if (DRY.has(cat)) {
+          wx.air = airLook(air?.current, current.visibility);
+          if (wx.air) wx.desc = AIR_DESC[wx.air];
+          wx.rainbowUntil =
+            prev?.ok && (prev.cat === "rain" || prev.cat === "thunder")
+              ? wx.ts + 40 * 60000
+              : prev?.rainbowUntil || 0;
+        }
+        return wx;
       }
-      // The weather test (R three times, or swiping up, down, up, down): rain in every city, then a storm,
-      // then the real weather again. Like ?wx=, it changes what is drawn and heard, not what is saved.
+      // The weather test (R three times, or swiping up, down, up, down) shows each kind of weather in every
+      // city in turn (WX_CYCLE), then the real weather again. Like ?wx=name, it changes what is drawn and
+      // heard, not what is saved. Each name gives [category, description, look, air, intensity].
+      const WX_TESTS = {
+        clear: ["clear", "clear sky"],
+        partly: ["partly", "scattered clouds"],
+        cloudy: ["cloudy", "overcast clouds"],
+        rain: ["rain", "moderate rain"],
+        drizzle: ["rain", "drizzle", "drizzle", null, 0.35],
+        freezing: ["rain", "freezing rain", "freezing"],
+        thunder: ["thunder", "thunderstorm"],
+        hail: ["thunder", "thunderstorm with hail", "hail", null, 0.9],
+        snow: ["snow", "snow"],
+        grains: ["snow", "snow grains", "grains", null, 0.4],
+        fog: ["fog", "fog"],
+        haze: ["partly", "haze", null, "haze"],
+        dust: ["cloudy", "dust", null, "dust"],
+        smoke: ["partly", "smoke haze", null, "smoke"],
+        rainbow: ["partly", "rainbow"],
+        aurora: ["clear", "aurora"],
+      };
+      const WX_CYCLE = Object.keys(WX_TESTS).slice(3);
       let weatherTest = null;
       function debugWx() {
-        const c = weatherTest || PARAMS.get("wx");
-        if (!c) return null;
-        const desc =
-          {
-            clear: "clear sky",
-            partly: "scattered clouds",
-            cloudy: "overcast clouds",
-            fog: "mist",
-            rain: "moderate rain",
-            thunder: "thunderstorm",
-            snow: "snow",
-          }[c] || c;
-        return { cat: c, inten: +(PARAMS.get("i") || 0.65), desc, temp: 12, wind: 4, ts: 1, ok: true };
+        const name = weatherTest || PARAMS.get("wx");
+        if (!name) return null;
+        const [cat, desc, sub, air, inten] = WX_TESTS[name] || [name, name];
+        return {
+          cat,
+          desc,
+          sub,
+          air,
+          rainbow: name === "rainbow",
+          aurora: name === "aurora",
+          inten: +(PARAMS.get("i") || inten || 0.65),
+          temp: 12,
+          wind: 4,
+          ts: 1,
+          ok: true,
+        };
       }
+      // everything that changes how the weather is drawn, to know when to draw it again
+      const wxLook = (wx) => [wx.cat, wx.sub, wx.air, wx.rainbow, wx.aurora, wx.inten].join("/");
       async function fetchWeather(z, force) {
         const key = wxKey(z);
         if (CONFIG.weather === false) return;
         const cacheKey = "wx:open-meteo:" + key;
         const fahrenheit = CONFIG.units === "imperial";
-        if (!force) {
+        if (!force || !WX[key]) {
           const c = await store.get(cacheKey);
-          if (c && Date.now() - c.ts < 9.5 * 60000) {
+          if (c && !force && Date.now() - c.ts < 9.5 * 60000) {
             WX[key] = c;
             return;
           }
+          // the last weather known here, however old, shows while the new one loads (not a clear sky)
+          if (c?.ok && !WX[key]) WX[key] = { ...c, stale: true };
         }
         try {
           const query = new URLSearchParams({
             latitude: z.lat,
             longitude: z.lon,
-            current: "temperature_2m,weather_code,wind_speed_10m",
+            current: "temperature_2m,weather_code,wind_speed_10m,visibility",
             temperature_unit: fahrenheit ? "fahrenheit" : "celsius",
             wind_speed_unit: "ms",
           });
-          const r = await fetch("https://api.open-meteo.com/v1/forecast?" + query);
+          // the air quality is a bonus (dust and smoke): without it the weather still shows
+          const airQuery = new URLSearchParams({ latitude: z.lat, longitude: z.lon, current: "dust,pm2_5" });
+          const [r, air] = await Promise.all([
+            fetch("https://api.open-meteo.com/v1/forecast?" + query),
+            fetch("https://air-quality-api.open-meteo.com/v1/air-quality?" + airQuery)
+              .then((a) => (a.ok ? a.json() : null))
+              .catch(() => null),
+          ]);
           if (!r.ok) throw new Error("HTTP " + r.status);
-          const st = wxFromOpenMeteo(await r.json());
+          const st = wxFromOpenMeteo(await r.json(), air, WX[key]);
           WX[key] = st;
           store.set(cacheKey, st);
         } catch (e) {
@@ -6195,6 +6251,84 @@
       }
       // A lighthouse at night: its beam sweeps round every 10 s, seen from the side as a ray that swings
       // out to one side, shrinks to the lamp and swings out to the other, and the lamp flares as it faces us.
+      // ---- the rarer weather: an aurora, a rainbow, dust, smoke or haze in the air, and ice on the street ----
+      // Northern (or southern) lights: wavy curtains, green fading down from a pink top edge. amt 0..1.
+      function drawAurora(g, e, t, amt) {
+        const top = e.T + (e.G - e.T) * 0.12, // below the clock text
+          len = (e.G - e.T) * 0.25;
+        for (let x = 0; x < e.W; x++) {
+          const y = top + Math.sin(x * 0.05 + t * 0.0004) * 5 + Math.sin(x * 0.013 - t * 0.0002) * 9,
+            l = len * (0.7 + 0.3 * Math.sin(x * 0.09 + t * 0.0007)),
+            b = amt * (0.3 + 0.3 * Math.sin(x * 0.07 + t * 0.0011));
+          g.fillStyle = css([230, 120, 210], b * 0.7);
+          g.fillRect(x, Math.round(y) - 2, 1, 2);
+          for (let i = 0; i < 4; i++) {
+            g.fillStyle = css([90, 255, 160], b * (1 - i / 4));
+            g.fillRect(x, Math.round(y + (l * i) / 4), 1, Math.ceil(l / 4));
+          }
+        }
+      }
+      // A rainbow behind the city: seven soft bands on an arc that stands on the ground.
+      function drawRainbow(g, e) {
+        const R = Math.min(e.W * 0.8, e.G * 0.75),
+          bw = Math.max(1, Math.round(R / 40)),
+          cx = e.W * 0.4,
+          cy = e.G + R * 0.15;
+        g.save();
+        g.beginPath();
+        g.rect(0, 0, e.W, e.G);
+        g.clip();
+        g.globalAlpha = 0.3 * Math.max(0.4, e.k);
+        g.lineWidth = bw;
+        ["#ff4a4a", "#ff9a3a", "#ffe24a", "#5ad65a", "#4aa8ff", "#5a5aff", "#a65aff"].forEach((c, i) => {
+          g.strokeStyle = c;
+          g.beginPath();
+          g.arc(cx, cy, R - i * bw, Math.PI, 2 * Math.PI);
+          g.stroke();
+        });
+        g.restore();
+      }
+      // Dust, smoke or haze: a tint thickest at the horizon; dust also blows across in streaks.
+      const AIR_TINT = {
+        haze: [[215, 218, 212], 0.1, 0.5],
+        dust: [[205, 150, 80], 0.3, 0.6],
+        smoke: [[140, 118, 100], 0.28, 0.62],
+      };
+      function drawAir(g, e, kind, t) {
+        const [c0, a0, a1] = AIR_TINT[kind],
+          c = mulc(c0, 0.3 + 0.7 * e.k),
+          sky = g.createLinearGradient(0, 0, 0, e.G);
+        sky.addColorStop(0, css(c, a0));
+        sky.addColorStop(1, css(c, a1));
+        g.fillStyle = sky;
+        g.fillRect(0, 0, e.W, e.G);
+        g.fillStyle = css(c, a1 * 0.5);
+        g.fillRect(0, e.G, e.W, e.H - e.G);
+        if (kind !== "dust") return;
+        g.fillStyle = css(mulc(c0, 0.4 + 0.6 * e.k), 0.45);
+        for (let i = 0; i < e.W / 3; i++) {
+          const x = (Math.abs(Math.sin(i * 12.9898) * 43758.5) * e.W + t * 0.08 * (1 + (i % 3))) % (e.W + 6),
+            y = Math.abs(Math.sin(i * 78.233) * 12345.6) % e.H;
+          g.fillRect(Math.round(x) - 6, Math.round(y), 3 + (i % 3), 1);
+        }
+      }
+      // Freezing rain: the street glazed with ice, pale blue with long shines on it, and glints twinkling.
+      function drawIce(g, e, t) {
+        const depth = Math.min(28, e.H - e.G);
+        g.fillStyle = css([190, 225, 255], 0.16 + 0.1 * e.k);
+        g.fillRect(0, e.G, e.W, depth);
+        for (let i = 0; i < e.W / 2; i++) {
+          const x = (Math.abs(Math.sin(i * 12.9898) * 43758.5) % e.W) | 0,
+            y = e.G + ((i * 7) % depth),
+            a = Math.sin(t * 0.004 + i * 2.3);
+          g.fillStyle = css([235, 248, 255], 0.35 + 0.2 * e.k);
+          if (i % 3 === 0) g.fillRect(x, y, 4 + (i % 5), 1); // a shine on the ice
+          if (a > 0.6) {
+            g.fillStyle = css([255, 255, 255], (a - 0.6) * 2.5);
+            g.fillRect(x, y, 1, 1);
+          }
+        }
+      }
       function drawBeams(g, e, t) {
         if (!e.beams?.length || e.pal.lit <= 0.2) return;
         const a = (t / 10000) * Math.PI * 2,
@@ -13277,6 +13411,18 @@
           e.day = +tp.day;
           e.latitude = +z.lat;
           this.env = e;
+          // a rainbow with the sun low enough after rain; an aurora on clear nights in the far north or south,
+          // more often the nearer the pole (an estimate: Open-Meteo has no aurora forecast)
+          this.rainbow = wx.rainbow || (wx.rainbowUntil > now && alt > 2 && alt < 42 && DRY.has(wx.cat));
+          const pole = clamp((Math.abs(e.latitude) - 58) / 10, 0, 1),
+            night =
+              (((Math.sin((e.month * 31 + e.day) * 12.9898 + e.latitude * 78.233) * 43758.5453) % 1) + 1) % 1;
+          this.aurora =
+            wx.aurora ||
+            (pole > 0 &&
+              alt < -10 &&
+              (wx.cat === "clear" || wx.cat === "partly") &&
+              night < 0.1 + pole * 0.5);
           // --- sky (dithered bands) ---
           this.bg = mkCanvas(W, H);
           const bg = this.bg.getContext("2d");
@@ -13560,10 +13706,11 @@
         // Rain drops or snowflakes, made again only when the weather or the size changes. They use
         // Math.random, not the seeded rng, since they never need to come out the same.
         ensureParticles(wx) {
-          const k = wx.cat + "|" + wx.inten + "|" + this.W + "x" + this.H;
+          const k = wxLook(wx) + "|" + this.W + "x" + this.H;
           if (k === this.pkey) return;
           this.pkey = k;
           this.parts = [];
+          this.hail = [];
           const area = this.W * this.H,
             r = Math.random;
           if (wx.cat === "rain" || wx.cat === "thunder") {
@@ -13575,6 +13722,15 @@
                 v: 1.6 + r() * 1.4,
                 l: 2 + ((r() * 2) | 0),
               });
+            // hailstones fall faster than the rain and bounce once on the street (floor is where they land)
+            if (wx.sub === "hail")
+              for (let i = 0; i < Math.round(area / 700); i++)
+                this.hail.push({
+                  x: r() * this.W,
+                  y: r() * this.H,
+                  floor: this.G + r() * (this.H - this.G),
+                  b: 0,
+                });
           } else if (wx.cat === "snow") {
             const n = Math.round(area / lerp(90, 22, wx.inten));
             for (let i = 0; i < n; i++)
@@ -13592,7 +13748,7 @@
             z = this.zone,
             tp = timeParts(z.tz, now),
             wx = this.weather();
-          const key = Math.floor(now / 60000) + "|" + wx.ts + "|" + wx.cat + "|" + this.W + "x" + this.H;
+          const key = Math.floor(now / 60000) + "|" + wx.ts + "|" + wxLook(wx) + "|" + this.W + "x" + this.H;
           if (key !== this.key) {
             this.key = key;
             this.build(now, tp, wx);
@@ -13611,6 +13767,8 @@
             }
           }
           const seconds = t / 1000;
+          if (this.aurora)
+            drawAurora(g, e, REDUCED_MOTION.matches ? 0 : t, wx.aurora ? 1 : clamp(1 - e.k * 2, 0, 1));
           if (!REDUCED_MOTION.matches) drawSkyLife(g, e, this.life, seconds, wx.cat);
           // clouds
           const wind = 1 + Math.min(3, (wx.wind || 0) / 4);
@@ -13624,6 +13782,7 @@
           if (this.manualEncounter && now - this.manualEncounter.start >= ENCOUNTER_DURATION)
             this.manualEncounter = null;
           const encounter = this.manualEncounter || scheduledEncounter(now, tp, this.seed);
+          if (this.rainbow) drawRainbow(g, e);
           g.drawImage(this.far, 0, 0);
           const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
           if (encounter) this.lastEncounter = encounter;
@@ -13687,32 +13846,45 @@
           }
           // precipitation
           this.ensureParticles(wx);
+          if (wx.air) drawAir(g, e, wx.air, REDUCED_MOTION.matches ? 0 : t);
+          if (wx.sub === "freezing") drawIce(g, e, t);
           if (wx.cat === "rain" || wx.cat === "thunder") {
-            const slant = clamp((wx.wind || 0) / 7, 0, 1.2);
-            g.fillStyle = css(mixc([185, 205, 235], e.top, 0.25), 0.7);
+            const slant = clamp((wx.wind || 0) / 7, 0, 1.2),
+              drizzle = wx.sub === "drizzle";
+            g.fillStyle = css(mixc([185, 205, 235], e.top, 0.25), drizzle ? 0.6 : 0.7);
             for (const p of this.parts) {
-              p.y += p.v * 2;
+              p.y += p.v * (drizzle ? 1.1 : 2);
               p.x += slant * p.v;
               if (p.y > H) {
                 p.y = -3;
                 p.x = Math.random() * (W + 10) - 10;
               }
               if (p.x > W) p.x -= W;
-              for (let j = 0; j < p.l; j++)
+              for (let j = 0; j < (drizzle ? 1 : p.l); j++)
                 g.fillRect(Math.round(p.x - slant * j * 0.7), Math.round(p.y - j), 1, 1);
             }
+            g.fillStyle = "rgba(240,248,255,.95)";
+            for (const p of this.hail) {
+              if (p.b) p.b++;
+              else if ((p.y += 4) >= p.floor) p.b = 1;
+              if (p.b > 6) Object.assign(p, { x: Math.random() * W, y: -2, b: 0 });
+              const up = [0, 0, 2, 3, 3, 2, 0][p.b];
+              g.fillRect(Math.round(p.x + p.b * 0.5), Math.round(Math.min(p.y, p.floor) - up), 2, 2);
+            }
           } else if (wx.cat === "snow") {
+            const grains = wx.sub === "grains"; // small hard pellets falling straight and fast
             g.fillStyle = "rgba(250,252,255,.92)";
             for (const p of this.parts) {
-              p.y += p.v;
-              p.x += Math.sin(t * 0.0012 + p.ph) * 0.25 + (wx.wind || 0) * 0.01;
+              p.y += p.v * (grains ? 2.6 : 1);
+              p.x += grains ? 0 : Math.sin(t * 0.0012 + p.ph) * 0.25 + (wx.wind || 0) * 0.01;
               if (p.y > H) {
                 p.y = -2;
                 p.x = Math.random() * W;
               }
               if (p.x > W) p.x -= W;
               if (p.x < 0) p.x += W;
-              g.fillRect(Math.round(p.x), Math.round(p.y), p.big ? 2 : 1, p.big ? 2 : 1);
+              const size = p.big && !grains ? 2 : 1;
+              g.fillRect(Math.round(p.x), Math.round(p.y), size, size);
             }
           } else if (wx.cat === "fog") {
             // soft banks drifting sideways: each column's top and bottom wave with a few slow sines, and
@@ -14565,11 +14737,11 @@
         toast("Test alarm");
       }
       function cycleWeatherTest() {
-        weatherTest = { null: "rain", rain: "thunder", thunder: null }[weatherTest];
+        weatherTest = WX_CYCLE[WX_CYCLE.indexOf(weatherTest) + 1] || null; // after the last, the real weather
         toast(
-          { rain: "Weather test: rain in every city", thunder: "Weather test: a storm in every city" }[
-            weatherTest
-          ] || "Weather test off: the real weather again",
+          weatherTest
+            ? `Weather test: ${WX_TESTS[weatherTest][1]} in every city`
+            : "Weather test off: the real weather again",
         );
         buildColumns();
         if (musicOn()) nextSong(3); // the next song brings the rain (or its end) to the music

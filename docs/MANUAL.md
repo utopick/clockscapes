@@ -100,7 +100,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Address ending | What you see |
 |---|---|
 | `?alt=-10` | The sun 10° below the horizon, so dusk |
-| `?wx=snow&i=0.9` | Heavy snow. Other weathers are `clear`, `partly`, `cloudy`, `fog`, `rain` and `thunder` |
+| `?wx=snow&i=0.9` | Heavy snow. Other weathers are `clear`, `partly`, `cloudy`, `fog`, `rain`, `drizzle`, `freezing`, `thunder`, `hail`, `grains`, `haze`, `dust`, `smoke`, `rainbow` and `aurora` (the list is `WX_TESTS`) |
 | `?layout=rows` or `?layout=columns` | Forces the phone or the desktop layout |
 | `?alarm=Hello there` | Shows that alarm message right away (`&style=trucks`, `march` or `planes` to choose) |
 | `?enc=0` | Plays a monster encounter: 0 kaiju, 1 mecha, 2 turtle, 3 pterosaur, 4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 moth |
@@ -139,7 +139,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 
 **My phone still shows the old version after I pushed.** Pages takes about a minute to rebuild. After that, close the app completely and open it again. The service worker asks the network first, so one restart is enough.
 
-**The clock says "Loading weather…" forever.** The page can't reach Open-Meteo, so you're offline or it's blocked. The scene still works with clear skies, and you can switch the weather off in settings.
+**The clock says "Loading weather…" forever.** The page can't reach Open-Meteo, so you're offline or it's blocked. A city that has had weather before keeps showing its last known weather, and one that never had any shows a clear sky. You can also switch the weather off in settings.
 
 **My settings disappeared.** Settings live in the browser's IndexedDB under the name `pixel-timezones`. A private window, clearing site data or a different browser starts fresh. Never rename that database in the code, or everyone's settings are lost.
 

@@ -1950,12 +1950,14 @@
        *   ?layout=rows       or columns
        *   ?alarm=Good morning  show an alarm message now; &style=trucks|march|planes picks its look
        *   ?fest=Name         show a festival banner plane now, in every clock (it crosses every 30 s)
+       *   ?event=name        show a city event now (a name in EVENTS) in the clocks whose city has it
        *   ?fx=crt            screen filter: crt or lcd
        *   ?enc=0..7          play that encounter on load, and on K: 0 kaiju, 1 mecha kaiju, 2 spinning turtle,
        *                      3 pterosaur, 4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 giant moth
        *   ?exit              show the EXIT button, which normally only shows in the installed app
        * Keys: S settings, F fullscreen, M music on/off, N next song, Esc close.
        *   A A A (or a down-up-down zigzag stroke on the clocks) plays the test alarm message from the alarms tab.
+       *   E E E (or a left-right-left-right stroke) shows each city event of the cities on screen in turn.
        *   K (or 20 taps/clicks within a minute) plays a giant-monster "encounter" now. Encounters also
        *   appear on their own for 10 s every 6 hours, at 00:00, 06:00, 12:00 and 18:00 local time.
        * Storage: IndexedDB database "pixel-timezones" (the app's first name; do not rename it or
@@ -5533,7 +5535,7 @@
       // towers), trees, lamp, street (sidewalk, lanes, median; it also sets e.road, e.walk and e.bike),
       // ground (the street plus a railway or water band, the same in every city), water, railway, and the
       // train tables. Then the five hand-made scenes (sceneMadrid,
-      // sceneLondon, sceneAustin, sceneCity, sceneField) with their animations (animAustin, animField).
+      // sceneLondon, sceneAustin, sceneCity, sceneField) with their animations (animField; Austin's bats are a city event).
       // Every piece draws with e.rng(), so the same city always comes out the same.
       // To add a train kind, add a row to TRAIN_KINDS and, if it needs a new country, a row to TRAIN_LINES.
       const LITC = [
@@ -6104,6 +6106,7 @@
           bh = Math.max(36, Math.round(A * 0.97)),
           bt = G - bh,
           bcx = bx + 4;
+        e.marks?.push({ name: "Big Ben", x0: bx, x1: bx + bw, top: bt });
         g.fillStyle = css(e.sh(e.snow ? [225, 230, 238] : [70, 82, 76]));
         for (let i = 0; i < 9; i++) {
           const w = 1 + i;
@@ -6330,20 +6333,6 @@
           }
           g.fillStyle = `rgba(255,244,200,${(0.5 + 0.5 * facing).toFixed(2)})`;
           g.fillRect(b.x - 1, b.y - 1, 3, 3);
-        }
-      }
-      function animAustin(g, e, t) {
-        // Congress Avenue bats around dusk
-        if (!(e.sunH > 0 && e.alt < 2 && e.alt > -12)) return;
-        g.fillStyle = css([15, 12, 20]);
-        for (let i = 0; i < 26; i++) {
-          const s = (t * 0.00004 * (1 + (i % 5) * 0.2) + i * 0.137) % 1;
-          const x = Math.round(e.W * ((i * 0.618) % 1) + Math.sin(t * 0.002 + i) * 6 + s * 12);
-          const y = Math.round(e.batsY - s * (e.batsY - e.T * 0.6));
-          const flap = ((t / 120 + i) | 0) % 2;
-          g.fillRect(x, y, 1, 1);
-          g.fillRect(x - 1, y - flap, 1, 1);
-          g.fillRect(x + 1, y - flap, 1, 1);
         }
       }
 
@@ -7727,7 +7716,7 @@
 
       // ==== Festivities: on a city's local or national holiday a plane tows its name every 15 minutes ====
       // A rule is "MM-DD" (a fixed day), "MM-DD+N" (and the N days after), "E+N" or "E-N" (days from Easter
-      // Sunday), "MM/n/Day" (the nth weekday of the month, -1 = the last) or "LNY" (Lunar New Year).
+      // Sunday), "MM/n/Day" (the nth weekday of the month, -1 = the last), "LNY" (Lunar New Year) or "DIW" (Diwali).
       // City festivals win over national ones, and those over New Year's Day.
       // To add a holiday, add [rule, name] to the country's list (two-letter code) or to the city's (its
       // CITY_ATLAS id) under "local". Names are drawn in capitals with the GLYPHS font, which drops
@@ -7780,6 +7769,7 @@
         IN: [
           ["01-26", "Republic Day"],
           ["08-15", "Independence Day"],
+          ["DIW", "Diwali"],
         ],
         IS: [["06-17", "Thjodhatidardagurinn"]],
         IT: [["06-02", "Festa della Repubblica"]],
@@ -7807,6 +7797,8 @@
           ["11-11", "Swieto Niepodleglosci"],
         ],
         PT: [["06-10", "Dia de Portugal"]],
+        RU: [["05-09", "Den Pobedy"]],
+        SA: [["09-23", "National Day"]],
         SE: [["06-06", "Nationaldagen"]],
         SG: [
           ["LNY", "Happy New Year"],
@@ -7854,6 +7846,8 @@
       };
       // Lunar New Year's Day, by year (it follows the moon, so it is listed rather than computed)
       const LUNAR_NEW_YEAR = { 2026: "02-17", 2027: "02-06", 2028: "01-26", 2029: "02-13", 2030: "02-03" };
+      // Diwali, by year (it follows the moon too)
+      const DIWALI = { 2026: "11-08", 2027: "10-29", 2028: "10-17", 2029: "11-05", 2030: "10-26" };
       // Easter Sunday of year y, as UTC midnight in milliseconds. Self-contained.
       function easterSunday(y) {
         // the anonymous Gregorian algorithm (Meeus/Jones/Butcher); the one-letter names are the algorithm's own
@@ -7879,6 +7873,7 @@
         const days = 1 + (+extra || 0);
         if (base.startsWith("E")) return [easterSunday(y) + +base.slice(1) * DAY_MS, days];
         if (base === "LNY") return LUNAR_NEW_YEAR[y] ? festivalStart(LUNAR_NEW_YEAR[y], y) : [NaN, 1];
+        if (base === "DIW") return DIWALI[y] ? festivalStart(DIWALI[y], y) : [NaN, 1];
         if (base.includes("/")) {
           // the nth weekday of a month: count from the 1st, or back from the last day when n is -1
           const [mm, nth, day] = base.split("/");
@@ -10229,7 +10224,7 @@
         // Landmarks spread evenly across the width. When they do not fit side by side (narrow columns)
         // or are taller than the room, the cell unit shrinks, below 1 pixel if needed, so they never overlap.
         const marks = (CITY_LANDMARKS[city.id] || [])
-          .map(([, kind, o]) => ({ kind, o, ...landmarkSize(kind, o) }))
+          .map(([name, kind, o]) => ({ name, kind, o, ...landmarkSize(kind, o) }))
           .filter((m) => m.r > m.l);
         if (marks.length) {
           const span = marks.reduce((sum, m) => sum + m.r - m.l, 0);
@@ -10243,6 +10238,13 @@
           let left = gap;
           for (const m of marks) {
             cityLandmark(g, e, m.kind, Math.round(left - m.l * u), u, m.o);
+            // where it stands, for city events that happen on a landmark (the Eiffel Tower's sparkle)
+            e.marks?.push({
+              name: m.name,
+              x0: Math.round(left),
+              x1: Math.round(left + (m.r - m.l) * u),
+              top: G - Math.round(m.h * u),
+            });
             left += (m.r - m.l) * u + gap;
           }
         }
@@ -10663,6 +10665,9 @@
         pickup: 4,
         ambulance: 4,
         moto: 1,
+        danfo: 5,
+        jingle: 6,
+        rickshaw: 2,
       };
       const BOAT_MIX = [
         ["motorboat", 35],
@@ -10808,7 +10813,7 @@
           const x = lifePosition(boat, seconds, 12),
             y = boat.y,
             dir = boat.direction,
-            kind = lapKind(boat, seconds, 12, BOAT_MIX),
+            kind = lapKind(boat, seconds, 12, life.boatMix || BOAT_MIX),
             lit = life.night ? "#ffdda1" : life.glass;
           const hull = (l, r, color) => {
             g.fillStyle = color;
@@ -10843,6 +10848,16 @@
             g.fillRect(x + (dir > 0 ? 2 : -1), y - 3, 1, 1);
             g.fillStyle = life.ink;
             g.fillRect(x - dir * 2, y - 5, 1, 3);
+          } else if (kind === "dhow") {
+            // a wooden hull and a big slanted lateen sail
+            const mast = clamp(y - life.waterTop - 2, 3, 8);
+            hull(-4, 4, life.rust);
+            g.fillStyle = life.sail;
+            for (let r = 0; r < mast; r++) {
+              const w = Math.ceil((r + 1) * 0.8),
+                sx = x - dir * Math.round(r * 0.5);
+              g.fillRect(dir > 0 ? sx - w + 1 : sx, y - 1 - mast + r, w, 1);
+            }
           } else if (kind === "kayak") {
             g.fillStyle = boat.color;
             g.fillRect(x - 3, y, 7, 1);
@@ -10902,7 +10917,7 @@
         for (const vehicle of life.traffic) {
           if (!inPlane(vehicle.y) || vehicle.y === life.quietLane) continue;
           const { direction, y } = vehicle;
-          const kind = vehicleKind(vehicle, seconds);
+          const kind = life.mix ? lapKind(vehicle, seconds, 20, life.mix) : vehicleKind(vehicle, seconds);
           const x = lifePosition(vehicle, seconds, 20);
           const half = VEHICLE_HALF[kind];
           const left = x - half,
@@ -10961,6 +10976,40 @@
             }
           } else if (kind === "car") {
             g.fillRect(x - 1, y - 2, 3, 1);
+          } else if (kind === "danfo") {
+            // Lagos's yellow minibus with its black stripe and a row of windows
+            g.fillStyle = life.taxi;
+            g.fillRect(left, y - 3, w, 4);
+            g.fillStyle = life.ink;
+            g.fillRect(left, y - 1, w, 1);
+            g.fillStyle = life.glass;
+            for (let i = 1; i < w - 1; i += 2) g.fillRect(left + i, y - 3, 1, 1);
+          } else if (kind === "jingle") {
+            // a truck painted all over, with a tall decorated crown over the cab
+            const trailer = direction > 0 ? left : left + 4,
+              cab = direction > 0 ? nose - 3 : nose;
+            for (let i = 0; i < w - 4; i++) {
+              g.fillStyle = life.carColors[(i + vehicle.id) % life.carColors.length];
+              g.fillRect(trailer + i, y - 4, 1, 4);
+            }
+            g.fillStyle = life.taxi;
+            g.fillRect(cab, y - 3, 4, 3);
+            g.fillStyle = life.siren;
+            g.fillRect(cab, y - 5, 4, 2);
+            g.fillStyle = life.glass;
+            g.fillRect(cab + (direction > 0 ? 2 : 0), y - 2, 2, 1);
+          } else if (kind === "rickshaw") {
+            // a cycle rickshaw: the rider in front, the passenger seat under a bright hood behind
+            g.fillStyle = life.shade;
+            g.fillRect(x - 2, y, 1, 1);
+            g.fillRect(x + 2, y, 1, 1);
+            g.fillStyle = vehicle.color;
+            g.fillRect(x - direction - 1, y - 4, 3, 1);
+            g.fillRect(x - direction * 2, y - 3, 1, 2);
+            g.fillStyle = life.skin;
+            g.fillRect(x + direction * 2, y - 3, 1, 1);
+            g.fillStyle = life.ink;
+            g.fillRect(x + direction * 2, y - 2, 1, 1);
           } else if (kind === "taxi") {
             // yellow cab with its roof sign
             g.fillStyle = life.taxi;
@@ -12624,9 +12673,1139 @@
       const SCENE_FN = {
         madrid: [sceneMadrid],
         london: [sceneLondon],
-        austin: [sceneAustin, animAustin],
+        austin: [sceneAustin],
         city: [sceneCity],
         field: [sceneField, animField],
+      };
+
+      // ==== City events: something real that happens in a city at its own time ====
+      // EVENTS describes each event: when it happens (eventSince reads months, days, date, on, sun, hours,
+      // at, every and len) and how it shows. draw(g, e, since, t, ev) paints it in one of three layers:
+      // "back" (behind the buildings, like fireworks), "front" (over the scene, like birds) or "street"
+      // (over the people on the sidewalk). life(life, e) changes the street life instead (car-free
+      // Sundays, the traffic a city is known for), freeze stops the street, and sound plays a short
+      // sound from SOUNDS through the music when the music and its city sounds are on.
+      // CITY_EVENTS lists the events of each city (its CITY_ATLAS id) and each country (two-letter code);
+      // fireworks are everywhere on festival nights. A Column works out its city's list once (cityEvents)
+      // and frame() draws the ones under way. The event test (E three times, a left-right-left-right
+      // swipe, or Left Right Left Right on a remote, or ?event=name) shows each event of the cities on
+      // screen in turn, at the time of day it happens (TEST_SKY), looping every 40 seconds.
+      // To add an event, add a row to EVENTS and its name to the city's or the country's CITY_EVENTS list.
+      const h01 = (n) => {
+        const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+        return x - Math.floor(x);
+      }; // a fixed "random" number 0..1 for n
+      // days from the first day of a festival rule (see festivalStart) to the city's date this year
+      const daysFrom = (rule, e) =>
+        Math.round((Date.UTC(e.year, e.month, e.day) - festivalStart(rule, e.year)[0]) / DAY_MS);
+      // Eid al-Fitr and Eid al-Adha, by year (they follow the moon; a day either way depending on the sighting)
+      const EID = {
+        2026: ["03-20", "05-27"],
+        2027: ["03-10", "05-17"],
+        2028: ["02-27", "05-05"],
+        2029: ["02-14", "04-24"],
+        2030: ["02-05", "04-13"],
+      };
+      // Seconds since the event began at the city's time tp, or -1 when it is not on now.
+      function eventSince(ev, e, tp) {
+        if (ev.months && !ev.months.includes(e.month)) return -1;
+        if (ev.days && !ev.days.includes(e.weekday)) return -1;
+        if (ev.date) {
+          const d = daysFrom(ev.date, e);
+          if (d < 0 || d >= festivalStart(ev.date, e.year)[1]) return -1;
+        }
+        if (ev.on && !ev.on(e)) return -1;
+        if (ev.sun) {
+          const [lo, hi, half] = ev.sun;
+          if (e.alt < lo || e.alt > hi || (half && (half === "pm") !== e.sunH > 0)) return -1;
+        }
+        const sec = tp.h * 3600 + tp.m * 60 + tp.s;
+        if (ev.hours) {
+          const [from, to] = ev.hours,
+            since = (sec - from * 3600 + 86400) % 86400;
+          if (since >= ((to - from + 24) % 24 || 24) * 3600) return -1;
+          if (!ev.at && !ev.every) return since;
+        }
+        if (ev.at) {
+          for (const hm of ev.at) {
+            const since = sec - +hm.slice(0, 2) * 3600 - +hm.slice(3) * 60;
+            if (since >= 0 && since < ev.len * 60) return since;
+          }
+          return -1;
+        }
+        if (ev.every) {
+          const since = sec % (ev.every * 60);
+          return since < ev.len * 60 ? since : -1;
+        }
+        return sec;
+      }
+      // The sun height (and whether it is morning) the event test shows an event at.
+      const TEST_SKY = { night: [-14, false], dusk: [-4, false], dawn: [-1, true], day: [30, false] };
+      let eventTest = null; // { name, start } while the event test shows an event
+      const heardEvents = {}; // when each sound event last played, so two clocks don't play it twice
+      // The city a zone shows (the old scene names count as their cities), and the events it has.
+      const homeOf = (z) =>
+        CITY_ATLAS[z.scene] ||
+        CITY_ATLAS[{ madrid: "madrid-es", london: "london-gb", austin: "austin-us" }[z.scene]];
+      const cityEvents = (home) => [
+        ...new Set([...(CITY_EVENTS[home?.id] || []), ...(CITY_EVENTS[home?.country] || []), "fireworks"]),
+      ];
+      const markOf = (e, name) => e.marks?.find((m) => m.name.includes(name)) || e.marks?.[0];
+      const sidewalk = (e) => e.walk?.lanes[0] ?? e.G + 2;
+
+      // -- the sky: birds, bats, kites, lanterns, gliders, jets, fireworks, beams --
+      // A bird or bat: a body and two wing pixels that flap; big ones (fruit bats, flamingos) have longer wings.
+      function flyer(g, x, y, flap, big) {
+        g.fillRect(x, y, big ? 2 : 1, 1);
+        if (big) {
+          g.fillRect(x - 2, y - flap, 2, 1);
+          g.fillRect(x + 2, y - flap, 2, 1);
+        } else {
+          g.fillRect(x - 1, y - flap, 1, 1);
+          g.fillRect(x + 1, y - flap, 1, 1);
+        }
+      }
+      // A flock in one of five ways of flying: "rise" (out from under Austin's bridge), "swirl" (a
+      // starling murmuration), "circle" (pigeons wheeling round), "dart" (swifts) or "cross" (a stream
+      // crossing the sky, ev.dir 1 to the right, -1 to the left).
+      function drawFlock(g, e, since, t, ev) {
+        const { W, G, T } = e,
+          top = T + 2,
+          n = Math.max(4, Math.round(ev.n * Math.min(1.5, W / 200))),
+          paint = (ev.colors || [[15, 12, 20]]).map((c) => css(e.sh(c)));
+        for (let i = 0; i < n; i++) {
+          const r1 = h01(i),
+            r2 = h01(i + 99);
+          let x, y;
+          if (ev.style === "rise") {
+            const s = (t * 0.00004 * (1 + (i % 5) * 0.2) + i * 0.137) % 1,
+              from = e.batsY ?? G;
+            x = W * ((i * 0.618) % 1) + Math.sin(t * 0.002 + i) * 6 + s * 12;
+            y = from - s * (from - T * 0.6);
+          } else if (ev.style === "swirl") {
+            // one cloud that drifts, stretches, folds and turns
+            const cx = W * (0.5 + 0.3 * Math.sin(t * 0.00011)),
+              cy = lerp(top, G, 0.35 + 0.1 * Math.sin(t * 0.00017)),
+              rx = W * (0.2 + 0.1 * Math.sin(t * 0.0003)),
+              ry = (G - top) * (0.16 + 0.08 * Math.cos(t * 0.00023)),
+              a = r1 * 6.283 + Math.sin(t * 0.0004 + r2 * 3) * 0.8,
+              d = Math.sqrt(r2),
+              turn = t * 0.00015,
+              u = Math.cos(a) * d * rx,
+              v = Math.sin(a) * d * ry;
+            x = cx + u * Math.cos(turn) - v * Math.sin(turn) * 0.6 + Math.sin(t * 0.0011 + u * 0.05) * 4;
+            y = cy + v + u * Math.sin(turn) * 0.3;
+          } else if (ev.style === "circle") {
+            // one flock for every 12 birds, each round its own rooftop
+            const a = t * 0.0006 * (ev.speed || 1) + (i / n) * 6.283 * 3 + r1 * 0.5,
+              R = W * (0.1 + 0.06 * r2);
+            x = W * (0.25 + 0.5 * h01(Math.floor(i / 12) + 7)) + Math.cos(a) * R;
+            y = lerp(top, G, 0.3 + 0.2 * h01(Math.floor(i / 12) + 3)) + Math.sin(a) * R * 0.25 + r2 * 4;
+          } else if (ev.style === "dart") {
+            x = W * (0.5 + 0.48 * Math.sin(t * 0.0009 * (1 + r1) + r2 * 9));
+            y = lerp(top, G, 0.45 + 0.35 * Math.sin(t * 0.0013 * (1 + r2) + r1 * 7));
+          } else {
+            const span = W + 40,
+              along = (t * 0.001 * (ev.speed || 8) * (0.8 + 0.4 * r1) + r2 * span) % span;
+            x = (ev.dir || 1) > 0 ? along - 20 : W + 20 - along;
+            y = lerp(top, G, (ev.high ?? 0.2) + 0.3 * r2) + Math.sin(t * 0.002 + i) * 2;
+          }
+          g.fillStyle = paint[i % paint.length];
+          flyer(g, Math.round(x), Math.round(y), Math.floor(t / (ev.big ? 260 : 120) + i) % 2, ev.big);
+        }
+      }
+      const BRIGHT = [
+        [230, 60, 70],
+        [250, 200, 60],
+        [60, 170, 230],
+        [240, 120, 200],
+        [90, 200, 110],
+        [250, 140, 40],
+      ];
+      // Diamond kites on long strings from the roofs, with tails that wave.
+      function drawKites(g, e, since, t) {
+        const { W, G, T } = e,
+          n = Math.max(3, Math.round(W / 14)),
+          s = W >= 240 ? 2 : 1;
+        for (let i = 0; i < n; i++) {
+          const ax = Math.round(W * h01(i + 1)),
+            ay = G - Math.round(e.A * 0.3 * h01(i + 2)),
+            kx = Math.round(ax + Math.sin(t * 0.0007 + i) * 6 + (h01(i + 3) - 0.5) * 24),
+            ky = Math.round(lerp(T + 4, G - e.A * 0.45, h01(i + 4)) + Math.sin(t * 0.0011 + i * 2) * 3);
+          g.fillStyle = css(e.sh([70, 70, 80]), 0.3);
+          line(g, ax, ay, kx, ky + s);
+          g.fillStyle = css(e.sh(BRIGHT[i % BRIGHT.length]));
+          g.fillRect(kx, ky - s, s, s);
+          g.fillRect(kx - s, ky, 3 * s, s);
+          g.fillRect(kx, ky + s, s, s);
+          g.fillRect(kx + Math.round(Math.sin(t * 0.004 + i)), ky + 2 * s + 1, 1, 1);
+          g.fillRect(kx + Math.round(Math.sin(t * 0.004 + i + 1)), ky + 2 * s + 2, 1, 1);
+        }
+      }
+      // Paper lanterns rising slowly from the street, glowing, drifting and fading as they go.
+      function drawLanterns(g, e, since, t) {
+        const { W, G, T } = e,
+          span = G - T;
+        for (let i = 0; i < Math.round(W / 6); i++) {
+          const up = (t * 0.004 * (0.5 + 0.5 * h01(i)) + h01(i + 40) * span) % span,
+            x = Math.round(W * h01(i + 80) + Math.sin(t * 0.0008 + i) * 5 + up * 0.15),
+            y = Math.round(G - up),
+            a = 1 - up / span;
+          softGlow(g, x, y, 3, "255,170,80", 0.5 * a);
+          g.fillStyle = css([255, 196, 110], a);
+          g.fillRect(x, y, 1, 2);
+        }
+      }
+      // Hang gliders (delta wings) or paragliders (curved canopies on lines) circling down over the city.
+      function drawGliders(g, e, since, t, ev) {
+        const { W, G, T } = e;
+        for (let i = 0; i < Math.max(2, Math.round(W / 80)); i++) {
+          const a = t * 0.00025 * (1 + h01(i)) + i * 2.1,
+            x = Math.round(W * (0.5 + 0.42 * Math.sin(a))),
+            y = Math.round(lerp(T + 6, G - e.A * 0.5, 0.3 + 0.25 * Math.sin(a * 1.7 + i))),
+            dir = Math.cos(a) > 0 ? 1 : -1;
+          g.fillStyle = css(e.sh(BRIGHT[(i * 2) % BRIGHT.length]));
+          if (ev.para) {
+            g.fillRect(x - 2, y, 5, 1);
+            g.fillRect(x - 3, y + 1, 1, 1);
+            g.fillRect(x + 3, y + 1, 1, 1);
+            g.fillStyle = css(e.sh([40, 40, 50]), 0.6);
+            g.fillRect(x - 1, y + 2, 1, 1);
+            g.fillRect(x + 1, y + 2, 1, 1);
+          } else {
+            g.fillRect(x - 3, y + 1, 7, 1);
+            g.fillRect(x - 1, y, 3, 1);
+            g.fillRect(x + dir, y - 1, 1, 1);
+          }
+          g.fillStyle = css(e.sh([40, 40, 50]));
+          g.fillRect(x, y + (ev.para ? 3 : 2), 1, 2);
+        }
+      }
+      // A display team: four jets in a diamond trailing white smoke, passing again every 14 seconds.
+      function drawJets(g, e, since, t) {
+        const { W, G, T } = e,
+          CYCLE = 14000,
+          lap = Math.floor(t / CYCLE),
+          p = (t % CYCLE) / CYCLE,
+          dir = lap % 2 ? -1 : 1,
+          lead = dir > 0 ? -30 + p * (W + 80) : W + 30 - p * (W + 80),
+          y = Math.round(lerp(T + 8, G - e.A * 0.5, h01(lap % 50)));
+        for (const [dx, dy] of [
+          [0, 0],
+          [-5, -3],
+          [-5, 3],
+          [-10, 0],
+        ]) {
+          const x = Math.round(lead + dir * dx);
+          for (let k = 2; k < 40; k += 2) {
+            g.fillStyle = css([250, 250, 250], 0.5 * (1 - k / 40));
+            g.fillRect(x - dir * k, y + dy, 2, 1);
+          }
+          g.fillStyle = css(e.sh([20, 40, 110]));
+          g.fillRect(x - 1, y + dy, 4, 1);
+          g.fillStyle = css(e.sh([250, 200, 40]));
+          g.fillRect(x - dir, y + dy - 1, 1, 1);
+        }
+      }
+      // Rockets that climb and burst into a ring of sparks, a few at a time, each at a new place.
+      function drawFireworks(g, e, since, t) {
+        const { W, G, T } = e,
+          CYCLE = 2600,
+          n = Math.max(4, Math.round(W / 32)),
+          COLORS = ["255,90,90", "255,210,90", "120,220,255", "200,120,255", "120,255,150", "255,255,255"];
+        for (let i = 0; i < n; i++) {
+          const clock = t + ((i * CYCLE) / n) * 1.37,
+            k = Math.floor(clock / CYCLE),
+            age = (clock % CYCLE) / CYCLE,
+            r = h01((k % 1000) * 7 + i),
+            bx = Math.round(W * (0.1 + 0.8 * r)),
+            by = Math.round(lerp(T * 0.5, G - e.A * 0.4, h01((k % 1000) * 13 + i))),
+            rgb = COLORS[(k + i) % COLORS.length];
+          if (age < 0.25) {
+            g.fillStyle = "rgba(255,230,180,.9)";
+            g.fillRect(bx, Math.round(lerp(G, by, age / 0.25)), 1, 2);
+            continue;
+          }
+          const p = (age - 0.25) / 0.75,
+            R = 3 + Math.min(W / 14, 16) * Math.sqrt(p);
+          if (p < 0.12) softGlow(g, bx, by, 6, rgb, 0.5 * (1 - p / 0.12));
+          // each spark with a fainter one behind it, towards the middle, so the burst streaks outwards
+          for (const [back, a] of [
+            [0.82, 0.45],
+            [1, 1],
+          ]) {
+            g.fillStyle = `rgba(${rgb},${(a * Math.sqrt(1 - p)).toFixed(2)})`;
+            for (let s = 0; s < 20; s++) {
+              const angle = (s / 20) * 6.283 + r;
+              g.fillRect(
+                Math.round(bx + Math.cos(angle) * R * back),
+                Math.round(by + Math.sin(angle) * R * back + p * p * 6),
+                1,
+                1,
+              );
+            }
+          }
+        }
+      }
+      // A ray of light from (x, y) at angle a, fading over len pixels, cut at the column's edges (0..W).
+      function ray(g, x, y, a, len, rgb, power, W) {
+        for (let d = 2; d < len; d++) {
+          if (d % 8 === 2) g.fillStyle = `rgba(${rgb},${(power * (1 - d / len)).toFixed(2)})`;
+          const px = Math.round(x + Math.cos(a) * d),
+            py = Math.round(y + Math.sin(a) * d);
+          if (py < 0 || px < 0 || px >= W) break;
+          g.fillRect(px, py, 1, 1);
+        }
+      }
+      // Searchlights and lasers sweeping from the tops of the towers, changing colour every 4 seconds.
+      function drawLightShow(g, e, since, t) {
+        const { W, G } = e,
+          COLORS = ["120,255,140", "90,160,255", "220,110,255", "255,90,120", "255,240,140"],
+          from = (e.marks || []).map((m) => [(m.x0 + m.x1) / 2, m.top]);
+        for (let i = 0; i < 6; i++) from.push([W * h01(i + 21), G - e.A * (0.3 + 0.2 * h01(i + 22))]);
+        from.forEach(([x, y], i) => {
+          const a = -Math.PI / 2 + Math.sin(t * 0.0007 * (1 + (i % 3) * 0.3) + i) * 0.9,
+            rgb = COLORS[(i + Math.floor(t / 4000)) % COLORS.length];
+          ray(g, x, y, a, G, rgb, 0.45, W);
+          softGlow(g, Math.round(x), Math.round(y), 2, rgb, 0.8);
+        });
+      }
+      // Two tall beams of blue-white light straight up from where the towers stood.
+      function drawTribute(g, e) {
+        const { W, G } = e;
+        for (const x of [Math.round(W * 0.6), Math.round(W * 0.6) + 5])
+          for (let y = 0; y < G; y += 4) {
+            const a = 0.15 + 0.35 * (y / G);
+            g.fillStyle = `rgba(200,220,255,${(a * 0.5).toFixed(2)})`;
+            g.fillRect(x - 1, y, 4, 4);
+            g.fillStyle = `rgba(225,238,255,${a.toFixed(2)})`;
+            g.fillRect(x, y, 2, 4);
+          }
+      }
+
+      // -- landmarks and the skyline: sparkles, fountains, cannons, a bridge, a flag, music --
+      // Twinkling lights all over a landmark that narrows towards the top (the Eiffel Tower).
+      function drawSparkle(g, e, since, t, ev) {
+        const m = markOf(e, ev.mark);
+        if (!m) return;
+        const w = m.x1 - m.x0,
+          h = e.G - m.top,
+          frame = Math.floor(t / 90) % 1000;
+        g.fillStyle = "#fffef0";
+        for (let i = 0; i < Math.round((w * h) / 10); i++) {
+          const fy = h01(frame * 131 + i),
+            half = (w / 2) * (0.1 + 0.9 * fy ** 1.6);
+          g.fillRect(
+            Math.round(m.x0 + w / 2 + (h01(frame * 71 + i) * 2 - 1) * half),
+            Math.round(m.top + fy * h),
+            1,
+            1,
+          );
+        }
+      }
+      // Fountains: a row of jets dancing in front of the buildings (lit in colours at night), "arcs"
+      // falling from a bridge in rainbow colours (Seoul), or one "tall" jet on its landmark (Jeddah).
+      function drawFountain(g, e, since, t, ev) {
+        const { W, G } = e,
+          night = e.pal.lit > 0.2;
+        if (ev.tall) {
+          const m = markOf(e, "Fountain"),
+            x = m ? Math.round((m.x0 + m.x1) / 2) : Math.round(W / 2),
+            top = m ? m.top : Math.round(G - e.A * 0.8);
+          g.fillStyle = css(night ? [235, 240, 255] : [250, 252, 255], 0.75);
+          g.fillRect(x, top, 1, G - top);
+          g.fillStyle = css([240, 245, 255], 0.35);
+          for (let k = 0; k < 24; k++) {
+            const age = (t * 0.0006 + h01(k)) % 1;
+            g.fillRect(
+              Math.round(x + age * 12 + Math.sin(k) * 2),
+              Math.round(top + age * age * (G - top) * 0.5),
+              1,
+              1,
+            );
+          }
+          return;
+        }
+        const n = Math.max(5, Math.round(W / 9)),
+          beat = Math.floor(t / 3000);
+        for (let i = 0; i < n; i++) {
+          const x = Math.round(W * (0.06 + (0.88 * i) / (n - 1))),
+            rgb = night
+              ? ["160,220,255", "255,150,220", "180,255,190", "255,230,150"][(i + beat) % 4]
+              : "245,250,255";
+          if (ev.arcs) {
+            // water poured sideways from the bridge, curving down to the river
+            const dir = i % 2 ? -1 : 1;
+            g.fillStyle = `rgba(${night ? BRIGHT[i % BRIGHT.length].join(",") : rgb},.7)`;
+            for (let s = 0; s < 1; s += 0.08) {
+              const wob = Math.sin(t * 0.01 + s * 9 + i) * 0.5;
+              g.fillRect(Math.round(x + dir * s * 7 + wob), Math.round(G - 6 + s * s * 9), 1, 1);
+            }
+            continue;
+          }
+          // the choreography changes every 3 seconds: a wave, every other jet, or all of them high
+          const mode = beat % 3,
+            k =
+              mode === 0
+                ? 0.5 + 0.5 * Math.sin(t * 0.004 - i * 0.6)
+                : mode === 1
+                  ? (i + beat) % 2
+                  : 0.7 + 0.3 * Math.sin(t * 0.008),
+            h = Math.round(e.A * 0.45 * k);
+          if (h < 2) continue;
+          g.fillStyle = `rgba(${rgb},.55)`;
+          g.fillRect(x, G - h, 1, h);
+          g.fillStyle = `rgba(${rgb},.9)`;
+          g.fillRect(x - 1, G - h, 3, 1);
+          g.fillRect(x, G - h - 1, 1, 1);
+        }
+      }
+      // A cannon shot: a flash, then a puff of smoke that grows, drifts with the wind and fades in 25 s.
+      function drawCannon(g, e, since, t, ev) {
+        if (since > 25) return;
+        const m = ev.mark && markOf(e, ev.mark),
+          x = m ? Math.round(m.x1) : Math.round(e.W * ev.x),
+          y = m ? m.top + Math.round((e.G - m.top) * 0.5) : e.G - 4;
+        if (since < 0.3) softGlow(g, x, y, 5, "255,220,150", 0.9);
+        const fade = 1 - since / 25;
+        g.fillStyle = css(mixc([235, 235, 230], e.bot, 0.2), 0.6 * fade);
+        for (let k = 0; k < 8; k++)
+          disc(
+            g,
+            Math.round(x + since * 1.2 + (h01(k) - 0.5) * since * 1.5),
+            Math.round(y - since * 0.5 - h01(k + 3) * since),
+            Math.round(1 + Math.sqrt(since) * 1.4 + h01(k + 6) * 2),
+          );
+      }
+      // A drawbridge across the river, its two middle leaves raised (over 30 s, 8 s in the test) so the ships
+      // can pass. At night its outline is lit with lamps, as the bridges on the Neva are.
+      function drawDrawbridge(g, e, since) {
+        const { W, G } = e,
+          night = e.pal.lit > 0.2,
+          mid = Math.round(W / 2),
+          L = Math.max(6, Math.round(W * 0.08)),
+          x0 = Math.round(W * 0.12),
+          x1 = W - x0,
+          y = G - 8,
+          lift = clamp(since / (eventTest ? 8 : 30), 0, 1) * 1.15,
+          ends = [1, -1].map((dir) => {
+            const px = dir > 0 ? mid - L : mid + L;
+            return [px, px + dir * Math.cos(lift) * L, y - Math.sin(lift) * L];
+          });
+        g.fillStyle = night ? css([92, 94, 112]) : css(e.sh([120, 124, 140]));
+        g.fillRect(x0, y, mid - L - x0, 2);
+        g.fillRect(mid + L, y, x1 - mid - L, 2);
+        for (const px of [mid - L - 2, mid + L]) g.fillRect(px, y - 6, 2, G - y + 6);
+        for (let x = x0 + 4; x < x1; x += 12)
+          if (Math.abs(x - mid) > L + 3) g.fillRect(x, y + 2, 1, G - y - 2);
+        for (const [px, ex, ey] of ends) {
+          line(g, px, y, ex, ey);
+          line(g, px, y + 1, ex, ey + 1);
+        }
+        if (!night) return;
+        g.fillStyle = "#ffe6a0";
+        for (let x = x0; x < x1; x += 3) if (Math.abs(x - mid) > L) g.fillRect(x, y - 1, 1, 1);
+        for (const px of [mid - L - 2, mid + L + 1]) g.fillRect(px, y - 7, 1, 1);
+        for (const [px, ex, ey] of ends)
+          for (let k = 0; k <= 1; k += 0.25)
+            g.fillRect(Math.round(lerp(px, ex, k)), Math.round(lerp(y, ey, k)) - 1, 1, 1);
+      }
+      // The national flag raised at sunrise up a tall pole in front of the gate, waving as it goes.
+      function drawFlag(g, e, since, t) {
+        const m = markOf(e, "Tiananmen"),
+          x = m ? Math.round((m.x0 + m.x1) / 2) : Math.round(e.W / 2),
+          pole = Math.round(clamp(e.A * 0.5, 12, 26)),
+          top = e.G - pole,
+          p = eventTest ? clamp((since % 40) / 20, 0, 1) : clamp((e.alt + 1.5) / 1.5, 0, 1),
+          fy = Math.round(lerp(e.G - 6, top, p));
+        g.fillStyle = css(e.sh([200, 200, 205]));
+        g.fillRect(x, top, 1, pole);
+        for (let c = 0; c < 6; c++) {
+          g.fillStyle = css(e.sh([222, 41, 16]));
+          g.fillRect(x + 1 + c, fy + Math.round(Math.sin(t * 0.006 - c * 0.8) * (c / 6)), 1, 4);
+        }
+        g.fillStyle = css(e.sh([255, 222, 0]));
+        g.fillRect(x + 2, fy + 1, 1, 1);
+      }
+      // Music notes floating up from (x, y) for the first 40 seconds of a sound event.
+      function drawNotes(g, x, y, since) {
+        if (since > 40) return;
+        for (let k = 0; k < 4; k++) {
+          const age = (since + k * 1.5) % 6,
+            nx = Math.round(x + Math.sin(age * 2 + k) * 3 + (k - 1.5) * 3),
+            ny = Math.round(y - age * 4);
+          g.fillStyle = css([255, 244, 200], clamp(1 - age / 6, 0, 1) * clamp((40 - since) / 5, 0, 1));
+          g.fillRect(nx, ny, 2, 1);
+          g.fillRect(nx + 1, ny - 3, 1, 3);
+          g.fillRect(nx + 2, ny - 3, 1, 1);
+        }
+      }
+      // Notes from a landmark's top (ev.mark, or the city's first landmark), or from high over the street.
+      function drawBells(g, e, since, t, ev) {
+        const m = markOf(e, ev.mark || "");
+        drawNotes(
+          g,
+          m ? Math.round((m.x0 + m.x1) / 2) : Math.round(e.W * 0.75),
+          m ? m.top + 2 : Math.round(e.G - e.A * 0.5),
+          since,
+        );
+        if (ev.crows) drawFlock(g, e, since, t, EVENTS.crows);
+      }
+
+      // -- the street: animals, people, stalls, fires, water fights, lanterns --
+      // Sprites drawn standing on y (their feet), facing dir, with step 0 or 1 for the legs.
+      const SPRITES = {
+        penguin(g, e, x, y, dir, step) {
+          // a little (fairy) penguin: blue-grey back, a white front that shows in the dusk, a dark beak
+          g.fillStyle = css(mixc(e.sh([84, 104, 140]), [84, 104, 140], 0.4));
+          g.fillRect(x, y - 4, 2, 4);
+          g.fillStyle = css(mixc(e.sh([240, 240, 236]), [240, 240, 236], 0.6));
+          g.fillRect(dir > 0 ? x + 1 : x, y - 3, 1, 3);
+          g.fillStyle = css([40, 40, 48]);
+          g.fillRect(dir > 0 ? x + 2 : x - 1, y - 4, 1, 1);
+          g.fillRect(x + step, y, 1, 1);
+        },
+        cat(g, e, x, y, dir, step, i, still) {
+          g.fillStyle = css(
+            e.sh(
+              [
+                [214, 140, 60],
+                [40, 36, 40],
+                [236, 232, 222],
+                [140, 130, 120],
+              ][i % 4],
+            ),
+          );
+          if (still) {
+            g.fillRect(x, y - 2, 2, 3);
+            g.fillRect(x + (dir > 0 ? 1 : 0), y - 3, 1, 1);
+            g.fillRect(x - dir, y, 1, 1);
+            return;
+          }
+          g.fillRect(x - 1, y - 1, 3, 1);
+          g.fillRect(x + dir * 2, y - 2, 1, 1);
+          g.fillRect(x - dir * 2, y - 2 - step, 1, 1);
+          g.fillRect(x - 1 + step, y, 1, 1);
+          g.fillRect(x + 1 - step, y, 1, 1);
+        },
+        camel(g, e, x, y, dir, step, i) {
+          g.fillStyle = css(e.sh([196, 160, 110]));
+          g.fillRect(x - 2, y - 5, 5, 2);
+          g.fillRect(x - 1, y - 6, 2, 1);
+          g.fillRect(x + dir * 3, y - 6, 1, 2);
+          g.fillRect(x + dir * 3 + (dir > 0 ? 0 : -1), y - 7, 2, 1);
+          for (const lx of [-2, -1, 1, 2])
+            g.fillRect(x + lx, y - 3 + ((lx + step) % 2 ? 0 : 1), 1, (lx + step) % 2 ? 3 : 2);
+          if (i % 2) {
+            g.fillStyle = css(e.sh([247, 194, 150]));
+            g.fillRect(x, y - 9, 1, 1);
+            g.fillStyle = css(e.sh(BRIGHT[i % BRIGHT.length]));
+            g.fillRect(x, y - 8, 1, 2);
+          }
+        },
+        giraffe(g, e, x, y, dir, step) {
+          const coat = css(e.sh([214, 170, 90]));
+          g.fillStyle = coat;
+          g.fillRect(x - 1, y - 6, 4, 2);
+          for (let k = 0; k < 5; k++) g.fillRect(x + dir * (2 + Math.floor(k / 2)), y - 7 - k, 1, 1);
+          g.fillRect(x + dir * 4 + (dir > 0 ? 0 : -1), y - 12, 2, 1);
+          for (const lx of [-1, 2]) g.fillRect(x + lx, y - 4, 1, 4 - step);
+          g.fillStyle = css(e.sh([140, 90, 50]));
+          g.fillRect(x, y - 6, 1, 1);
+          g.fillRect(x + 2, y - 5, 1, 1);
+        },
+        horse(g, e, x, y, dir, step, i) {
+          g.fillStyle = css(e.sh(i % 3 ? [120, 80, 50] : [230, 226, 216]));
+          g.fillRect(x - 2, y - 5, 5, 2);
+          g.fillRect(x + dir * 3, y - 7, 1, 3);
+          for (const lx of [-2, 2]) g.fillRect(x + lx, y - 3, 1, 3);
+          g.fillRect(x + (step ? -1 : 1), y - 3, 1, 3);
+          g.fillStyle = css(e.sh(BRIGHT[i % BRIGHT.length]));
+          g.fillRect(x - 2, y - 4, 5, 1); // the bright cloth under the saddle
+          g.fillRect(x, y - 8, 2, 3); // the rider's robe
+          g.fillStyle = css(e.sh([60, 40, 30]));
+          g.fillRect(x, y - 9, 1, 1);
+          g.fillStyle = css(e.sh([240, 240, 235]));
+          g.fillRect(x, y - 10, 2, 1); // a turban
+        },
+        sapeur(g, e, x, y, dir, step, i) {
+          g.fillStyle = css(e.sh([40, 30, 30]));
+          g.fillRect(x - step, y, 1, 1);
+          g.fillRect(x + 1 + step, y, 1, 1);
+          g.fillStyle = css(e.sh(BRIGHT[(i * 3) % BRIGHT.length]));
+          g.fillRect(x, y - 4, 2, 4);
+          g.fillStyle = css(e.sh([110, 70, 50]));
+          g.fillRect(x, y - 5, 1, 1);
+          g.fillStyle = css(e.sh([20, 20, 24]));
+          g.fillRect(x - 1, y - 6, 3, 1); // a hat
+          g.fillRect(x + dir * 3, y - 3, 1, 4); // and a cane
+        },
+      };
+      // ev.n animals or people per 200 pixels along the sidewalk (or the skyline's foot, ev.far): walking
+      // both ways, in a line (ev.group), and some standing still (ev.rest, the share of them).
+      function drawWalkers(g, e, since, t, ev) {
+        const { W } = e,
+          y = ev.far ? e.G : sidewalk(e),
+          n = Math.max(1, Math.round((ev.n * W) / 200)),
+          span = W + 30;
+        for (let i = 0; i < n; i++) {
+          const dir = ev.group ? ev.dir || 1 : i % 2 ? -1 : 1,
+            still = ev.rest && h01(i + 3) < ev.rest,
+            d = ev.group
+              ? ((t / 1000) * ev.speed + span * 1.4 - i * 6) % span
+              : ((t / 1000) * ev.speed * (0.8 + 0.4 * h01(i)) + h01(i + 5) * span) % span,
+            x = still ? W * (0.1 + 0.8 * h01(i + 11)) : dir > 0 ? d - 15 : W + 15 - d;
+          SPRITES[ev.sprite](g, e, Math.round(x), y, dir, still ? 0 : Math.floor(t / 250 + i) % 2, i, still);
+        }
+      }
+      // A person standing at (x, y) in clothes of that colour, with arms up when arms is true.
+      function person(g, e, x, y, color, arms) {
+        g.fillStyle = css(e.sh([247, 194, 150]));
+        g.fillRect(x, y - 3, 1, 1);
+        if (arms) {
+          g.fillRect(x - 1, y - 4, 1, 1);
+          g.fillRect(x + 2, y - 4, 1, 1);
+        }
+        g.fillStyle = css(e.sh(color));
+        g.fillRect(x, y - 2, 2, 2);
+        g.fillStyle = css(e.sh([45, 42, 57]));
+        g.fillRect(x, y, 1, 1);
+        g.fillRect(x + 1, y, 1, 1);
+      }
+      // A tango couple on the sidewalk, swaying together and turning now and then.
+      function drawTango(g, e, since, t) {
+        const y = sidewalk(e),
+          x = Math.round(e.W * 0.35 + Math.sin(t * 0.0006) * 6),
+          sway = Math.round(Math.sin(t * 0.004)),
+          flip = Math.floor(t / 5000) % 2 ? 3 : 0;
+        person(g, e, x + flip + sway, y, [30, 30, 36]);
+        g.fillStyle = css(e.sh([200, 30, 50]));
+        g.fillRect(x + 3 - flip + sway, y - 2, 2, 2);
+        g.fillRect(x + 2 - flip + sway + (sway > 0 ? 2 : 0), y - 1, 1, 1);
+        g.fillStyle = css(e.sh([247, 194, 150]));
+        g.fillRect(x + 3 - flip + sway, y - 3, 1, 1);
+      }
+      // Square dancing: a line of dancers stepping and raising their arms in time, music from a speaker.
+      function drawSquareDance(g, e, since, t) {
+        const y = sidewalk(e),
+          x0 = Math.round(e.W * 0.3),
+          beat = Math.floor(t / 450),
+          step = [0, 1, 0, -1][beat % 4];
+        for (let i = 0; i < Math.max(5, Math.round(e.W / 30)); i++)
+          person(g, e, x0 + i * 4 + step, y, BRIGHT[(i * 5) % BRIGHT.length], beat % 2 === 1);
+        g.fillStyle = css(e.sh([30, 30, 36]));
+        g.fillRect(x0 - 5, y - 2, 2, 3);
+        drawNotes(g, x0 - 4, y - 4, since % 30);
+      }
+      // Kolam patterns of white rice flour on the doorsteps, with colours in the month of Margazhi.
+      function drawKolam(g, e) {
+        const { W, G } = e,
+          n = Math.max(2, Math.round(W / 30));
+        for (let i = 0; i < n; i++) {
+          const x0 = Math.round((W * (i + 0.5)) / n) - 3;
+          g.fillStyle = css(e.sh([245, 245, 240]));
+          for (let dx = 0; dx < 7; dx++)
+            for (let dy = 0; dy < 2; dy++) if ((dx + dy + i) % 2 === 0) g.fillRect(x0 + dx, G + 1 + dy, 1, 1);
+          if (e.month === 11 || e.month === 0) {
+            g.fillStyle = css(e.sh(BRIGHT[i % BRIGHT.length]));
+            g.fillRect(x0 + 3, G + 1, 1, 2);
+          }
+        }
+      }
+      // Book stalls along the sidewalk, each with an awning on two poles and its books in piles.
+      function drawMarket(g, e) {
+        const { W } = e,
+          y = sidewalk(e),
+          n = Math.max(2, Math.round(W / 40));
+        for (let i = 0; i < n; i++) {
+          const x = Math.round((W * (i + 0.2)) / n),
+            w = 10;
+          g.fillStyle = css(e.sh([120, 84, 52]));
+          g.fillRect(x, y - 2, w, 1);
+          g.fillRect(x, y - 1, 1, 2);
+          g.fillRect(x + w - 1, y - 1, 1, 2);
+          for (let k = 0; k < w; k++) {
+            g.fillStyle = css(e.sh(BRIGHT[(k + i) % BRIGHT.length]));
+            g.fillRect(x + k, y - 3 - (k % 3 ? 0 : 1), 1, k % 3 ? 1 : 2);
+          }
+          g.fillStyle = css(e.sh([90, 90, 96]));
+          g.fillRect(x, y - 8, 1, 6);
+          g.fillRect(x + w - 1, y - 8, 1, 6);
+          for (let k = 0; k < w; k++) {
+            g.fillStyle = css(e.sh(k % 2 ? [236, 232, 220] : [60, 120, 90]));
+            g.fillRect(x + k, y - 9, 1, 2);
+          }
+        }
+      }
+      // Bonfires along the sidewalk, flickering, with someone jumping over each one now and then.
+      function drawBonfires(g, e, since, t) {
+        const { W } = e,
+          y = sidewalk(e),
+          n = Math.max(2, Math.round(W / 60)),
+          tick = Math.floor(t / 100);
+        for (let i = 0; i < n; i++) {
+          const x = Math.round((W * (i + 0.5)) / n);
+          softGlow(g, x, y - 2, 6, "255,150,60", 0.45);
+          for (let k = 0; k < 7; k++) {
+            g.fillStyle = k % 2 ? "#ffd25a" : "#ff7a2a";
+            g.fillRect(
+              x - 2 + Math.floor(h01((tick % 1000) * 7 + k + i * 31) * 5),
+              y - 1 - Math.floor(h01(k + (tick % 1000) + i) * 4),
+              1,
+              1 + (k % 2),
+            );
+          }
+          const jump = ((t / 1000 + i * 1.7) % 4) / 1.2;
+          if (jump < 1)
+            person(
+              g,
+              e,
+              Math.round(x - 5 + jump * 9),
+              Math.round(y - Math.sin(jump * Math.PI) * 6),
+              BRIGHT[i % BRIGHT.length],
+              true,
+            );
+        }
+      }
+      // The new year water fight: people on the sidewalk throwing arcs of water at whoever passes.
+      function drawSplash(g, e, since, t) {
+        const { W } = e,
+          y = sidewalk(e),
+          n = Math.max(2, Math.round(W / 45));
+        for (let i = 0; i < n; i++) {
+          const x = Math.round((W * (i + 0.3 + 0.4 * h01(i))) / n),
+            dir = i % 2 ? -1 : 1,
+            p = (t / 1500 + h01(i)) % 1;
+          person(g, e, x, y, BRIGHT[(i * 2 + 1) % BRIGHT.length], p < 0.3);
+          g.fillStyle = "rgba(170,215,255,.85)";
+          for (let k = 0; k < 7; k++) {
+            const s = p * 1.4 - k * 0.06;
+            if (s > 0 && s < 1)
+              g.fillRect(
+                Math.round(x + dir * (2 + s * 14)),
+                Math.round(y - 4 - Math.sin(s * Math.PI) * 6 + s * 5),
+                1,
+                1,
+              );
+          }
+        }
+      }
+      // Star lanterns (parols) on the street lamps and in some windows, glowing at night.
+      function drawParols(g, e) {
+        const spots = (e.lamps || []).map((l) => [l.x, l.y - 4]);
+        (e.windows || []).forEach(
+          (w, i) => spots.length < 14 && h01(i + 500) < 0.05 && spots.push([w.x, w.y]),
+        );
+        spots.forEach(([x, y], i) => {
+          const rgb = ["255,80,80", "255,220,90", "90,200,255", "120,255,140", "255,120,220"][i % 5];
+          if (e.pal.lit > 0.2) softGlow(g, x, y, 3, rgb, 0.6);
+          g.fillStyle = `rgb(${rgb})`;
+          g.fillRect(x - 2, y, 5, 1);
+          g.fillRect(x, y - 2, 1, 5);
+          g.fillRect(x - 1, y - 1, 3, 3);
+          g.fillRect(x - 1, y + 3, 1, 1);
+          g.fillRect(x + 1, y + 3, 1, 1);
+        });
+      }
+      // Ramadan nights: strings of small lights swinging across the street, with lit crescents and lanterns.
+      function drawRamadan(g, e, since, t) {
+        const { W, G } = e,
+          top = Math.round(G - e.A * 0.45),
+          span = Math.max(30, Math.round(W / 3)),
+          COLORS = ["255,214,120", "255,150,90", "140,220,255", "190,255,170"];
+        for (let x0 = 0; x0 < W; x0 += span)
+          for (let k = 0; k <= span; k += 3) {
+            const x = x0 + k,
+              sag = Math.round(Math.sin((k / span) * Math.PI) * 6),
+              rgb = COLORS[(k / 3 + Math.floor(t / 700)) % COLORS.length];
+            g.fillStyle = `rgba(${rgb},.95)`;
+            g.fillRect(x, top + sag, 1, 1);
+            if (k === Math.round(span / 2)) {
+              // a crescent hanging from the middle of each string, and a lantern under it
+              const y = top + sag + 2;
+              softGlow(g, x, y + 2, 4, "255,214,120", 0.5);
+              g.fillStyle = "#ffe08a";
+              g.fillRect(x - 1, y, 1, 4);
+              g.fillRect(x, y - 1, 1, 1);
+              g.fillRect(x, y + 4, 1, 1);
+              g.fillRect(x + 2, y + 6, 2, 3);
+            }
+          }
+      }
+      // Petals drifting down all over the column, and the ones already fallen on the sidewalk.
+      function drawPetals(g, e, since, t, ev) {
+        const { W, H, G, T } = e,
+          span = H - T;
+        g.fillStyle = css(e.sh(ev.color));
+        for (let i = 0; i < Math.round(W / 2.5); i++) {
+          const y = T + ((t * 0.006 * (0.6 + 0.6 * h01(i)) + h01(i + 40) * span) % span),
+            x = (h01(i + 80) * W + Math.sin(t * 0.0015 + i) * 4 + t * 0.003) % W;
+          g.fillRect(Math.round(x), Math.round(y), 1, 1);
+        }
+        for (let k = 0; k < W / 3; k++)
+          g.fillRect(Math.round(h01(k + 200) * W), G + 1 + Math.floor(h01(k + 300) * 2), 1, 1);
+      }
+      // The river dyed bright green (Chicago, for St. Patrick's Day).
+      function drawGreenRiver(g, e) {
+        if (!e.water) return;
+        g.fillStyle = "rgba(20,190,90,.5)";
+        g.fillRect(0, e.water.y0, e.W, e.water.y1 - e.water.y0);
+      }
+      // Taipei's garbage truck: it comes along slowly playing Für Elise, and people wait with their bags.
+      function drawGarbageTruck(g, e, since, t) {
+        const { W } = e,
+          y = e.G + SYNC_LANE,
+          x = Math.round(W + 16 - since * 5);
+        for (let k = 0; k < 3; k++) {
+          const px = Math.round(W * (0.2 + 0.28 * k));
+          if (px < x - 4) {
+            person(g, e, px, sidewalk(e), BRIGHT[k + 1]);
+            g.fillStyle = css(e.sh([240, 240, 236]));
+            g.fillRect(px + 2, sidewalk(e) - 1, 2, 2); // the bag
+          }
+        }
+        if (x < -20) return;
+        g.fillStyle = css(e.sh([250, 200, 40]));
+        g.fillRect(x, y - 5, 12, 5);
+        g.fillRect(x - 4, y - 3, 4, 3);
+        g.fillStyle = css(e.sh([166, 202, 217]));
+        g.fillRect(x - 4, y - 3, 2, 1);
+        g.fillStyle = css(e.sh([30, 32, 44]));
+        g.fillRect(x - 3, y, 2, 1);
+        g.fillRect(x + 8, y, 2, 1);
+        drawNotes(g, x + 6, y - 7, since % 30);
+      }
+
+      // -- street life: a city's own traffic, car-free days, boats --
+      // Gives the traffic its own mix of vehicles ([kind, chance in 100], see VEHICLE_MIX), and more of
+      // them (more = 2 doubles the traffic).
+      const lifeMix =
+        (mix, more = 1) =>
+        (life) => {
+          life.mix = mix;
+          const extra = Math.round(life.traffic.length * (more - 1));
+          life.traffic = life.traffic.concat(
+            life.traffic
+              .slice(0, extra)
+              .map((v, i) => ({ ...v, id: v.id + 500 + i, offset: (v.offset + 0.37 + i * 0.13) % 1 })),
+          );
+        };
+      // No cars: bikes take the road and twice as many people walk.
+      function carFree(life) {
+        life.cyclists = life.cyclists.concat(
+          life.traffic
+            .flatMap((v) => [v, { ...v, offset: (v.offset + 0.5) % 1 }])
+            .map((v) => ({ ...v, speed: 9 + (v.id % 4) })),
+        );
+        life.traffic = [];
+        life.walkers = life.walkers.concat(
+          life.walkers.map((w) => ({ ...w, offset: (w.offset + 0.5) % 1, dog: null })),
+        );
+      }
+      // The bike rush hour: a bike for every car.
+      function bikeRush(life) {
+        life.cyclists = life.cyclists.concat(
+          life.traffic.map((v) => ({ ...v, offset: (v.offset + 0.21) % 1, speed: 10 + (v.id % 3) })),
+        );
+      }
+
+      // -- sounds --
+      // A short sound for an event, through the music's volume and muffled like the city sounds; only
+      // while the music and its city sounds are on. Each note is made just before it plays, since a
+      // planned note costs work all the time it waits (see lookahead).
+      function eventSound(kind, tp) {
+        if (!audioCtx || !musicOn() || CONFIG.music.places === false || document.hidden) return;
+        const ctx = audioCtx,
+          out = ctx.createGain(),
+          muffle = ctx.createBiquadFilter(),
+          start = ctx.currentTime + 0.1;
+        muffle.type = "lowpass";
+        muffle.frequency.value = 2600;
+        out.gain.value = 0.5;
+        out.connect(muffle).connect(music.bus);
+        let end = start;
+        const note = (midi, at, dur, type = "sine", vol = 0.25) => {
+          end = Math.max(end, start + at + dur);
+          setTimeout(
+            () => {
+              const t0 = Math.max(ctx.currentTime, start + at),
+                o = ctx.createOscillator(),
+                env = ctx.createGain();
+              o.type = type;
+              o.frequency.value = 440 * 2 ** ((midi - 69) / 12);
+              env.gain.setValueAtTime(0, t0);
+              env.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+              env.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+              o.connect(env).connect(out);
+              o.start(t0);
+              o.stop(t0 + dur + 0.05);
+            },
+            Math.max(0, (start + at - ctx.currentTime) * 1000 - 150),
+          );
+        };
+        // a bell: the note with its octave, the fifth above it and the hum an octave below
+        const bell = (midi, at, dur, vol = 0.22) => {
+          note(midi, at, dur, "sine", vol);
+          note(midi + 12, at, dur * 0.5, "sine", vol * 0.4);
+          note(midi + 19, at, dur * 0.3, "sine", vol * 0.2);
+          note(midi - 12, at, dur, "sine", vol * 0.3);
+        };
+        SOUNDS[kind](note, bell, tp);
+        setTimeout(() => out.disconnect(), (end - start) * 1000 + 3000);
+      }
+      // a tune as [midi note, beats] pairs, played from `at` seconds with beat seconds per beat
+      const tune = (note, notes, beat, type, vol, at = 0) => {
+        for (const [midi, beats] of notes) {
+          note(midi, at, beats * beat * 1.1, type, vol);
+          at += beats * beat;
+        }
+        return at;
+      };
+      const SOUNDS = {
+        // a cannon: a low thud that rolls away
+        boom(note) {
+          note(33, 0, 2.2, "triangle", 0.6);
+          note(28, 0.02, 2.8, "sine", 0.6);
+        },
+        // Big Ben: the Westminster chimes for the full hour, then one stroke for each hour
+        bigben(note, bell, tp) {
+          let at = 0;
+          for (const phrase of [
+            [64, 68, 66, 59],
+            [64, 66, 68, 64],
+            [68, 64, 66, 59],
+            [59, 66, 68, 64],
+          ]) {
+            phrase.forEach((m, i) => bell(m, at + i * 0.75 + (i === 3 ? 0.3 : 0), 2.4));
+            at += 4;
+          }
+          for (let k = 0; k < (tp.h % 12 || 12); k++) bell(52, at + 1.5 + k * 2.6, 4, 0.3);
+        },
+        // bells striking the hour, after a short peal
+        bells(note, bell, tp) {
+          [67, 64, 62, 60].forEach((m, i) => bell(m, i * 0.5, 1.6, 0.15));
+          for (let k = 0; k < (tp.h % 12 || 12); k++) bell(50, 3 + k * 2.4, 3.5, 0.3);
+        },
+        // a trumpet call that breaks off in the middle of a note, as the hejnał does
+        hejnal(note) {
+          const at = tune(
+            note,
+            [
+              [65, 1],
+              [69, 1],
+              [72, 2],
+              [72, 1],
+              [74, 1],
+              [72, 1],
+              [69, 1],
+              [72, 2],
+              [70, 1],
+              [69, 1],
+              [67, 2],
+              [65, 2],
+              [69, 1],
+              [72, 1],
+            ],
+            0.42,
+            "sawtooth",
+            0.08,
+          );
+          note(77, at, 0.25, "sawtooth", 0.08);
+        },
+        // the 5 pm chime: the Largo of Dvořák's New World Symphony, on a loudspeaker
+        largo(note) {
+          tune(
+            note,
+            [
+              [64, 1.5],
+              [67, 0.5],
+              [67, 2],
+              [64, 1.5],
+              [62, 0.5],
+              [60, 2],
+              [62, 1],
+              [64, 1],
+              [67, 1],
+              [64, 1],
+              [62, 3],
+              [64, 1.5],
+              [67, 0.5],
+              [67, 2],
+              [64, 1.5],
+              [62, 0.5],
+              [60, 2],
+              [62, 1],
+              [64, 1],
+              [62, 1],
+              [60, 1],
+              [60, 3],
+            ],
+            0.5,
+            "triangle",
+            0.18,
+          );
+        },
+        // Für Elise, as Taiwan's garbage trucks play it, tinny
+        elise(note) {
+          const turn = [
+            [76, 1],
+            [75, 1],
+            [76, 1],
+            [75, 1],
+            [76, 1],
+            [71, 1],
+            [74, 1],
+            [72, 1],
+            [69, 3],
+          ];
+          tune(
+            note,
+            [
+              ...turn,
+              [60, 1],
+              [64, 1],
+              [69, 1],
+              [71, 3],
+              [64, 1],
+              [68, 1],
+              [71, 1],
+              [72, 3],
+              ...turn,
+              [60, 1],
+              [64, 1],
+              [69, 1],
+              [71, 3],
+              [64, 1],
+              [72, 1],
+              [71, 1],
+              [69, 4],
+            ],
+            0.17,
+            "square",
+            0.07,
+          );
+        },
+      };
+
+      // The sky at the time of day each event is shown at in the test is `sky`.
+      // prettier-ignore
+      const EVENTS = {
+        // birds and bats
+        bats: { label: "Bats pour out from under the Congress Avenue Bridge", months: [2, 3, 4, 5, 6, 7, 8, 9, 10], sun: [-12, 2, "pm"], sky: "dusk", layer: "front", draw: drawFlock, style: "rise", n: 26 },
+        starlings: { label: "A starling murmuration at dusk", months: [10, 11, 0, 1], sun: [-6, 3, "pm"], sky: "dusk", layer: "front", draw: drawFlock, style: "swirl", n: 110 },
+        fruitBats: { label: "Fruit bats fly out to feed at dusk", sun: [-10, 1, "pm"], sky: "dusk", layer: "front", draw: drawFlock, big: true, n: 10, speed: 6, colors: [[40, 30, 30]] },
+        crows: { label: "Crows fly home to roost at dusk", months: [9, 10, 11, 0, 1, 2], sun: [-8, 2, "pm"], sky: "dusk", layer: "front", draw: drawFlock, n: 30, speed: 10, dir: -1 },
+        swifts: { label: "Swifts race screaming over the roofs", months: [3, 4, 5, 6, 7], sun: [0, 20, "pm"], sky: "day", layer: "front", draw: drawFlock, style: "dart", n: 14 },
+        parrots: { label: "Wild parrots fly over at dusk", sun: [-4, 8, "pm"], sky: "dusk", layer: "front", draw: drawFlock, n: 12, speed: 12, colors: [[70, 180, 70], [110, 200, 60]] },
+        macaws: { label: "Macaws fly over the city", sun: [-2, 12], sky: "day", layer: "front", draw: drawFlock, n: 8, speed: 9, colors: [[230, 50, 40], [50, 110, 220], [250, 200, 40]] },
+        flamingos: { label: "Flamingos fly over the creek", months: [10, 11, 0, 1, 2, 3, 4], hours: [7, 11], sky: "day", layer: "front", draw: drawFlock, big: true, n: 9, speed: 7, high: 0.45, colors: [[245, 150, 170]] },
+        pigeons: { label: "Rooftop pigeon flocks wheel round at dusk", sun: [-4, 10, "pm"], sky: "dusk", layer: "front", draw: drawFlock, style: "circle", n: 24, colors: [[205, 205, 212]] },
+        gulls: { label: "Black-headed gulls winter by the lake", months: [10, 11, 0, 1, 2], hours: [8, 17], sky: "day", layer: "front", draw: drawFlock, style: "circle", n: 20, speed: 0.7, colors: [[245, 245, 245]] },
+        // animals and people on the street
+        penguins: { label: "Little penguins come ashore after sunset", sun: [-8, 0, "pm"], sky: "dusk", layer: "street", draw: drawWalkers, sprite: "penguin", n: 8, speed: 2, group: true },
+        cats: { label: "Street cats everywhere", hours: [6, 23], sky: "day", layer: "street", draw: drawWalkers, sprite: "cat", n: 4, speed: 3, rest: 0.5 },
+        camels: { label: "Camel rides along the beach", hours: [9, 19], sky: "day", layer: "street", draw: drawWalkers, sprite: "camel", n: 2, speed: 3 },
+        giraffes: { label: "Giraffes graze in the park by the skyline", sun: [-2, 20], sky: "day", layer: "front", draw: drawWalkers, sprite: "giraffe", n: 2, speed: 1, rest: 0.5, far: true },
+        durbar: { label: "Horsemen ride in the Durbar for Eid", on: (e) => (EID[e.year] || []).some((d) => daysFrom(d, e) >= 0 && daysFrom(d, e) <= 1), hours: [9, 17], sky: "day", layer: "street", draw: drawWalkers, sprite: "horse", n: 6, speed: 6, group: true },
+        sapeurs: { label: "Sapeurs stroll in their finest suits", days: ["Sun"], hours: [14, 19], sky: "day", layer: "street", draw: drawWalkers, sprite: "sapeur", n: 3, speed: 3 },
+        tango: { label: "Tango dancers on the street", days: ["Sun"], hours: [12, 20], sky: "day", layer: "street", draw: drawTango },
+        squareDance: { label: "Square dancing in the evening", hours: [19, 21], sky: "night", layer: "street", draw: drawSquareDance },
+        kolam: { label: "Kolam patterns drawn on the doorsteps", hours: [6, 11], sky: "day", layer: "front", draw: drawKolam },
+        bookMarket: { label: "The Friday book market on Al-Mutanabbi Street", days: ["Fri"], hours: [8, 14], sky: "day", layer: "street", draw: drawMarket },
+        bonfires: { label: "Bonfires for Chaharshanbe Suri", on: (e) => e.month === 2 && e.weekday === "Tue" && e.day >= 13 && e.day <= 19, hours: [18, 24], sky: "night", layer: "street", draw: drawBonfires },
+        songkran: { label: "The Songkran water fight", date: "04-13+2", hours: [9, 18], sky: "day", layer: "street", draw: drawSplash },
+        thingyan: { label: "The Thingyan water festival", date: "04-13+3", hours: [9, 18], sky: "day", layer: "street", draw: drawSplash },
+        parols: { label: "Parol star lanterns for Christmas", months: [8, 9, 10, 11], sun: [-90, -2], sky: "night", layer: "front", draw: drawParols },
+        ramadan: { label: "Ramadan lights over the street at night", on: (e) => (EID[e.year] || []).some((d, i) => i === 0 && daysFrom(d, e) >= -30 && daysFrom(d, e) < 0), sun: [-90, -2], sky: "night", layer: "front", draw: drawRamadan },
+        anthem: { label: "Everyone stops for the national anthem", at: ["08:00", "18:00"], len: 1, sky: "day", freeze: true },
+        garbageTruck: { label: "The garbage truck comes playing Für Elise", days: ["Mon", "Tue", "Thu", "Fri", "Sat"], at: ["19:30"], len: 4, sky: "night", layer: "street", draw: drawGarbageTruck, sound: "elise" },
+        // traffic
+        danfo: { label: "Yellow danfo buses fill the roads", hours: [6, 22], sky: "day", life: lifeMix([["danfo", 55], ["car", 25], ["moto", 10], ["truck", 10]]) },
+        gbaka: { label: "Gbaka minibuses fill the roads", hours: [6, 22], sky: "day", life: lifeMix([["bus", 45], ["car", 30], ["van", 15], ["moto", 10]]) },
+        truckArt: { label: "Painted trucks on the road", sky: "day", life: lifeMix([["jingle", 35], ["car", 30], ["moto", 15], ["bus", 10], ["pickup", 10]]) },
+        rickshaws: { label: "Cycle rickshaws crowd the streets", hours: [6, 23], sky: "day", life: lifeMix([["rickshaw", 65], ["bus", 10], ["car", 15], ["moto", 10]], 1.5) },
+        yellowTaxis: { label: "Yellow taxis on every street", hours: [6, 23], sky: "day", life: lifeMix([["taxi", 60], ["bus", 15], ["car", 15], ["moto", 10]]) },
+        scooters: { label: "A swarm of motorbikes at rush hour", at: ["07:00", "17:00"], len: 120, sky: "day", life: lifeMix([["moto", 85], ["car", 10], ["bus", 5]], 2.5) },
+        bikeRush: { label: "The bike rush hour", days: ["Mon", "Tue", "Wed", "Thu", "Fri"], at: ["08:00", "17:00"], len: 90, sky: "day", life: bikeRush },
+        ciclovia: { label: "Ciclovía: the roads belong to bikes on Sunday", days: ["Sun"], hours: [7, 14], sky: "day", life: carFree },
+        paseoDominical: { label: "Paseo Dominical: bikes on Reforma on Sunday", days: ["Sun"], hours: [8, 14], sky: "day", life: carFree },
+        paulista: { label: "Avenida Paulista closes to cars on Sunday", days: ["Sun"], hours: [9, 17], sky: "day", life: carFree },
+        carFreeDay: { label: "Car-free Sunday morning", days: ["Sun"], hours: [6, 11], sky: "day", life: carFree },
+        walkingStreet: { label: "The walking street round the lake", days: ["Fri", "Sat", "Sun"], hours: [19, 24], sky: "night", life: carFree },
+        dhows: { label: "Dhows sail in the harbour", sun: [-2, 30], sky: "day", life: (life) => (life.boatMix = [["dhow", 70], ["kayak", 15], ["motorboat", 15]]) },
+        // the sky
+        uttarayan: { label: "Kites fill the sky for Makar Sankranti", date: "01-14+1", hours: [7, 18], sky: "day", layer: "front", draw: drawKites },
+        independenceKites: { label: "Kites over the city on Independence Day", date: "08-15", hours: [8, 18], sky: "day", layer: "front", draw: drawKites },
+        volantines: { label: "Kites for the Fiestas Patrias", months: [8], hours: [10, 19], sky: "day", layer: "front", draw: drawKites },
+        weifangKites: { label: "Kites over the kite capital", months: [3], hours: [9, 17], sky: "day", layer: "front", draw: drawKites },
+        fridayKites: { label: "Kite flying on Friday", days: ["Fri"], hours: [9, 17], sky: "day", layer: "front", draw: drawKites },
+        yiPeng: { label: "Lanterns float up for Yi Peng", months: [10], on: () => Math.abs(moonPhase(Date.now()) - 0.5) < 0.05, hours: [19, 24], sky: "night", layer: "front", draw: drawLanterns },
+        lanternFestival: { label: "Sky lanterns for the Lantern Festival", on: (e) => daysFrom("LNY", e) === 14, hours: [18, 24], sky: "night", layer: "front", draw: drawLanterns },
+        hangGliders: { label: "Hang gliders float down to the beach", hours: [10, 17], on: (e) => !e.rain, sky: "day", layer: "front", draw: drawGliders },
+        paragliders: { label: "Paragliders over the cliffs", hours: [11, 17], on: (e) => !e.rain, sky: "day", layer: "front", draw: drawGliders, para: true },
+        blueAngels: { label: "The Blue Angels fly for Fleet Week", on: (e) => e.month === 9 && [-2, -1].includes(daysFrom("10/2/Mon", e)), hours: [13, 16], sky: "day", layer: "front", draw: drawJets },
+        fireworks: { label: "Fireworks for the festival", on: (e) => e.festival && (e.hour >= 20 || (e.month === 0 && e.day === 1 && e.hour === 0 && e.min < 30)), sky: "night", layer: "back", draw: drawFireworks },
+        feux: { label: "Fireworks over the river on summer Saturdays", months: [5, 6], days: ["Sat"], at: ["22:00"], len: 30, sky: "night", layer: "back", draw: drawFireworks },
+        symphony: { label: "The Symphony of Lights", at: ["20:00"], len: 10, sky: "night", layer: "front", draw: drawLightShow },
+        spectra: { label: "The Spectra light and water show", at: ["20:00", "21:00"], len: 15, sky: "night", layer: "front", draw: drawLightShow },
+        tribute: { label: "The Tribute in Light", date: "09-11", hours: [19, 24], sky: "night", layer: "back", draw: drawTribute },
+        // landmarks
+        sparkle: { label: "The Eiffel Tower sparkles on the hour", every: 60, len: 5, hours: [17, 24], sun: [-90, -3], sky: "night", layer: "front", draw: drawSparkle, mark: "Eiffel" },
+        bellagio: { label: "The Bellagio fountains dance", every: 15, len: 5, hours: [15, 24], sky: "night", layer: "front", draw: drawFountain },
+        dubaiFountain: { label: "The Dubai Fountain show", every: 30, len: 5, hours: [18, 23], sky: "night", layer: "front", draw: drawFountain },
+        rainbowFountain: { label: "The Moonlight Rainbow Fountain", months: [3, 4, 5, 6, 7, 8, 9], at: ["19:30", "20:00", "20:30", "21:00"], len: 20, sky: "night", layer: "front", draw: drawFountain, arcs: true },
+        kingFahd: { label: "King Fahd's Fountain at night", sun: [-90, -2], sky: "night", layer: "front", draw: drawFountain, tall: true },
+        noonGunRome: { label: "The noon cannon on the Janiculum hill", at: ["12:00"], len: 1, sky: "day", layer: "front", draw: drawCannon, x: 0.12, sound: "boom" },
+        oneOClockGun: { label: "The One O'Clock Gun at the castle", days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], at: ["13:00"], len: 1, sky: "day", layer: "front", draw: drawCannon, mark: "Castle", sound: "boom" },
+        noonGunCape: { label: "The Noon Gun on Signal Hill", days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], at: ["12:00"], len: 1, sky: "day", layer: "front", draw: drawCannon, x: 0.2, sound: "boom" },
+        noonday: { label: "The Noonday Gun by the harbour", at: ["12:00"], len: 1, sky: "day", layer: "front", draw: drawCannon, x: 0.85, sound: "boom" },
+        canonazo: { label: "El Cañonazo, the nine o'clock cannon", at: ["21:00"], len: 1, sky: "night", layer: "front", draw: drawCannon, mark: "Morro", sound: "boom" },
+        neva: { label: "The bridges open for the ships", months: [3, 4, 5, 6, 7, 8, 9, 10], hours: [1, 5], sky: "night", layer: "front", draw: drawDrawbridge },
+        flag: { label: "The flag is raised at sunrise", sun: [-1.5, 4, "am"], sky: "dawn", layer: "front", draw: drawFlag },
+        bigBen: { label: "Big Ben strikes the hour", every: 60, len: 1, sky: "day", layer: "front", draw: drawBells, mark: "Big Ben", sound: "bigben" },
+        kremlin: { label: "The Kremlin bells strike the hour", every: 60, len: 1, sky: "day", layer: "front", draw: drawBells, sound: "bells" },
+        hejnal: { label: "The trumpet call from St. Mary's tower", every: 60, len: 1, sky: "day", layer: "front", draw: drawBells, mark: "St. Mary", sound: "hejnal" },
+        chime: { label: "The 5 pm chime plays and the crows fly home", at: ["17:00"], len: 2, sky: "dusk", layer: "front", draw: drawBells, crows: true, sound: "largo" },
+        // blossom and the river
+        cherry: { label: "Cherry blossom petals falling", date: "03-25+14", sky: "day", layer: "front", draw: drawPetals, color: [250, 190, 210] },
+        cherryKyoto: { label: "Cherry blossom petals falling", date: "03-28+14", sky: "day", layer: "front", draw: drawPetals, color: [250, 190, 210] },
+        cherrySeoul: { label: "Cherry blossom petals falling", date: "04-01+12", sky: "day", layer: "front", draw: drawPetals, color: [250, 190, 210] },
+        jacarandaMarch: { label: "Jacaranda flowers falling", months: [2], sky: "day", layer: "front", draw: drawPetals, color: [160, 110, 220] },
+        jacarandaSpring: { label: "Jacaranda flowers falling", date: "10-15+31", sky: "day", layer: "front", draw: drawPetals, color: [160, 110, 220] },
+        jacarandaNov: { label: "Jacaranda flowers falling", months: [10], sky: "day", layer: "front", draw: drawPetals, color: [160, 110, 220] },
+        jacarandaJune: { label: "Jacaranda flowers falling", months: [4, 5], sky: "day", layer: "front", draw: drawPetals, color: [160, 110, 220] },
+        pinkTrumpet: { label: "Pink trumpet trees in bloom", months: [1, 2], sky: "day", layer: "front", draw: drawPetals, color: [240, 140, 190] },
+        greenRiver: { label: "The river is dyed green for St. Patrick's Day", on: (e) => e.month === 2 && e.weekday === "Sat" && e.day >= 11 && e.day <= 17, hours: [9, 18], sky: "day", layer: "front", draw: drawGreenRiver },
+      };
+      for (const [name, ev] of Object.entries(EVENTS)) ev.name = name;
+      // The events of each city (CITY_ATLAS id) and each country (two-letter code), as names in EVENTS.
+      // prettier-ignore
+      const CITY_EVENTS = {
+        // whole countries
+        CN: ["squareDance"], JP: ["chime"], TH: ["anthem", "songkran"], PK: ["truckArt", "ramadan"], PH: ["parols"],
+        EG: ["pigeons", "ramadan"], SA: ["ramadan"], AE: ["ramadan"], JO: ["ramadan"], KW: ["ramadan"], QA: ["ramadan"],
+        BH: ["ramadan"], OM: ["ramadan"], MA: ["ramadan"], DZ: ["ramadan"], TN: ["ramadan"], IQ: ["ramadan"],
+        // cities
+        "accra-gh": ["fruitBats"], "ahmedabad-in": ["uttarayan"], "amsterdam-nl": ["bikeRush"], "austin-us": ["bats"],
+        "abidjan-ci": ["gbaka"], "baghdad-iq": ["bookMarket"], "bamako-ml": ["scooters"], "beijing-cn": ["flag"],
+        "bengaluru-in": ["pinkTrumpet"], "bogota-co": ["ciclovia"], "buenos-aires-ar": ["tango", "jacarandaNov"],
+        "cape-town-za": ["noonGunCape"], "caracas-ve": ["macaws"], "chennai-in": ["kolam"], "chiang-mai-th": ["yiPeng"],
+        "chicago-us": ["greenRiver"], "copenhagen-dk": ["bikeRush"], "dar-es-salaam-tz": ["dhows"], "dhaka-bd": ["rickshaws"],
+        "dubai-ae": ["dubaiFountain"], "edinburgh-gb": ["oneOClockGun"], "hanoi-vn": ["walkingStreet"], "havana-cu": ["canonazo"],
+        "ho-chi-minh-city-vn": ["scooters"], "hong-kong-hk": ["symphony", "noonday"], "hyderabad-in": ["uttarayan"],
+        "istanbul-tr": ["cats"], "jakarta-id": ["carFreeDay"], "jeddah-sa": ["kingFahd"], "johannesburg-za": ["jacarandaSpring"],
+        "kabul-af": ["fridayKites"], "kano-ng": ["durbar"], "karachi-pk": ["camels"], "kinshasa-cd": ["sapeurs"],
+        "kolkata-in": ["yellowTaxis"], "krakow-pl": ["hejnal"], "kunming-cn": ["gulls"], "kyoto-jp": ["cherryKyoto"],
+        "lagos-ng": ["danfo"], "las-vegas-us": ["bellagio"], "lima-pe": ["paragliders"], "lisbon-pt": ["jacarandaJune"],
+        "london-gb": ["bigBen"], "los-angeles-us": ["parrots"], "madrid-es": ["swifts"], "melbourne-au": ["penguins"],
+        "mexico-city-mx": ["jacarandaMarch", "paseoDominical"], "montreal-ca": ["feux"], "moscow-ru": ["kremlin"],
+        "mumbai-in": ["flamingos"], "nairobi-ke": ["giraffes"], "new-delhi-in": ["independenceKites"], "new-york-us": ["tribute"],
+        "osaka-jp": ["cherryKyoto"], "paris-fr": ["sparkle"], "pretoria-za": ["jacarandaSpring"], "rio-de-janeiro-br": ["hangGliders"],
+        "rome-it": ["starlings", "noonGunRome"], "saint-petersburg-ru": ["neva"], "san-francisco-us": ["blueAngels"],
+        "santiago-cl": ["volantines"], "sao-paulo-br": ["paulista"], "seoul-kr": ["rainbowFountain", "cherrySeoul"],
+        "singapore-sg": ["spectra"], "surat-in": ["uttarayan"], "sydney-au": ["fruitBats", "jacarandaNov"],
+        "taipei-tw": ["lanternFestival", "garbageTruck"], "tehran-ir": ["bonfires"], "tokyo-jp": ["cherry"],
+        "vancouver-ca": ["crows"], "washington-d-c-us": ["cherry"], "weifang-cn": ["weifangKites"], "yangon-mm": ["thingyan"],
       };
 
       // ==== Alarms: a message carried across a clock, one word per truck, sign or banner ====
@@ -13193,6 +14372,7 @@
           this.cityText.title = country ? zone.label + ", " + country : zone.label;
           this.g = this.cv.getContext("2d");
           this.seed = hashStr(zone.label + "|" + zone.tz + "|" + zone.scene);
+          this.events = cityEvents(homeOf(zone)); // see City events
           this.key = "";
           this.parts = [];
           this.pkey = "";
@@ -13353,8 +14533,11 @@
           const { W, H, G, T, A } = this,
             z = this.zone;
           const sun = sunPos(now, +z.lat, +z.lon);
-          const alt = PARAMS.has("alt") ? +PARAMS.get("alt") : sun.alt;
-          const morning = PARAMS.has("alt") ? false : sun.H < 0;
+          // the event test shows its event at the time of day it happens
+          const forced =
+            eventTest && this.events.includes(eventTest.name) && TEST_SKY[EVENTS[eventTest.name].sky];
+          const alt = forced ? forced[0] : PARAMS.has("alt") ? +PARAMS.get("alt") : sun.alt;
+          const morning = forced ? forced[1] : PARAMS.has("alt") ? false : sun.H < 0;
           const pal = paletteAt(alt, morning);
           // the weather greys the sky (ov = how overcast, 0..1), dims the light and lights more windows
           const ov = OVERCAST[wx.cat] ?? 0;
@@ -13389,8 +14572,7 @@
           const city = CITY_ATLAS[z.scene];
           // The old scene names (saved by the first versions, and still offered as artwork) draw those
           // cities, so they count as them for the country's trains and the city's festivals.
-          const home =
-            city || CITY_ATLAS[{ madrid: "madrid-es", london: "london-gb", austin: "austin-us" }[z.scene]];
+          const home = homeOf(z);
           e.country = home?.country;
           const legacyFlora = { madrid: "mediterranean", london: "temperate", austin: "liveOak" };
           e.flora = city ? cityFlora(city) : legacyFlora[z.scene];
@@ -13402,6 +14584,8 @@
           e.month = MONTHS.indexOf(tp.month);
           e.day = +tp.day;
           e.latitude = +z.lat;
+          e.year = +tp.year;
+          e.festival = this.festival;
           this.env = e;
           // a rainbow with the sun low enough after rain; an aurora on clear nights in the far north or south,
           // more often the nearer the pole (an estimate: Open-Meteo has no aurora forecast)
@@ -13500,6 +14684,7 @@
           e.lamps = [];
           e.wheels = []; // Ferris wheels and lighthouses, which move: drawn each frame over the scene
           e.beams = [];
+          e.marks = []; // landmarks: where they stand, for city events
           // Hand-drawn landmarks have fixed pixel widths, so their heights get at most the room a phone has:
           // a taller screen shows more sky over the same skyline instead of stretching Big Ben.
           if (scene) {
@@ -13523,6 +14708,8 @@
             if (lit !== undefined && lit !== w.lit) this.paintWindow(w, lit);
           }
           this.life = makeSceneLife(e, this.seed);
+          // events that change the street (car-free Sundays, a city's own traffic, dhows on the water)
+          for (const [ev] of this.eventsNow(tp, now)) ev.life?.(this.life, e);
           // --- clouds ---
           const count = { clear: 1, partly: 3, cloudy: 6, fog: 3, rain: 7, thunder: 8, snow: 6 }[wx.cat] ?? 2;
           const ck = count + "|" + (ov > 0.5) + "|" + W + "x" + H;
@@ -13776,6 +14963,12 @@
           const encounter = this.manualEncounter || scheduledEncounter(now, tp, this.seed);
           if (this.rainbow) drawRainbow(g, e);
           g.drawImage(this.far, 0, 0);
+          const events = this.eventsNow(tp, now),
+            still = REDUCED_MOTION.matches ? 0 : t,
+            layer = (name) => {
+              for (const [ev, since] of events) if (ev.layer === name) ev.draw(g, e, since, still, ev);
+            };
+          layer("back");
           const stomp = drawEncounter(g, e, encounter, now, REDUCED_MOTION.matches);
           if (encounter) this.lastEncounter = encounter;
           this.life.panic = panicFor(this.lastEncounter, now, W);
@@ -13815,8 +15008,20 @@
             }
           }
           if (this.anim) this.anim(g, e, t);
+          layer("front");
           this.life.quietLane = this.alarm ? e.G + SYNC_LANE : null; // the procession has the lane to itself
-          drawStreetPlanes(g, e, this.life, seconds, !REDUCED_MOTION.matches);
+          // the street stands still while an event freezes it (the national anthem in Thailand)
+          this.frozen = events.some(([ev]) => ev.freeze) ? (this.frozen ?? seconds) : null;
+          drawStreetPlanes(g, e, this.life, this.frozen ?? seconds, !REDUCED_MOTION.matches);
+          layer("street");
+          for (const [ev, since] of events)
+            if (ev.sound && since < 3) {
+              const key = eventTest ? eventTest.start : Math.round(now / 1000 - since);
+              if (heardEvents[ev.name] !== key) {
+                heardEvents[ev.name] = key;
+                eventSound(ev.sound, tp);
+              }
+            }
           if (this.festival && !this.alarm) {
             // every quarter hour a banner plane crosses from right to left with the festival's name
             const word = this.festival
@@ -13931,6 +15136,20 @@
             }
           }
           this.drawText(tp, wx);
+        }
+        // The city's events under way, as [event, seconds since it began]. During the event test only the
+        // event tested shows, in the clocks whose city has it, starting again every 40 seconds.
+        eventsNow(tp, now) {
+          if (eventTest) {
+            const ev = EVENTS[eventTest.name];
+            return this.events.includes(eventTest.name) ? [[ev, ((now - eventTest.start) / 1000) % 40]] : [];
+          }
+          const on = [];
+          for (const name of this.events) {
+            const since = eventSince(EVENTS[name], this.env, tp);
+            if (since >= 0) on.push([EVENTS[name], since]);
+          }
+          return on;
         }
         // The HTML text over the canvas: the clock (touched only when the minute changes), date, zone, weather.
         drawText(tp, wx) {
@@ -14644,6 +15863,8 @@
         if ((ev.key === "a" || ev.key === "A") && !ev.repeat && modal.classList.contains("hidden")) testKey();
         if ((ev.key === "r" || ev.key === "R") && !ev.repeat && modal.classList.contains("hidden"))
           testKey(cycleWeatherTest, "r");
+        if ((ev.key === "e" || ev.key === "E") && !ev.repeat && modal.classList.contains("hidden"))
+          testKey(cycleEventTest, "e");
         if ((ev.key === "n" || ev.key === "N") && !ev.repeat && musicOn()) nextSong(3);
         if (ev.key === "f" || ev.key === "F") {
           ev.preventDefault();
@@ -14706,6 +15927,7 @@
       // ---- test alarm: A three times within 2 s, or one down-up-down zigzag stroke on the clocks ----
       // ---- weather test: R three times, or one up-down-up-down stroke ----
       // (a vertical zigzag, because sideways swipes from the screen edge are the phone's back gesture)
+      // ---- event test: E three times, a left-right-left-right stroke, or Left Right Left Right on a remote ----
       function playTestAlarm() {
         fireAlarm({ text: CONFIG.alarmTest || "Test alarm", sound: true });
         toast("Test alarm");
@@ -14720,6 +15942,19 @@
         buildColumns();
         if (musicOn()) nextSong(3); // the next song brings the rain (or its end) to the music
       }
+      // Each event of the cities on screen in turn (see City events), then the events at their real times.
+      function cycleEventTest() {
+        const shown = [...new Set(COLS.flatMap((c) => c.events))],
+          name = shown[shown.indexOf(eventTest?.name) + 1];
+        eventTest = name ? { name, start: Date.now() } : null;
+        const where = COLS.filter((c) => c.events.includes(name)).map((c) => c.zone.label);
+        toast(
+          name
+            ? `Event test: ${EVENTS[name].label} (${where.length === COLS.length && COLS.length > 1 ? "every city" : where.join(", ")})`
+            : "Event test off: events at their real times again",
+        );
+        buildColumns();
+      }
       // three presses of the same key within 2 s
       const keyPresses = {};
       function testKey(action = playTestAlarm, key = "a") {
@@ -14729,8 +15964,8 @@
         keyPresses[key] = [];
         action();
       }
-      // ---- the same on a TV remote, on the clocks: Up six times plays the test alarm, and Up Up Down Down
-      // Left Right Left Right calls a monster ----
+      // ---- the same on a TV remote, on the clocks: Up six times plays the test alarm, Up Up Down Down
+      // Left Right Left Right calls a monster, and Left Right Left Right on its own is the event test ----
       const ARROW_LETTER = { ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R" };
       let arrowKeys = [];
       addEventListener("keydown", (ev) => {
@@ -14741,23 +15976,30 @@
         const keys = arrowKeys.map((a) => a.k).join("");
         if (keys.endsWith("UUDDLRLR")) ((arrowKeys = []), triggerEncounter());
         else if (keys.endsWith("UUUUUU")) ((arrowKeys = []), playTestAlarm());
+        else if (keys === "LRLR") ((arrowKeys = []), cycleEventTest());
       });
       const ZIG_LEG = 40, // CSS pixels each stroke of the zigzag must cover
         ZIG_TURN = 15; // moving back this far ends a stroke
       let zig = null;
-      // The first stroke sets the gesture: down, up, down is the test alarm; up, down, up, down the weather test.
+      // The first stroke sets the gesture: down, up, down is the test alarm; up, down, up, down the weather
+      // test; left, right, left, right (a sideways zigzag) the event test.
       $("#cols").addEventListener("pointerdown", (ev) => {
         zig = ev.isPrimary
-          ? { dir: 0, first: 0, from: ev.clientY, ext: ev.clientY, legs: 0, t: Date.now() }
+          ? { dir: 0, first: 0, x: ev.clientX, from: ev.clientY, ext: ev.clientY, legs: 0, t: Date.now() }
           : null;
       });
       $("#cols").addEventListener("pointermove", (ev) => {
         if (!zig || !ev.isPrimary) return;
-        const y = ev.clientY;
         if (!zig.dir) {
-          if (Math.abs(y - zig.from) > ZIG_TURN) zig.first = zig.dir = Math.sign(y - zig.from);
-          return;
+          // the first move picks the direction the zigzag runs in: up and down, or sideways
+          const dx = ev.clientX - zig.x,
+            dy = ev.clientY - zig.from;
+          if (Math.max(Math.abs(dx), Math.abs(dy)) <= ZIG_TURN) return;
+          zig.side = Math.abs(dx) > Math.abs(dy);
+          if (zig.side) zig.from = zig.ext = zig.x;
+          zig.first = zig.dir = Math.sign(zig.side ? dx : dy);
         }
+        const y = zig.side ? ev.clientX : ev.clientY;
         if ((y - zig.ext) * zig.dir > 0) zig.ext = y;
         else if (Math.abs(y - zig.ext) > ZIG_TURN) {
           // a stroke too short, or one that starts upwards, cancels the gesture
@@ -14771,8 +16013,9 @@
       $("#cols").addEventListener("pointerup", () => {
         if (zig && (zig.ext - zig.from) * zig.dir >= ZIG_LEG) zig.legs++;
         const quick = zig && Date.now() - zig.t < 2500 && modal.classList.contains("hidden");
-        if (quick && zig.first > 0 && zig.legs === 3) playTestAlarm();
-        if (quick && zig.first < 0 && zig.legs === 4) cycleWeatherTest();
+        if (quick && !zig.side && zig.first > 0 && zig.legs === 3) playTestAlarm();
+        if (quick && !zig.side && zig.first < 0 && zig.legs === 4) cycleWeatherTest();
+        if (quick && zig.side && zig.first < 0 && zig.legs === 4) cycleEventTest();
         zig = null;
       });
       $("#cols").addEventListener("pointercancel", () => (zig = null));
@@ -14812,6 +16055,7 @@
         CONFIG = (await savedConfig()) || CONFIG;
         CONFIG.music = vetMusic(CONFIG.music);
         music.variation = CONFIG.music.variation;
+        if (EVENTS[PARAMS.get("event")]) eventTest = { name: PARAMS.get("event"), start: Date.now() };
         buildColumns();
         if (PARAMS.has("enc")) triggerEncounter();
         requestAnimationFrame(loop);

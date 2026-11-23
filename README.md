@@ -28,7 +28,7 @@ On a phone, **SET AS WALLPAPER** in the SCREEN tab puts the clocks on your home 
 
 The music behaves like any music app. On a phone it keeps playing in the background with a notification to stop or skip it, it stops when another app starts playing, and it pauses for a call and comes back when the call is over. On a TV it stops when you leave the app.
 
-In the app, the music plays with the app's own native sound engine instead of the browser's. The songs are the same, but it uses far less of the phone's processor, so it doesn't crackle on an old phone or a TV and barely touches the battery with the screen off. The MUSIC tab's **Sound engine** setting can switch back to Browser.
+In the app, the music plays with the app's own native sound engine instead of the browser's. The songs are the same, but it uses far less of the phone's processor, so it doesn't crackle on an old phone or a TV and barely touches the battery with the screen off. The MUSIC tab's **Sound engine** setting can switch back to Web Audio.
 
 ## What it does
 
@@ -54,7 +54,7 @@ The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 h
 
 ## Music
 
-Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks one of ten bands, such as a felt piano with a long echo, a jazz trio with vibraphone, a Rhodes with a clean jazz guitar, a Wurlitzer with a kalimba and claps, a marimba over a ticking clock kit, or a music box and someone whistling, and its tunes change a little when a part comes back. Each song grows from a small musical gene, three moves that shape its melody, its chords and how its second part moves away from the first, so the same idea shows at every size, and the seed also picks the tempo, the chord colour and the order of the parts. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it.
+Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once. Each song comes from one of your clocks in turn, so its city and hour pick the song and its sun sets the mood, slower and darker at night. Each song also picks one of ten bands, such as a felt piano with a long echo, a jazz trio with vibraphone, a Rhodes with a clean jazz guitar, a Wurlitzer with a kalimba and claps, a marimba over a ticking clock kit, or a music box and someone whistling, and its tunes change a little when a part comes back. Each song grows from a small musical gene, three moves that shape its melody, its chords and how its second part moves away from the first, so the same idea shows at every size, and the seed also picks the tempo, the chord colour and the order of the parts. The **MUSIC** tab in settings has the volume and a variation number, which gives you a new set of songs when you change it. The music is played by a small engine written in C, which runs natively in the Android app and as WebAssembly in a browser, on an audio thread of its own. Because each song is handed over whole, a busy or hidden page can't leave gaps in it. The **Sound engine** setting can switch to Web Audio, the original engine, which plans the notes from the page as they come.
 
 ## Alarms
 

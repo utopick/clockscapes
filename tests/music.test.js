@@ -153,3 +153,15 @@ test("the native engine knows every voice a song calls, and when each one plays"
       }
     }
 });
+
+// Browsers play the same engine compiled to WebAssembly (script#lofi-wasm), rebuilt by tools/lofi-wasm.sh.
+test("the page's WebAssembly engine was built from the current lofi.c", () => {
+  const c = fs.readFileSync(path.join(__dirname, "..", "android", "native", "lofi.c"));
+  const stamp = require("crypto").createHash("sha256").update(c).digest("hex").slice(0, 16);
+  const built = html.match(/<script id="lofi-wasm"[^>]*data-c="(\w+)"/)?.[1];
+  assert.strictEqual(built, stamp, "lofi.c changed: run sh tools/lofi-wasm.sh");
+  const wasm = Buffer.from(html.match(/<script id="lofi-wasm"[^>]*>([\s\S]*?)<\/script>/)[1], "base64");
+  const exports = WebAssembly.Module.exports(new WebAssembly.Module(wasm)).map((e) => e.name);
+  for (const name of ["lofi_init", "lofi_render", "lofi_start", "lofi_fade", "lofi_stop", "malloc"])
+    assert.ok(exports.includes(name), `the WebAssembly engine has no ${name}`);
+});

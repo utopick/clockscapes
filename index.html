@@ -12870,14 +12870,7 @@
       function unlockAudio(ev) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (audioCtx || !AC) return;
-        // The tape low-pass cuts the music above about 4 kHz, so 22 kHz loses nothing you can hear and halves
-        // the work, and "playback" renders in bigger blocks: together they take a phone from about 75% of
-        // a core to under half while the music plays (measured on a Galaxy S23).
-        try {
-          audioCtx = new AC({ sampleRate: 22050, latencyHint: "playback" });
-        } catch {
-          audioCtx = new AC(); // older Safari only takes the defaults
-        }
+        audioCtx = new AC();
         // Music saved as on starts with this first touch, unless this touch is the music button or key itself.
         const ownControl = ev.target?.closest?.("#music") || /^[mn]$/i.test(ev.key || "");
         if (CONFIG.music.on && !ownControl) musicPlay(true);

@@ -1662,6 +1662,8 @@
             const f = this.ctx.createBiquadFilter();
             f.type = "lowpass";
             f.Q.value = q;
+            // once per 128-sample block is plenty for a slow sweep, and much cheaper than every sample
+            f.frequency.automationRate = "k-rate";
             f.frequency.setValueAtTime(from, t);
             f.frequency.setTargetAtTime(to, t, time);
             return f;
@@ -1670,6 +1672,7 @@
             const o = this.ctx.createOscillator();
             o.type = type;
             o.frequency.value = f;
+            o.detune.automationRate = "k-rate"; // the wobble is under 1 Hz: per block is enough, and cheaper
             this.wobble.connect(o.detune);
             o.start(t);
             o.stop(stop);
@@ -12870,7 +12873,12 @@
       function unlockAudio(ev) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (audioCtx || !AC) return;
-        audioCtx = new AC();
+        // "playback" renders in bigger blocks, so a phone's busy moment doesn't make the music crackle
+        try {
+          audioCtx = new AC({ latencyHint: "playback" });
+        } catch {
+          audioCtx = new AC();
+        }
         // Music saved as on starts with this first touch, unless this touch is the music button or key itself.
         const ownControl = ev.target?.closest?.("#music") || /^[mn]$/i.test(ev.key || "");
         if (CONFIG.music.on && !ownControl) musicPlay(true);

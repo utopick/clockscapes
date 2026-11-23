@@ -36,7 +36,8 @@ In the app, the music plays with the app's own native sound engine instead of th
 - Every city has the same street, so clocks side by side line up: a sidewalk, a road, a strip of park and a second road, then a railway inland or the water in coastal and river cities. Bigger cities have overhead wires and a station where the trains stop for travellers.
 - How many people and cars a city has depends on its real population, in four levels from few people to super crowded.
 - The streets follow each city's own week. Roads fill up in the weekday rush hours, people stroll at weekends, Friday and Saturday nights get busy with people going out, and the small hours are quiet.
-- On a city's holiday or local festival, such as Thanksgiving, Carnaval or Las Fallas, a small plane tows the festival's name across that clock every 15 minutes.
+- On a city's holiday or local festival, such as Thanksgiving, Carnaval or Las Fallas, a small plane tows the festival's name across that clock every 15 minutes, and that night there are fireworks.
+- Many cities have their own real events at their own time, and every city over four million people has at least one. Austin's bats pour out from under the Congress Avenue Bridge at dusk, starlings swirl over Rome on winter evenings, the Eiffel Tower sparkles on the hour after dark, Big Ben strikes the hour, Bangkok's streets stand still for the anthem at 8 am and 6 pm, kites fill Ahmedabad's sky for Uttarayan, Taipei's garbage truck comes by playing Für Elise, and Chinese cities go square dancing in the evening. Some have a sound too, which plays through the music when it's on. To see them without waiting, press **E** three times (or swipe left, right, left and right on the clocks). Each time you do it again, the next event of the cities on screen shows, and after the last one a message says the events are back to their real times.
 - Lo-fi music is made live in the page from your clocks, so each city and hour gives a different song, and the place plays along, muffled like a lo-fi field recording: voices and traffic as busy as the city and the hour, a train passing now and then, birds by day, crickets on warm nights, waves in coastal cities, wind when it's windy, and rain with drops on the window and distant thunder in a storm. **City sounds** in the MUSIC tab switches them off. To see and hear every kind of weather anywhere, press **R** three times (or swipe up, down, up and down on the clocks). Each time you do it again, every city shows the next one, from rain through hail, snow, fog, dust and smoke to a rainbow and an aurora, and after the last one the real weather comes back.
 - Daily alarms carry a short message across your clocks for a minute, as explained [below](#alarms).
 - A screen filter can make the clocks look like an old CRT television or an LCD screen, as shown [below](#screen-filters).
@@ -100,10 +101,11 @@ The same SCREEN tab has three settings for leaving the clocks up for hours. **Ba
 | **M** | Music on or off |
 | **N** | Next song |
 | **R** three times | The next kind of weather in every city (rain, drizzle, freezing rain, storm, hail, snow, snow grains, fog, haze, dust, smoke, rainbow, aurora), then the real weather again (on a touch screen, swipe up, down, up and down) |
+| **E** three times | The next city event of the cities on screen, then the events at their real times again (on a touch screen, swipe left, right, left and right) |
 | **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again) |
 | **Esc** | Closes settings |
 
-On a touch screen, tap to show the buttons. With a TV remote, the arrows move between the buttons and the settings, OK presses, Back closes settings, and the remote's play and next keys control the music. A text box only opens the TV's keyboard once you press OK on it, so moving through settings doesn't keep popping it up. There are a few easter eggs too. **K**eep poking and you'll maybe find some.
+On a touch screen, tap to show the buttons. With a TV remote, the arrows move between the buttons and the settings, OK presses, Back closes settings, and the remote's play and next keys control the music. Left, Right, Left, Right on the clocks is the event test. A text box only opens the TV's keyboard once you press OK on it, so moving through settings doesn't keep popping it up. There are a few easter eggs too. **K**eep poking and you'll maybe find some.
 
 ![Tokyo in the morning, Mexico City at sunset and Rio de Janeiro at night](img/screenshot.png)
 

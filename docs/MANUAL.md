@@ -44,6 +44,7 @@ Inside `index.html` the script is split into sections, each starting with a `// 
 | `Mountains on the horizon` | Far ranges (`MOUNTAINS`) and famous single peaks (`PEAKS`) |
 | `Scene life` | Planes, birds, boats, trains, cars, bikes, people and dogs, and how busy the streets are at each hour |
 | `Encounters` | The giant monsters |
+| `City events` | Real events at their local time, such as Austin's bats or the Eiffel Tower's sparkle (`EVENTS`, `CITY_EVENTS`) |
 | `Alarms` | Alarm messages, trucks, marches, banner planes and the arpeggio |
 | `Music` | Picking songs from your clocks (the song writer itself is `<script id="lofi">`) |
 | `Column renderer` | `class Column`, which turns one city into a picture |
@@ -106,6 +107,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | `?enc=0` | Plays a monster encounter: 0 kaiju, 1 mecha, 2 turtle, 3 pterosaur, 4 spiked lizard, 5 three-headed dragon, 6 rose plant, 7 moth |
 | `?fx=crt` or `?fx=lcd` | Shows a screen filter without saving it |
 | `?fest=La Mercè` | A festival banner plane crosses every clock now, every 30 seconds |
+| `?event=sparkle` | Shows that city event now (a name in `EVENTS`) in the clocks whose city has it. E three times steps through them instead |
 
 ## 5. Where to fix things
 
@@ -121,7 +123,8 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Trains | `TRAIN_KINDS` (looks and speed), `TRAIN_LINES` (which country runs which trains), `railway` (the track, wires and station) and `drawTrain` | Inland cities have a railway in the bottom band. Capitals and big metro cities also get overhead wires and a station where passenger trains stop. Coastal cities in `TRAIN_LINES` get a raised line instead |
 | How busy the streets are | `busyness` and `CROWDS` in `Scene life` | `busyness` uses the city's local weekday and hour. `CROWDS` turns the city's population into one of four levels (few people, more people, crowded, super crowded), and both multiply the cars and walkers of a normal hour |
 | The list of cities | `CITY_ATLAS`, built with `tools/atlas/build.py` | Never rename an id, because saved settings point to it. The last field of a row is the population. The scripts read GeoNames and Natural Earth files you download yourself, and their README says how |
-| Holidays and festivals | `FESTIVALS` in `Festivities` | Rules look like `"07-14"`, `"03-15+4"` (and 4 more days), `"E-47"` (days from Easter) or `"11/4/Thu"` (fourth Thursday). Lunar New Year dates in `LUNAR_NEW_YEAR` end in 2030, so add the next years before then |
+| Holidays and festivals | `FESTIVALS` in `Festivities` | Rules look like `"07-14"`, `"03-15+4"` (and 4 more days), `"E-47"` (days from Easter) or `"11/4/Thu"` (fourth Thursday). The dates of Lunar New Year (`LUNAR_NEW_YEAR`), Diwali (`DIWALI`) and Eid (`EID`, in `City events`) follow the moon and end in 2030, so add the next years before then |
+| City events | `EVENTS` and `CITY_EVENTS` in `City events` | An event says when it happens (months, weekdays, a festival-style date rule, hours, set times or every N minutes, the sun's height) and how it shows: a `draw` function in the `back`, `front` or `street` layer, a `life` function that changes the traffic, or `freeze`. Only add things that really happen there, at the time they really happen. A `sound` plays only while the music and its city sounds are on |
 | Planes and birds | `drawSkyLife` | Gulls need the city in `SEASIDE` (or a scene with water) |
 | Clouds | `cloudSprite` in `class Column` | Clouds are drawn once a minute, so keep them cheap |
 | Sky colours | `PAL` in `Lighting palette` | Colours are `[r, g, b]` arrays |
@@ -152,6 +155,8 @@ Handy addresses for trying things without waiting for the right time or weather:
 
 **Why is a plane towing a banner over one city?** It's that city's holiday or festival today, from the `FESTIVALS` table. It flies at :00, :15, :30 and :45 local time. To add a festival, add a row for the city id (such as `"madrid-es"`) or the country code (such as `"ES"`).
 
+**Why are there bats (or kites, or fireworks) over a city?** That's a city event, something that really happens there at that local time, from the `EVENTS` table. Press E three times to step through the events of the cities on screen, and once more after the last one to go back to real times.
+
 **The traffic looks thin.** It follows the city's local time, so it may be the middle of the night there, or a weekend. See `busyness` to change it.
 
 **Where did the monster come from?** That's an encounter. They appear for 10 seconds at 00:00, 06:00, 12:00 and 18:00, and there are other ways to call them.
@@ -172,6 +177,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Sync lane | The road lane at the same height in every city (`SYNC_LANE`), where alarm processions drive from one clock into the next |
 | Encounter | A giant monster visit |
 | Lap | One crossing of the screen by a car, boat or train. Each lap rolls a new kind, so the same car can come back as a taxi |
-| Festival | A local or national holiday from `FESTIVALS`, shown as a banner plane |
+| Festival | A local or national holiday from `FESTIVALS`, shown as a banner plane and fireworks at night |
+| City event | Something that really happens in a city at its local time, from `EVENTS` (bats, a cannon, a fountain show, kites) |
 | `e` | The scene environment passed to every drawing function |
 | `alt` | The sun's height above the horizon in degrees |

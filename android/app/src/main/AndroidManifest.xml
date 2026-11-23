@@ -81,6 +81,16 @@
             </intent-filter>
         </service>
 
+        <!-- Android Auto as a music app: listed even when sideloaded, once Android Auto's Unknown sources
+             developer setting is on (the car screen above is only listed when installed from Google Play) -->
+        <service
+            android:name=".CarMusic"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".CarService"
             android:exported="true">

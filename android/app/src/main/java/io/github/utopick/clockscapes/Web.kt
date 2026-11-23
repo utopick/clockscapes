@@ -98,7 +98,9 @@ object Web {
         /** The page's music started, stopped or moved to a new song: updates the music notification. */
         @JavascriptInterface
         fun musicState(playing: Boolean, title: String) {
-            (context as? MainActivity)?.musicState(playing, title)
+            if (context is MainActivity) context.musicState(playing, title)
+            // the car's off-screen page (CarMusic); the wallpaper and screensaver pages play no music
+            else CarMusic.current?.let { car -> android.os.Handler(android.os.Looper.getMainLooper()).post { car.state(playing, title) } }
         }
 
         /** How much room the page leaves for the phone's navigation bar (see setSafeInsets in the page). */

@@ -132,3 +132,24 @@ test("B is A's shape again, starting from A's second chord", () => {
     if (s.minor) assert.strictEqual(s.chordsB[0].root % 12, s.chords[1].root % 12, `seed ${seed}`);
   }
 });
+
+// The Android app's native engine (android/native/lofi.c) plays LOFI.score's list, so it must know every voice.
+test("the native engine knows every voice a song calls, and when each one plays", () => {
+  const c = fs.readFileSync(path.join(__dirname, "..", "android", "native", "lofi.c"), "utf8");
+  const known = new Set([...c.matchAll(/IS\("(\w+)"\)/g)].map((m) => m[1]));
+  const notes = new Set(c.match(/NOTES\[\] = \{([^}]*)\}/)[1].match(/\w+/g));
+  // voices that take (note, time, ...) are the bands' chord, lead and bass voices, and no others
+  const melodic = new Set(Object.values(LOFI.BANDS).flatMap((b) => [b.chords, b.bass, ...b.leads]));
+  assert.deepStrictEqual([...melodic].filter((v) => !notes.has(v)), []);
+  const moods = [{ crowd: 1, trains: true, rain: 0.8, thunder: true }, { night: 1, warm: true }, { night: 0 }];
+  for (const seed of SEEDS.slice(0, 60))
+    for (const mood of moods) {
+      const sheet = LOFI.song(seed, mood);
+      for (const [name, ...args] of LOFI.score(sheet)) {
+        assert.ok(known.has(name), `lofi.c has no voice "${name}"`);
+        const t = notes.has(name) ? args[1] : args[0];
+        assert.ok(t >= 0 && t <= sheet.seconds + 1, `${name} at ${t} s in a ${sheet.seconds} s song`);
+        assert.ok(args.every(Number.isFinite), `${name} ${args}`);
+      }
+    }
+});

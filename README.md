@@ -28,6 +28,8 @@ On a phone, **SET AS WALLPAPER** in the SCREEN tab puts the clocks on your home 
 
 The music behaves like any music app. On a phone it keeps playing in the background with a notification to stop or skip it, it stops when another app starts playing, and it pauses for a call and comes back when the call is over. On a TV it stops when you leave the app.
 
+The app's MUSIC tab also has a **Sound engine** setting. Native plays the same songs with the app's own engine instead of the browser's. It uses far less of the phone's processor, so the music doesn't crackle when the phone is busy.
+
 ## What it does
 
 - Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. Ferris wheels such as the London Eye turn, and lighthouses sweep their beams at night. The light follows the real sun and moon, and the sky follows the live weather, so people open umbrellas when it rains there. Drizzle, rain, freezing rain that glazes the street, storms with or without bouncing hail, snow, snow grains and fog each look different, and so do haze, desert dust and smoke in the air. A rainbow shows when the sun comes out after rain, and on clear nights in the far north or south an aurora sometimes dances (Open-Meteo has no aurora forecast, so that one is a guess that grows likelier nearer the pole). Trees follow the local season, bare in winter, in blossom in spring and orange in autumn.

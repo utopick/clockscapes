@@ -103,6 +103,26 @@ object Web {
             else CarMusic.current?.let { car -> android.os.Handler(android.os.Looper.getMainLooper()).post { car.state(playing, title) } }
         }
 
+        // The native music engine (NativeMusic), used by NativeSong in the page.
+        @JavascriptInterface
+        fun nativeMusic(): Boolean = NativeMusic.available
+
+        @JavascriptInterface
+        fun songStart(id: Int, text: String, delay: Double, fade: Double) =
+            NativeMusic.play(id, text, delay.toFloat(), fade.toFloat())
+
+        @JavascriptInterface
+        fun songFade(id: Int, delay: Double, secs: Double) = NativeMusic.fade(id, delay.toFloat(), secs.toFloat())
+
+        @JavascriptInterface
+        fun songStop(id: Int) = NativeMusic.stop(id)
+
+        @JavascriptInterface
+        fun musicVolume(v: Double) = NativeMusic.volume(v.toFloat())
+
+        @JavascriptInterface
+        fun musicIdle() = NativeMusic.stopIfIdle()
+
         /** How much room the page leaves for the phone's navigation bar (see setSafeInsets in the page). */
         @JavascriptInterface
         fun insets(): String = safeInsets

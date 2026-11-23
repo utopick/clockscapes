@@ -15,11 +15,39 @@ val copyIcon by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("webres/mipmap-xxxhdpi"))
     rename { "ic_launcher.png" }
 }
-tasks.named("preBuild") { dependsOn(copyWeb, copyIcon) }
+// The native music engine (native/lofi.c) for each kind of processor, built with the NDK's own clang.
+val buildLofi by tasks.registering {
+    val src = rootDir.resolve("native/lofi.c")
+    val out = layout.buildDirectory.dir("jniLibs")
+    inputs.file(src)
+    outputs.dir(out)
+    doLast {
+        val os = System.getProperty("os.name").lowercase()
+        val host = if ("mac" in os) "darwin-x86_64" else if ("win" in os) "windows-x86_64" else "linux-x86_64"
+        val clang = android.ndkDirectory.resolve("toolchains/llvm/prebuilt/$host/bin/clang" + if ("win" in os) ".exe" else "")
+        val targets = mapOf(
+            "arm64-v8a" to "aarch64-linux-android26",
+            "armeabi-v7a" to "armv7a-linux-androideabi26",
+            "x86_64" to "x86_64-linux-android26",
+        )
+        for ((abi, target) in targets) {
+            val lib = out.get().dir(abi).asFile.apply { mkdirs() }.resolve("liblofi.so")
+            val cmd = listOf(
+                clang.path, "--target=$target", "-O2", "-shared", "-fPIC", "-s", "-Wall",
+                "-Wl,-z,max-page-size=16384", "-o", lib.path, src.path, "-lm",
+            )
+            val p = ProcessBuilder(cmd).redirectErrorStream(true).start()
+            val log = p.inputStream.bufferedReader().readText()
+            if (p.waitFor() != 0) throw GradleException("lofi.c for $abi:\n$log")
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(copyWeb, copyIcon, buildLofi) }
 
 android {
     namespace = "io.github.utopick.clockscapes"
     compileSdk = 35
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "io.github.utopick.clockscapes"
@@ -68,6 +96,7 @@ android {
 
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("web"))
     sourceSets["main"].res.srcDir(layout.buildDirectory.dir("webres"))
+    sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("jniLibs"))
 }
 
 dependencies {

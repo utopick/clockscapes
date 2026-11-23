@@ -747,6 +747,16 @@
               <label
                 >Variation <input type="number" name="musicVar" min="1" max="9999" class="short"
               /></label>
+              <label
+                id="musicNativeRow"
+                hidden
+                title="Plays the music with the app's own sound engine instead of the browser's, so it doesn't crackle when the phone is busy"
+                >Sound engine
+                <select name="musicNative">
+                  <option value="0">Browser</option>
+                  <option value="1">Native</option>
+                </select></label
+              >
               <p class="hint" id="nowPlaying" style="margin: 0 0 10px"></p>
               <button type="button" id="newVariation" title="Pick a new variation and play it now">
                 NEW VARIATION
@@ -873,6 +883,7 @@
        *   day, crickets on warm nights (mood.warm). mood.crowd (0 to 1) brings voices and traffic hum and
        *   mood.trains a train passing now and then. mood.places === false leaves all of these out. They all
        *   go through a muffled low-pass, like a lo-fi field recording.
+       * LOFI.score(sheet) lists every voice call of a sheet, for the Android app's native engine.
        * new LOFI.Player(ctx, destination, sheet, start, fadeIn) plays one sheet through Web Audio; the caller
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
@@ -1928,7 +1939,21 @@
             this.hit(t, 0.07, "highpass", 5500, 0.08 * vel, 0.015);
           }
         }
-        return { song, Player, BANDS, KITS };
+        // The whole song as a list of voice calls, [name, ...arguments] with times from the song's start, for
+        // a player outside Web Audio (the Android app's native engine, android/native/lofi.c): play() runs
+        // as it does live, but each voice it calls is written down instead of played.
+        function score(sheet) {
+          const rec = Object.create(Player.prototype),
+            out = [];
+          for (const name of Object.getOwnPropertyNames(Player.prototype))
+            if (!["constructor", "play", "schedule"].includes(name))
+              rec[name] = (...args) => out.push([name, ...args.map(Number)]);
+          Object.assign(rec, { s: sheet, loop: LOOPS[sheet.loop] || LOOPS.lazy, sd: 60 / sheet.bpm / 4 });
+          Object.assign(rec, { step: 0, start: 0, stopAt: Infinity });
+          rec.schedule(Infinity);
+          return out;
+        }
+        return { song, score, Player, BANDS, KITS };
       })();
     </script>
     <script>
@@ -12971,6 +12996,46 @@
       // moodAt makes songs darker at night and adds rain. The test file is tests/music.test.js.
       const music = { songs: [], k: 0, timer: 0, bus: null, title: "" };
       const musicOn = () => music.songs.length > 0;
+      // The Android app's native sound engine (MUSIC tab): the songs are still written here, but the app plays
+      // them in C on its own audio thread (android/native/lofi.c), so the page's work can't make them crackle.
+      const nativeMusic = () => Boolean(window.ClockscapesAndroid?.nativeMusic?.());
+      const musicNow = () => (music.native ? performance.now() / 1000 : audioCtx.currentTime);
+      // the same calls as LOFI.Player, sent to the app instead of played here
+      class NativeSong {
+        constructor(sheet, start, fade) {
+          const s = sheet,
+            echo = s.echo || [0, 3, 0],
+            head = [
+              s.bpm,
+              s.cutoff,
+              s.level || 1,
+              ...echo,
+              s.wobble,
+              0.4 + (s.seed % 5) / 10,
+              s.crackle,
+              +s.places,
+            ];
+          head.push(s.crowd, s.rain, +s.sea, s.wind, s.seconds);
+          const round = (x) => Math.round(x * 1e4) / 1e4,
+            lines = LOFI.score(s).map(([name, ...args]) => [name, ...args.map(round)].join(" "));
+          this.id = Math.floor(Math.random() * 2 ** 31);
+          this.end = this.stopAt = start + s.seconds;
+          window.ClockscapesAndroid.songStart(
+            this.id,
+            [head.map(round).join(" "), ...lines].join("\n"),
+            start - musicNow(),
+            fade,
+          );
+        }
+        schedule() {} // the whole song went to the app at once
+        fadeOut(at, secs) {
+          window.ClockscapesAndroid.songFade(this.id, at - musicNow(), secs);
+          this.stopAt = Math.min(this.stopAt, at + secs);
+        }
+        dispose() {
+          window.ClockscapesAndroid.songStop(this.id);
+        }
+      }
       // Saved music settings are checked before use: wrong or missing values fall back to the defaults.
       function vetMusic(m) {
         const num = (v, lo, hi, def) =>
@@ -12980,6 +13045,7 @@
           volume: num(m?.volume, 0, 100, 60),
           variation: num(m?.variation, 1, 9999, 1),
           places: m?.places !== false,
+          native: m?.native === true,
         };
       }
       // What the music should feel like at clock z now: night 0..1 (0 by day, 1 from 6 degrees below the
@@ -13019,11 +13085,11 @@
         };
       }
       function setMusicVolume(v) {
-        if (music.bus) music.bus.gain.setTargetAtTime((v / 100) ** 2, audioCtx.currentTime, 0.05);
+        if (music.native) window.ClockscapesAndroid.musicVolume((v / 100) ** 2);
+        else if (music.bus) music.bus.gain.setTargetAtTime((v / 100) ** 2, audioCtx.currentTime, 0.05);
       }
       function nextSong(fade) {
-        const ctx = audioCtx,
-          now = ctx.currentTime,
+        const now = musicNow(),
           zs = CONFIG.zones;
         for (const old of music.songs) if (old.stopAt > now + fade) old.fadeOut(now, fade);
         const z = zs[music.k % zs.length],
@@ -13035,7 +13101,12 @@
         );
         music.k++;
         queueMicrotask(() => mediaInfo(true)); // once the title below is set
-        music.songs.push(new LOFI.Player(ctx, music.bus, LOFI.song(seed, mood), now + 0.1, fade));
+        const sheet = LOFI.song(seed, mood);
+        music.songs.push(
+          music.native
+            ? new NativeSong(sheet, now + 0.1, fade)
+            : new LOFI.Player(audioCtx, music.bus, sheet, now + 0.1, fade),
+        );
         // plan its first notes now: a press on play or next (or the lock screen's) may come long before
         // the next tick when the screen is off
         music.songs.at(-1).schedule(now + lookahead());
@@ -13053,7 +13124,7 @@
       const lookahead = () =>
         Math.min(10, Math.max(document.hidden && !window.ClockscapesAndroid ? 2 : 1.2, (music.gap || 0) * 3));
       function musicTick() {
-        const now = audioCtx.currentTime;
+        const now = musicNow();
         // Notes are planned ahead, because timers slow down when the page is in the background or the
         // screen is off (to once a second or less). The lookahead is three times the longest recent gap
         // between two ticks, at least 1.2 s (2 s in a hidden browser tab) and at most 10 s, so a late tick
@@ -13071,20 +13142,29 @@
         if (!on) {
           if (!musicOn()) return;
           const old = music.songs,
-            now = audioCtx.currentTime;
+            now = musicNow();
           music.songs = [];
           clearInterval(music.timer);
           for (const song of old) song.fadeOut(now, 1.5);
           setTimeout(() => {
             for (const song of old) song.dispose();
             if (!musicOn()) mediaOut(false);
-            if (!arp && !musicOn()) audioCtx.suspend();
+            if (!musicOn() && music.native) window.ClockscapesAndroid.musicIdle();
+            if (!arp && !musicOn()) audioCtx?.suspend();
           }, 2000);
           showMusicState(false);
           $("#nowPlaying").textContent = "";
           return;
         }
         if (musicOn()) return;
+        music.native = CONFIG.music.native && nativeMusic();
+        if (music.native) {
+          window.ClockscapesAndroid.musicVolume((CONFIG.music.volume / 100) ** 2);
+          music.k = CONFIG.zones.length * Math.floor(Math.random() * 1000);
+          nextSong(3);
+          music.timer = setInterval(musicTick, 50);
+          return showMusicState(true);
+        }
         // A page that is never touched (the Android Auto player, which may play without a tap) makes its
         // sound here; in a browser, play is always pressed, so the tap has made it already.
         makeAudio();
@@ -14273,6 +14353,8 @@
         form.musicVol.value = CONFIG.music.volume;
         form.musicVar.value = CONFIG.music.variation;
         form.musicPlaces.value = CONFIG.music.places === false ? "0" : "1";
+        form.musicNative.value = CONFIG.music.native ? "1" : "0";
+        $("#musicNativeRow").hidden = !nativeMusic();
         $("#nowPlaying").textContent = musicOn() ? "Now playing: " + music.title : "";
         showTab("clocks");
         msg.textContent = "";
@@ -14538,7 +14620,8 @@
           }
           if (!z.label) z.label = z.tz.split("/").pop().replace(/_/g, " ");
         }
-        const hadPlaces = CONFIG.music.places !== false;
+        const hadPlaces = CONFIG.music.places !== false,
+          hadNative = CONFIG.music.native;
         CONFIG = {
           weather: form.weather.value === "1",
           units: form.units.value,
@@ -14556,6 +14639,7 @@
             volume: form.musicVol.value,
             variation: form.musicVar.value,
             places: form.musicPlaces.value === "1",
+            native: form.musicNative.value === "1",
           }),
         };
         // a new variation, or city sounds switched on or off, starts the next song now
@@ -14567,7 +14651,11 @@
         // the Android app rings the alarms itself, even with the app closed
         window.ClockscapesAndroid?.setAlarms(JSON.stringify(CONFIG.alarms || []));
         closeSettings();
-        if (CONFIG.music.on !== musicOn()) musicPlay(CONFIG.music.on);
+        // another sound engine: the music stops, and starts again on the new one once the old has faded
+        if (musicOn() && CONFIG.music.native !== hadNative) {
+          musicPlay(false);
+          if (CONFIG.music.on) setTimeout(() => musicPlay(true), 1600);
+        } else if (CONFIG.music.on !== musicOn()) musicPlay(CONFIG.music.on);
         else if (musicOn() && changedVariation) nextSong(3);
         buildColumns();
         keepAwake();

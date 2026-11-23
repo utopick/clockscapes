@@ -14300,7 +14300,8 @@
         }
       }
       // Book stalls along the sidewalk, each with an awning on two poles and its books in piles.
-      function drawMarket(g, e) {
+      // ev.roses: Sant Jordi's stalls, books and red roses under red and yellow awnings
+      function drawMarket(g, e, since, t, ev) {
         const { W } = e,
           y = sidewalk(e),
           n = Math.max(2, Math.round(W / 40));
@@ -14312,14 +14313,21 @@
           g.fillRect(x, y - 1, 1, 2);
           g.fillRect(x + w - 1, y - 1, 1, 2);
           for (let k = 0; k < w; k++) {
-            g.fillStyle = css(e.sh(BRIGHT[(k + i) % BRIGHT.length]));
+            g.fillStyle = css(e.sh(ev?.roses && k % 2 ? [205, 28, 42] : BRIGHT[(k + i) % BRIGHT.length]));
             g.fillRect(x + k, y - 3 - (k % 3 ? 0 : 1), 1, k % 3 ? 1 : 2);
           }
           g.fillStyle = css(e.sh([90, 90, 96]));
           g.fillRect(x, y - 8, 1, 6);
           g.fillRect(x + w - 1, y - 8, 1, 6);
           for (let k = 0; k < w; k++) {
-            g.fillStyle = css(e.sh(k % 2 ? [236, 232, 220] : [60, 120, 90]));
+            const stripe = ev?.roses
+              ? k % 2
+                ? [252, 221, 9]
+                : [218, 41, 28]
+              : k % 2
+                ? [236, 232, 220]
+                : [60, 120, 90];
+            g.fillStyle = css(e.sh(stripe));
             g.fillRect(x + k, y - 9, 1, 2);
           }
         }
@@ -14740,6 +14748,13 @@
         hangGliders: { label: "Hang gliders float down to the beach", hours: [10, 17], on: (e) => !e.rain, sky: "day", layer: "front", draw: drawGliders },
         paragliders: { label: "Paragliders over the cliffs", hours: [11, 17], on: (e) => !e.rain, sky: "day", layer: "front", draw: drawGliders, para: true },
         blueAngels: { label: "The Blue Angels fly for Fleet Week", on: (e) => e.month === 9 && [-2, -1].includes(daysFrom("10/2/Mon", e)), hours: [13, 16], sky: "day", layer: "front", draw: drawJets },
+        cotorras: { label: "Monk parakeets chatter over the parks", hours: [8, 19], every: 20, len: 3, sky: "day", layer: "front", draw: drawFlock, n: 10, speed: 14, colors: [[90, 190, 80], [150, 210, 90]] },
+        // Shows on Wednesday to Sunday evenings from April to October and Thursday to Saturday in winter
+        // (the real timetable changes from year to year).
+        magicFountain: { label: "The Magic Fountain of Montjuïc", on: (e) => (e.month >= 3 && e.month <= 9 ? ["Wed", "Thu", "Fri", "Sat", "Sun"].includes(e.weekday) && e.hour === 21 : ["Thu", "Fri", "Sat"].includes(e.weekday) && e.hour === 20), sky: "night", layer: "front", draw: drawFountain },
+        santJoanFireworks: { label: "Sant Joan night: fireworks all over the city", on: (e) => e.month === 5 && ((e.day === 23 && e.hour >= 21) || (e.day === 24 && e.hour < 4)), sky: "night", layer: "back", draw: drawFireworks },
+        santJoanFires: { label: "Sant Joan night: bonfires on the beach", on: (e) => e.month === 5 && ((e.day === 23 && e.hour >= 21) || (e.day === 24 && e.hour < 4)), sky: "night", layer: "street", draw: drawBonfires },
+        santJordi: { label: "Sant Jordi: books and roses on every street", on: (e) => e.month === 3 && e.day === 23, hours: [9, 21], sky: "day", layer: "street", draw: drawMarket, roses: true },
         fireworks: { label: "Fireworks for the festival", on: (e) => e.festival && (e.hour >= 20 || (e.month === 0 && e.day === 1 && e.hour === 0 && e.min < 30)), sky: "night", layer: "back", draw: drawFireworks },
         feux: { label: "Fireworks over the river on summer Saturdays", months: [5, 6], days: ["Sat"], at: ["22:00"], len: 30, sky: "night", layer: "back", draw: drawFireworks },
         symphony: { label: "The Symphony of Lights", at: ["20:00"], len: 10, sky: "night", layer: "front", draw: drawLightShow },
@@ -14793,7 +14808,7 @@
         "kabul-af": ["fridayKites"], "kano-ng": ["durbar"], "karachi-pk": ["camels"], "kinshasa-cd": ["sapeurs"],
         "kolkata-in": ["yellowTaxis"], "krakow-pl": ["hejnal"], "kunming-cn": ["gulls"], "kyoto-jp": ["cherryKyoto"],
         "lagos-ng": ["danfo"], "las-vegas-us": ["bellagio"], "lima-pe": ["paragliders"], "lisbon-pt": ["jacarandaJune"],
-        "london-gb": ["bigBen"], "los-angeles-us": ["parrots"], "madrid-es": ["swifts"], "melbourne-au": ["penguins"],
+        "london-gb": ["bigBen"], "los-angeles-us": ["parrots"], "madrid-es": ["swifts"], "barcelona-es": ["cotorras", "magicFountain", "santJoanFireworks", "santJoanFires", "santJordi"], "melbourne-au": ["penguins"],
         "mexico-city-mx": ["jacarandaMarch", "paseoDominical"], "montreal-ca": ["feux"], "moscow-ru": ["kremlin"],
         "mumbai-in": ["flamingos"], "nairobi-ke": ["giraffes"], "new-delhi-in": ["independenceKites"], "new-york-us": ["tribute"],
         "osaka-jp": ["cherryKyoto"], "paris-fr": ["sparkle"], "pretoria-za": ["jacarandaSpring"], "rio-de-janeiro-br": ["hangGliders"],

@@ -19,6 +19,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+      # the native music engine (native/lofi.c) is built with the NDK; keep this the ndkVersion in android/app/build.gradle.kts
+      - name: Install the NDK
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018" > /dev/null
       - name: Build the APK
         run: gradle -p android assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4

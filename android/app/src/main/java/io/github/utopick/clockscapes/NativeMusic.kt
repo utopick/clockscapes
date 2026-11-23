@@ -9,7 +9,7 @@ import android.os.Process
 import android.webkit.WebView
 
 /**
- * The native music engine (android/native/lofi.c), the MUSIC tab's "Sound engine: Native". The page still
+ * The native music engine (native/lofi.c), the MUSIC tab's "Sound engine: Native". The page still
  * writes each song and sends it here as text (NativeSong in index.html); a thread of its own renders it in C
  * and plays it through an AudioTrack with a quarter second of buffer, so the page's work can't make it crackle.
  */

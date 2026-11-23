@@ -9,7 +9,8 @@
  * low-pass, vinyl crackle and city sound beds. When a voice changes in index.html, change it here too.
  *
  * NativeMusic.kt runs it: an AudioTrack thread calls lofi_render, and the page's calls (song start, fade,
- * stop, volume) arrive from other threads through the mutex. Build: build.sh (Android), or
+ * stop, volume) arrive from other threads through the mutex. It is built by the Android app's Gradle build
+ * (android/app/build.gradle.kts) and, as WebAssembly for the page, by tools/lofi-wasm.sh. On a computer:
  *   cc -O2 -DLOFI_CLI lofi.c -o lofi -lm   then   ./lofi song.txt out.wav 30   (renders 30 s on a computer)
  */
 #include <math.h>

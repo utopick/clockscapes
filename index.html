@@ -1940,7 +1940,7 @@
           }
         }
         // The whole song as a list of voice calls, [name, ...arguments] with times from the song's start, for
-        // a player outside Web Audio (the Android app's native engine, android/native/lofi.c): play() runs
+        // a player outside Web Audio (the Android app's native engine, native/lofi.c): play() runs
         // as it does live, but each voice it calls is written down instead of played.
         function score(sheet) {
           const rec = Object.create(Player.prototype),
@@ -1956,9 +1956,9 @@
         return { song, score, Player, BANDS, KITS };
       })();
     </script>
-    <!-- android/native/lofi.c as WebAssembly, base64 (the native music engine in a browser). Written by
+    <!-- native/lofi.c as WebAssembly, base64 (the native music engine in a browser). Written by
          tools/lofi-wasm.sh, never by hand; data-c is the lofi.c it was built from. -->
-    <script id="lofi-wasm" type="application/octet-stream" data-c="980d1ada207e17e7">
+    <script id="lofi-wasm" type="application/octet-stream" data-c="589bcda54343c17f">
       AGFzbQEAAAABkgIqYAJ/fwBgAX8Bf2ABfwBgAX0BfWAFf35+fn4AYAJ/fwF/YAN/f38Bf2ADf39/AGAEf35+fwBgAXwBfWABfwF9
       YAJ9fQF9YAAAYAR/f319AGADf319AGABfQBgAn98AX1gBX98fX19AGAEf398fAF/YAZ/fH19fX0AYAd/fH1/fX19AGAHf318fX99
       fQBgBH9/fX0Bf2ADf3x9AGAGf318fX1/AGAJf3x/fX19fX19AGACfX8Bf2ACf30BfWABfQF/YAV/f39/fwBgAnx/AXxgAn9+AGAE
@@ -15145,7 +15145,7 @@
       const music = { songs: [], k: 0, timer: 0, bus: null, title: "" };
       const musicOn = () => music.songs.length > 0;
       // The native sound engine (MUSIC tab, on unless Web Audio is picked): the songs are still written here,
-      // but a C engine (android/native/lofi.c) plays them on an audio thread of its own, so the page's work
+      // but a C engine (native/lofi.c) plays them on an audio thread of its own, so the page's work
       // can't make them crackle and they cost far less. The Android app runs it natively (NativeMusic.kt); a
       // browser runs the same C compiled to WebAssembly (script#lofi-wasm) in an AudioWorklet, and falls back
       // to LOFI.Player when it can't. music.engine is the one in use, or null for LOFI.Player.

@@ -133,9 +133,9 @@ test("B is A's shape again, starting from A's second chord", () => {
   }
 });
 
-// The Android app's native engine (android/native/lofi.c) plays LOFI.score's list, so it must know every voice.
+// The Android app's native engine (native/lofi.c) plays LOFI.score's list, so it must know every voice.
 test("the native engine knows every voice a song calls, and when each one plays", () => {
-  const c = fs.readFileSync(path.join(__dirname, "..", "android", "native", "lofi.c"), "utf8");
+  const c = fs.readFileSync(path.join(__dirname, "..", "native", "lofi.c"), "utf8");
   const known = new Set([...c.matchAll(/IS\("(\w+)"\)/g)].map((m) => m[1]));
   const notes = new Set(c.match(/NOTES\[\] = \{([^}]*)\}/)[1].match(/\w+/g));
   // voices that take (note, time, ...) are the bands' chord, lead and bass voices, and no others
@@ -156,7 +156,7 @@ test("the native engine knows every voice a song calls, and when each one plays"
 
 // Browsers play the same engine compiled to WebAssembly (script#lofi-wasm), rebuilt by tools/lofi-wasm.sh.
 test("the page's WebAssembly engine was built from the current lofi.c", () => {
-  const c = fs.readFileSync(path.join(__dirname, "..", "android", "native", "lofi.c"));
+  const c = fs.readFileSync(path.join(__dirname, "..", "native", "lofi.c"));
   const stamp = require("crypto").createHash("sha256").update(c).digest("hex").slice(0, 16);
   const built = html.match(/<script id="lofi-wasm"[^>]*data-c="(\w+)"/)?.[1];
   assert.strictEqual(built, stamp, "lofi.c changed: run sh tools/lofi-wasm.sh");

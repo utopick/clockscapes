@@ -17,7 +17,7 @@ val copyIcon by tasks.registering(Copy::class) {
 }
 // The native music engine (native/lofi.c) for each kind of processor, built with the NDK's own clang.
 val buildLofi by tasks.registering {
-    val src = rootDir.resolve("native/lofi.c")
+    val src = webRoot.resolve("native/lofi.c")
     val out = layout.buildDirectory.dir("jniLibs")
     inputs.file(src)
     outputs.dir(out)

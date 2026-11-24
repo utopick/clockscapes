@@ -63,7 +63,7 @@ test("notes stay in range and the melody stays in the key", () => {
 
 test("the night is slower and more often minor than the day", () => {
   const avg = (night, f) => SEEDS.reduce((a, seed) => a + f(LOFI.song(seed, { night })), 0) / SEEDS.length;
-  assert.ok(avg(1, (s) => s.bpm) < avg(0, (s) => s.bpm) - 8);
+  assert.ok(avg(1, (s) => s.bpm) < avg(0, (s) => s.bpm) - 4);
   assert.ok(avg(1, (s) => s.minor) > avg(0, (s) => s.minor) + 0.3);
   assert.ok(avg(1, (s) => s.cutoff) < avg(0, (s) => s.cutoff));
 });
@@ -115,12 +115,12 @@ test("birds sing by day, crickets on warm nights, and both stop in the rain", ()
   assert.ok(rainyDay.birds === 0 && rainyDay.crickets === 0);
 });
 
-test("the songs vary: many progressions, a wide tempo and every chord colour", () => {
+test("the songs vary: many progressions, a tranquil tempo (62 to 80) and every chord colour", () => {
   const songs = SEEDS.map((seed) => LOFI.song(seed, { night: 0.5 })),
     progs = new Set(songs.map((s) => s.minor + s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "))),
     bpms = songs.map((s) => s.bpm);
   assert.ok(progs.size > 60, `only ${progs.size} progressions`);
-  assert.ok(Math.max(...bpms) - Math.min(...bpms) >= 24, `tempos ${Math.min(...bpms)}..${Math.max(...bpms)}`);
+  assert.ok(Math.max(...bpms) - Math.min(...bpms) >= 10 && Math.max(...bpms) <= 80, `tempos ${Math.min(...bpms)}..${Math.max(...bpms)}`);
   assert.strictEqual(new Set(songs.map((s) => s.colour)).size, 5);
 });
 
@@ -275,7 +275,7 @@ test("Galicia is a gaita band playing a muiñeira in a real 6/8, with bombo and 
 
 test("regional songs stay lo-fi: relaxed tempos, high leads an octave down, a darker tape", () => {
   for (const [name, st] of Object.entries(LOFI.STYLES))
-    if (st.bpm) assert.ok(st.bpm[1] <= (name === "techno" ? 98 : 90), `${name}: ${st.bpm}`);
+    if (st.bpm) assert.ok(st.bpm[1] <= (name === "techno" ? 90 : 82), `${name}: ${st.bpm}`);
   const high = ["pipes", "fife", "bowed", "steel", "guitarra", "reed", "accordion", "vox", "shaku"];
   for (const region of Object.keys(LOFI.STYLES))
     for (const seed of SEEDS.slice(0, 20)) {
@@ -303,7 +303,7 @@ test("fado is slow, its A minor and its B major on the same root, with arpeggios
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "fado" }),
       third = (c) => (c.keys.map((n) => (n - s.key + 120) % 12).includes(3) ? "minor" : "major");
-    assert.ok(s.bpm >= 56 && s.bpm <= 68, `${s.bpm}`);
+    assert.ok(s.bpm >= 56 && s.bpm <= 62, `${s.bpm}`);
     assert.strictEqual(third(s.chords[0]), "minor");
     assert.strictEqual(third(s.chordsB[0]), "major");
     assert.strictEqual(s.chords[0].root % 12, s.chordsB[0].root % 12);
@@ -311,10 +311,10 @@ test("fado is slow, its A minor and its B major on the same root, with arpeggios
   }
 });
 
-test("bossa nova is a nylon guitar on the bossa rhythm with ninth chords, 70 to 80 bpm", () => {
+test("bossa nova is a nylon guitar on the bossa rhythm with ninth chords, 64 to 74 bpm", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "bossa" });
-    assert.ok(s.bpm >= 70 && s.bpm <= 80, `${s.bpm}`);
+    assert.ok(s.bpm >= 64 && s.bpm <= 74, `${s.bpm}`);
     assert.strictEqual(s.colour, "ninth");
     assert.strictEqual(s.voices.chords, "spanish");
     assert.strictEqual(s.drums, "bossa");
@@ -341,7 +341,7 @@ test("the kaiju song is a slow tread in D minor, with its fixed motto at every s
   ]);
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { kaiju: true, places: false });
-    assert.ok(s.minor && s.bpm >= 66 && s.bpm <= 74 && s.swing === 0, `${s.bpm}`);
+    assert.ok(s.minor && s.bpm >= 60 && s.bpm <= 68 && s.swing === 0, `${s.bpm}`);
     assert.strictEqual(s.key, 2);
     assert.strictEqual(JSON.stringify(s.fanfare.filter(([bar]) => bar === 0)), motto);
     assert.strictEqual(s.gong, "gong");

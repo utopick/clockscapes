@@ -11,7 +11,7 @@ val copyWeb by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("web/www"))
 }
 val copyIcon by tasks.registering(Copy::class) {
-    from(webRoot.resolve("icons/icon-512.png"))
+    from(projectDir.resolve("launcher-icon.png")) // Android-only icon: New York at dusk (the PWA keeps icons/icon-512.png)
     into(layout.buildDirectory.dir("webres/mipmap-xxxhdpi"))
     rename { "ic_launcher.png" }
 }

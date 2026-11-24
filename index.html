@@ -8760,7 +8760,7 @@
       // 10 red, 11 glass, 12 deep gold, 13 pale stone, 14 rose.
       // prettier-ignore
       const CITY_LANDMARKS = {
-  "a-coruna-es": [["Tower of Hercules","belfry",{w:9,h:28,lan:5,top:"dome",c:13,t:13}]],
+  "a-coruna-es": [["Tower of Hercules","hercules",{c:13,t:2}]],
   "aalborg-dk": [["Budolfi Cathedral","church",{w:17,nh:11,h:26,tw:5,top:"baroque",c:6,t:8}]],
   "abidjan-ci": [["St Paul’s Cathedral","church",{w:19,nh:8,h:34,tw:5,top:"needle",c:6,t:6}],["La Pyramide","pyramid",{w:11,h:22,steps:4,c:13,s:8}]],
   "abomey-bj": [["Royal Palaces of Abomey","palace",{w:29,nh:7,top:"flat",c:1,rc:0}]],
@@ -11926,6 +11926,35 @@
             cone(0, h + 4, tw + 1, 2, o.rc ?? 10);
             box(0, h + 8, 1, 2, 2);
             e.beams?.push({ x: X(0), y: Y(h + 3), len: R(h * 1.6) }); // its light sweeps at night (drawBeams)
+            break;
+          }
+          case "hercules": {
+            // The Tower of Hercules (A Coruña): the Roman lighthouse alone on its grassy headland, a massive
+            // square granite body crossed by the diagonal bands of the old outside ramp, then a smaller square
+            // stage and a slim octagonal top with a little dome and the lamp; its light sweeps at night.
+            const grass = css(e.sh([104, 146, 84])),
+              band = css(e.sh([150, 146, 136])),
+              hill = 6;
+            for (let i = -18; i <= 18; i++) {
+              const up = Math.max(1, Math.round(hill * Math.cos((i / 19) * (Math.PI / 2)) ** 0.7));
+              box(i, up, 1, up, grass);
+            }
+            const body = 26,
+              top = hill + body;
+            box(-5, top, 11, body, c);
+            for (let k = 0; k < 4; k++)
+              for (let d = 0; d < 11; d++) box(-5 + d, hill + 4 + k * 6 + Math.round(d * 0.45), 1, 1, band); // the ramp's bands
+            for (const wy of [hill + 9, hill + 15, hill + 21]) box(-1, wy, 1, 2, 2); // narrow windows
+            box(-6, top + 1, 13, 1, c); // the cornice
+            box(-3, top + 6, 7, 5, c); // the second stage
+            box(0, top + 4, 1, 2, 2);
+            box(-4, top + 7, 9, 1, c);
+            box(-2, top + 11, 5, 4, c); // the octagonal lantern
+            box(-1, top + 10, 1, 2, 2);
+            box(1, top + 10, 1, 2, 2);
+            dome(0, top + 11, 2, c);
+            box(0, top + 14, 1, 2, t);
+            e.beams?.push({ x: X(0), y: Y(top + 9), len: R(body * 1.8) });
             break;
           }
           case "castle": {

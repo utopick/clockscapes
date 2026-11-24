@@ -14,8 +14,11 @@ Clockscapes is a web page that draws one pixel-art city per time zone, with a cl
 | `icons/` | App icons (192 and 512 pixels) |
 | `img/` | Pictures for the README only, not used by the app |
 | `tests/music.test.js` | Tests for the music writer |
+| `android/` | The Android app for phones, tablets, TVs and cars, which shows the same `index.html` in a web view |
+| `native/` | The native music engine (`lofi.c`), used by the Android app and, built to WebAssembly by `tools/lofi-wasm.sh`, by the page |
+| `.github/workflows/android.yml` | Builds the APKs on GitHub on every push to `main` |
 
-GitHub Pages publishes the `main` branch as it is, so whatever is on `main` is live at https://utopick.github.io/clockscapes/.
+Everything lives on the one `main` branch. GitHub Pages publishes it as it is, so whatever is on `main` is live at https://utopick.github.io/clockscapes/, and each push also builds the Android APKs (Actions, then Android APK, then the run's Artifacts).
 
 ## 2. How the parts fit
 

@@ -236,6 +236,47 @@ static void noisev(Ctx c, double t, int type, float freq, float q, float peak, f
   pev(&v->out, EXP, t + len, 0.0001f, 0);
 }
 
+// Player.wind: a wind or bowed lead that scoops up into the note, through a band-pass (none when bp is 0),
+// with a late vibrato and a breath of noise
+static void wind(Ctx c, float n, double t, float dur, float vel, int wave, float bp, float q, float attack,
+                 float scoop, float vib, float breath) {
+  Voice *v = nv(c.k, TONE, t, t + dur + 0.5);
+  if (!v) return;
+  v->freq.v0 = hz(n);
+  src(v, 0, wave, 1);
+  if (bp) flt(v, BP, bp, q);
+  pev(&v->det, SET, t, -scoop, 0);
+  pev(&v->det, LIN, t + attack, 0, 0);
+  if (vib) {
+    v->vibHz = 5.5f;
+    pev(&v->vib, SET, t, 0, 0);
+    pev(&v->vib, LIN, t + fminf(dur, 0.5f), vib, 0);
+  }
+  pev(&v->out, SET, t, 0, 0);
+  pev(&v->out, LIN, t + attack, vel, 0);
+  pev(&v->out, TGT, t + dur, 0, 0.06f);
+  if (breath) hit(c, t, fminf(dur, 0.5f), BP, hz(n) * 2, breath, attack);
+}
+// Player.thump: a drum skin, a sine falling from one pitch to another
+static void thump(Ctx c, double t, float from, float to, float drop, float vel, float decay) {
+  Voice *v = nv(c.k, BUS, t, t + decay * 1.5 + 0.1);
+  if (!v) return;
+  v->nowob = 1;
+  src(v, 0, SINE, 1);
+  pev(&v->freq, SET, t, from, 0);
+  pev(&v->freq, EXP, t + drop, to, 0);
+  env(&v->out, t, vel, 0.003f, decay);
+}
+// Player.brass and Player.strings: two detuned sawtooths
+static Voice *duo(Ctx c, int dest, float f, double t, double end, float cents) {
+  Voice *v = nv(c.k, dest, t, end);
+  if (!v) return NULL;
+  v->freq.v0 = f;
+  src(v, 0, SAW, 1)->cents = -cents;
+  src(v, 1, SAW, 1)->cents = cents;
+  return v;
+}
+
 static void play(Ctx c, const Ev *e) {
   const char *m = e->name;
   const float *a = e->a;
@@ -347,6 +388,47 @@ static void play(Ctx c, const Ev *e) {
     if (up) env(&v->out, t, 0.6f, 0.004f, fminf(dur, 0.5f) + 0.4f);
     else env(&v->out, t, sub ? 0.6f : 0.5f, sub ? 0.015f : 0.01f, dur);
   }
+  // the voices of regional styles and of the kaiju song
+  else if (IS("bowed")) wind(c, n, t, dur, vel * 0.9f, SAW, 1400, 1.2f, 0.12f, 40, 22, 0);
+  else if (IS("reed")) wind(c, n, t, dur, vel * 0.7f, SQR, 1900, 2.5f, 0.03f, 25, 12, 0);
+  else if (IS("sax")) wind(c, n - 12, t, dur, vel * 0.9f, SAW, 1000, 0.9f, 0.04f, 30, 15, 0.01f);
+  else if (IS("pipes")) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
+  else if (IS("fife")) wind(c, n, t, dur, vel * 0.8f, TRI, 0, 0, 0.02f, 0, 10, 0.015f);
+  else if (IS("shaku")) wind(c, n, t, dur, vel * 0.9f, SINE, 0, 0, 0.1f, 60, 15, 0.03f);
+  else if (IS("drone")) wind(c, n, t, dur, vel, SAW, 700, 0.8f, 0.3f, 0, 0, 0);
+  else if (IS("plucked")) plk(c, n, t, vel * 1.3f, SAW, 2600, 0.45f);
+  else if (IS("zither")) plk(c, n, t, vel * 1.2f, TRI, 4000, 0.9f);
+  else if (IS("riff")) plk(c, n, t, vel, SAW, 300 + 20000 * vel * vel, 0.25f);
+  else if (IS("brass")) {
+    if (!(v = duo(c, TONE, hz(n - 12), t, t + dur + 0.6, 6))) return;
+    sweep(v, t, 250, 1500, 0.08f, 1);
+    pev(&v->out, SET, t, 0, 0);
+    pev(&v->out, LIN, t + 0.06, vel * 0.9f, 0);
+    pev(&v->out, TGT, t + 0.06, vel * 0.6f, 0.3f);
+    pev(&v->out, TGT, t + dur, 0, 0.1f);
+  } else if (IS("strings")) {
+    if (!(v = duo(c, BUS, hz(n), t, t + dur + 0.5, 10))) return;
+    flt(v, LP, 900, 0.5f);
+    pev(&v->out, SET, t, 0, 0);
+    pev(&v->out, LIN, t + 0.03, vel, 0);
+    pev(&v->out, TGT, t + 0.03, vel * 0.6f, 0.15f);
+    pev(&v->out, TGT, t + dur, 0, 0.08f);
+  } else if (IS("timpani")) { // (note, time, length)
+    if (!(v = nv(c.k, BUS, t, t + 2))) return;
+    v->freq.v0 = hz(n + 12);
+    src(v, 0, SINE, 1);
+    env(&v->out, t, 0.4f, 0.004f, 1.4f);
+    hit(c, t, 0.12f, LP, 600, 0.25f, 0.002f);
+  } else if (IS("frame")) thump(c, T, 110, 65, 0.08f, 0.3f * a[1], 0.3f), hit(c, T, 0.05f, BP, 800, 0.08f * a[1], 0.002f);
+  else if (IS("goblet")) thump(c, T, 330, 260, 0.04f, 0.3f * a[1], 0.15f), hit(c, T, 0.03f, HP, 3000, 0.12f * a[1], 0.002f);
+  else if (IS("taiko")) thump(c, T, 140, 70, 0.1f, 0.4f * a[1], 0.4f), hit(c, T, 0.1f, BP, 500, 0.1f * a[1], 0.002f);
+  else if (IS("jingles")) hit(c, T, 0.2f, HP, 7500, 0.12f * a[1], 0.004f), hit(c, T + 0.025, 0.12f, HP, 9000, 0.07f * a[1], 0.002f);
+  else if (IS("castanets")) hit(c, T, 0.015f, BP, 3500, 0.3f * a[1], 0.002f), hit(c, T + 0.028, 0.015f, BP, 3800, 0.22f * a[1], 0.002f);
+  else if (IS("palmas")) {
+    for (int i = 0; i < 3; i++) hit(c, T + i * 0.007, 0.015f, BP, 2000, 0.14f * a[1], 0.002f);
+    hit(c, T + 0.02, 0.09f, BP, 1700, 0.1f * a[1], 0.002f);
+  } else if (IS("tamboril")) hit(c, T, 0.12f, BP, 2300, 0.26f * a[1], 0.002f), thump(c, T, 260, 220, 0.03f, 0.18f * a[1], 0.1f);
+  else if (IS("bigdrum")) thump(c, T, 85, 38, 0.25f, 0.8f * a[1], 0.9f), hit(c, T, 0.25f, LP, 300, 0.35f * a[1], 0.002f);
   // drums: (time, velocity)
   else if (IS("kick")) kick(c, T, a[1]);
   else if (IS("softKick")) kick(c, T, 0.6f * a[1]);
@@ -559,7 +641,9 @@ static void push(Cmd c) {
 }
 
 static const char *NOTES[] = {"keys", "bell", "kalimba", "flute", "felt", "vibes", "horn", "pad", "rhodes", "wurli",
-                              "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub"};
+                              "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub",
+                              "bowed", "reed", "sax", "pipes", "fife", "shaku", "drone", "plucked", "zither", "riff",
+                              "brass", "strings", "timpani"};
 static int byTime(const void *a, const void *b) {
   double d = ((const Ev *)a)->t - ((const Ev *)b)->t;
   return d < 0 ? -1 : d > 0;

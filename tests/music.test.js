@@ -165,3 +165,111 @@ test("the page's WebAssembly engine was built from the current lofi.c", () => {
   for (const name of ["lofi_init", "lofi_render", "lofi_start", "lofi_fade", "lofi_stop", "malloc"])
     assert.ok(exports.includes(name), `the WebAssembly engine has no ${name}`);
 });
+
+// Regional music (STYLES and REGIONS) and the kaiju song.
+test("without a regional style a song is the plain lo-fi one, with no new fields", () => {
+  for (const seed of SEEDS.slice(0, 100))
+    for (const region of [undefined, "", "atlantis"]) {
+      const plain = LOFI.song(seed, { night: 0.4 }),
+        s = LOFI.song(seed, { night: 0.4, region });
+      assert.deepStrictEqual(s, plain);
+      assert.ok(!("region" in s) && !("ostinato" in s));
+    }
+});
+
+test("each place finds its style: a region's cities first, then the country", () => {
+  assert.strictEqual(LOFI.regionOf("ES", "seville-es"), "flamenco");
+  assert.strictEqual(LOFI.regionOf("ES", "a-coruna-es"), "galicia");
+  assert.strictEqual(LOFI.regionOf("ES", "logrono-es"), "rioja");
+  assert.strictEqual(LOFI.regionOf("ES", "zaragoza-es"), ""); // Aragon has no style built yet
+  assert.strictEqual(LOFI.regionOf("GB", "glasgow-gb"), "celtic");
+  assert.strictEqual(LOFI.regionOf("GB", "london-gb"), "");
+  assert.strictEqual(LOFI.regionOf("US", "new-orleans-us"), "soul");
+  assert.strictEqual(LOFI.regionOf("DE", "berlin-de"), "techno");
+  assert.strictEqual(LOFI.regionOf("JP", "kyoto-jp"), "japan");
+  assert.strictEqual(LOFI.regionOf("ZZ", "nowhere-zz"), "");
+  for (const [where, [style]] of Object.entries({ ...LOFI.OWN_REGIONS, ...LOFI.REGIONS }))
+    assert.ok(style === "" || LOFI.STYLES[style], `${where}: ${style}`);
+});
+
+test("every style names voices, kits, loops and modes that exist", () => {
+  const has = (v) => typeof LOFI.Player.prototype[v] === "function";
+  for (const [name, st] of Object.entries(LOFI.STYLES)) {
+    const voices = [...(st.leads || []), st.drone, st.strum?.[0], st.ostinato?.voice, ...Object.keys(st.perc || {})];
+    if (st.band) voices.push(st.band.chords, st.band.bass, ...(st.band.leads || []));
+    for (const v of voices.filter(Boolean)) assert.ok(has(v), `${name}: no voice ${v}`);
+    if (st.band?.drums) assert.ok(LOFI.KITS[st.band.drums], `${name}: no kit ${st.band.drums}`);
+    for (const steps of [st.strum?.[1], ...Object.values(st.perc || {})].filter(Boolean))
+      assert.strictEqual(steps.length, 16, `${name}: ${steps}`);
+    for (const seed of SEEDS.slice(0, 20)) {
+      const s = LOFI.song(seed, { region: name });
+      assert.strictEqual(s.region, name);
+      assert.ok(s.seconds > 0 && s.form.length > 0);
+    }
+  }
+});
+
+test("a Celtic song is modal, with a drone, cuts, a lilt and pipes or a whistle", () => {
+  const scales = {
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10],
+    aeolian: [0, 2, 3, 5, 7, 8, 10],
+  };
+  const modes = new Set();
+  for (const seed of SEEDS.slice(0, 60)) {
+    const s = LOFI.song(seed, { region: "celtic" });
+    modes.add(s.mode);
+    assert.ok(["pipes", "fife"].includes(s.voices.lead), s.voices.lead);
+    assert.ok(s.grace && s.drone === "drone" && s.swing === 0.33 && s.perc.frame);
+    const inMode = (n) => scales[s.mode].includes((n - s.key + 120) % 12);
+    for (const n of [s.melA, s.melB, s.melA2, s.melB2].flat(2).map((note) => note[1]))
+      assert.ok(inMode(n), `seed ${seed}: ${n} is not ${s.mode}`);
+    for (const c of s.chords.concat(s.chordsB))
+      for (const n of c.keys) assert.ok(inMode(n), `seed ${seed}: chord note ${n}`);
+  }
+  assert.ok(modes.has("dorian") && modes.has("mixolydian"), [...modes]);
+});
+
+test("a flamenco song walks down the Andalusian cadence and strums it with rasgueados", () => {
+  for (const seed of SEEDS.slice(0, 30)) {
+    const s = LOFI.song(seed, { region: "flamenco" });
+    assert.deepStrictEqual(
+      s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "),
+      "5 3 1 0",
+    );
+    assert.ok(s.strum[1].includes("r") && s.perc.palmas && s.perc.castanets);
+  }
+});
+
+test("the kaiju song is a low march in a minor key", () => {
+  for (const seed of SEEDS.slice(0, 30)) {
+    const s = LOFI.song(seed, { kaiju: true, places: false });
+    assert.ok(s.minor && s.bpm >= 74 && s.bpm <= 82 && s.swing === 0);
+    assert.strictEqual(s.form.join(" "), "A B A2 B2");
+    assert.strictEqual(s.voices.lead, "brass");
+    assert.strictEqual(s.drums, "march");
+    assert.strictEqual(s.ostinato.length, 4);
+    for (const n of s.ostinato.flat().map((note) => note[1])) assert.ok(n >= 30 && n < 60, `ostinato ${n}`);
+    assert.strictEqual(s.places, false);
+  }
+  assert.deepStrictEqual(LOFI.song(5, { kaiju: true }), LOFI.song(5, { kaiju: true }));
+});
+
+test("the native engine plays every voice of the regional styles and the kaiju song", () => {
+  const c = fs.readFileSync(path.join(__dirname, "..", "native", "lofi.c"), "utf8");
+  const known = new Set([...c.matchAll(/IS\("(\w+)"\)/g)].map((m) => m[1]));
+  const notes = new Set(c.match(/NOTES\[\] = \{([^}]*)\}/)[1].match(/\w+/g));
+  const moods = [...Object.keys(LOFI.STYLES).map((region) => ({ region })), { kaiju: true }];
+  for (const seed of SEEDS.slice(0, 10))
+    for (const mood of moods) {
+      const sheet = LOFI.song(seed, mood),
+        melodic = new Set([...Object.values(sheet.voices), sheet.drone, sheet.strum?.[0], sheet.ostinatoVoice]);
+      for (const [name, ...args] of LOFI.score(sheet)) {
+        assert.ok(known.has(name), `lofi.c has no voice "${name}"`);
+        assert.strictEqual(notes.has(name), melodic.has(name), `${name}: is it a note voice?`);
+        const t = notes.has(name) ? args[1] : args[0];
+        assert.ok(t >= 0 && t <= sheet.seconds + 1, `${name} at ${t} s`);
+        assert.ok(args.every(Number.isFinite), `${name} ${args}`);
+      }
+    }
+});

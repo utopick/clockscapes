@@ -15703,7 +15703,7 @@
           for (let x = 6; x < W; x += 22) fill(x, deck + 3, 2, G - deck - 3, [128, 126, 130], 0.08);
           fill(0, deck + 1, W, 2, e.snow ? [226, 232, 236] : [160, 158, 160], 0.06);
           fill(0, deck + 3, W, 1, [104, 102, 108], 0.08);
-          e.rail = deck;
+          e.rail = e.deck = deck;
         }
         e.electric = city.style === "metro" || city.capital || Boolean(TRAIN_LINES[city.country]);
         const waterline = ground(g, e, coastal);
@@ -22550,6 +22550,13 @@
           }
           if (this.anim) this.anim(g, e, t);
           layer("front");
+          // an elevated line stays in front of the front layer's things (Vigo's lights), so its trains don't
+          // float over them: its deck and pillars again, copied from the scene
+          if (e.deck != null && events.some(([ev]) => ev.layer === "front")) {
+            g.drawImage(this.fg, 0, e.deck + 1, W, 3, 0, e.deck + 1, W, 3);
+            for (let x = 6; x < W; x += 22)
+              g.drawImage(this.fg, x, e.deck + 4, 2, e.G - e.deck - 4, x, e.deck + 4, 2, e.G - e.deck - 4);
+          }
           // the alarm's procession, or an event on the road (the sheep), has the lane to itself
           this.life.quietLane = this.alarm || events.some(([ev]) => ev.road) ? e.G + SYNC_LANE : null;
           // the street stands still while an event freezes it (the national anthem in Thailand)

@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -86,6 +87,16 @@ object Web {
         @JavascriptInterface
         fun exit() {
             (context as? Activity)?.runOnUiThread { context.moveTaskToBack(true) }
+        }
+
+        /** The page's "Keep the screen on" setting: the app keeps the screen awake only while it is on. */
+        @JavascriptInterface
+        fun keepScreenOn(on: Boolean) {
+            val activity = context as? Activity ?: return // the wallpaper and the screensaver have no window flag
+            activity.runOnUiThread {
+                val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                if (on) activity.window.addFlags(flag) else activity.window.clearFlags(flag)
+            }
         }
 
         /** The page's alarm list, as JSON, for the phone alarms (Alarms). */

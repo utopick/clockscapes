@@ -17646,6 +17646,7 @@
       let wakeLock = null;
       // Keeps the screen on while the clocks show, unless "Keep the screen on" is off.
       async function keepAwake() {
+        window.ClockscapesAndroid?.keepScreenOn?.(CONFIG.awake !== false); // the Android app's own screen flag
         if (CONFIG.awake === false) {
           wakeLock?.release().catch(() => {});
           wakeLock = null;

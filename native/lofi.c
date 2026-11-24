@@ -79,16 +79,17 @@ static void env(Param *p, double t, float peak, float attack, float decay) {
   pev(p, TGT, t + attack, 0, decay / 4);
 }
 
-// ---- biquad filters, as Web Audio defines them (low- and high-pass Q in dB, band-pass Q plain) ----
-enum { LP, HP, BP };
+// ---- biquad filters, as Web Audio defines them (low- and high-pass Q in dB, band- and all-pass Q plain) ----
+enum { LP, HP, BP, AP };
 typedef struct { float b0, b1, b2, a1, a2, x1, x2, y1, y2; } Bq;
 static void bqset(Bq *f, int type, float freq, float q) {
   if (freq < 10) freq = 10;
   if (freq > SR * 0.49f) freq = SR * 0.49f;
   float w = 2 * (float)PI * freq / SR, cw = cosf(w), sw = sinf(w);
-  float alpha = type == BP ? sw / (2 * q) : sw / (2 * powf(10, q / 20)), a0 = 1 + alpha;
+  float alpha = type >= BP ? sw / (2 * q) : sw / (2 * powf(10, q / 20)), a0 = 1 + alpha;
   if (type == LP) f->b0 = f->b2 = (1 - cw) / 2 / a0, f->b1 = (1 - cw) / a0;
   else if (type == HP) f->b0 = f->b2 = (1 + cw) / 2 / a0, f->b1 = -(1 + cw) / a0;
+  else if (type == AP) f->b0 = (1 - alpha) / a0, f->b1 = -2 * cw / a0, f->b2 = 1;
   else f->b0 = alpha / a0, f->b1 = 0, f->b2 = -alpha / a0;
   f->a1 = -2 * cw / a0;
   f->a2 = (1 - alpha) / a0;
@@ -122,7 +123,7 @@ static inline float blep(float t, float dt) { // smooths a jump, so saws and squ
 typedef struct { uint8_t wave, smp; float ratio, cents, ph; int pos; Param gain; } Src;
 typedef struct { uint8_t type; float q; Param f; Bq b; } Flt;
 typedef struct {
-  uint8_t on, song, dest, nsrc, nflt, par, nowob, fm;
+  uint8_t on, song, dest, nsrc, nflt, par, nowob, fm, lane;
   double t0, t1;
   Param freq, det, vib, idx, out;
   float vibHz, fmRatio, fmPh, tremHz, tremD;
@@ -131,8 +132,9 @@ typedef struct {
 } Voice;
 enum { TONE, BUS, AMB };
 
-typedef struct { double t; char name[12]; float a[4]; } Ev; // t: when it plays, from the song's start
+typedef struct { double t; char name[12]; float a[4]; uint8_t lane; } Ev; // t: when it plays, from the song's start
 typedef struct { uint8_t buf, fader; int pos; Bq f; float gain, swell, hz; } Bed;
+#define LANES 5 // the Player's lanes: 0 none (and the tape's low-pass), 1 chords, 2 lead, 3 regional parts, 4 pads
 typedef struct {
   int id, used, nev, next, nbed;
   double start, stopAt, end;
@@ -145,9 +147,21 @@ typedef struct {
   int rvl[8], rvp[8];
   Bq rvf[8];
   int dlen, dpos;
-  Bed bed[6];
+  Bed bed[9];
   float tone[BLK], bus[BLK], amb[BLK], direct[BLK];
+  // the lanes (drift and phaser): each lane's tone and bus through its own low-pass, whose frequency is lhz
+  // (lhz[0] is the tape's), and lane 4's tone through the phaser when phHz is set
+  float ln[LANES][2][BLK], lnHz[LANES], phHz, water;
+  Bq lf[LANES][2], ap[2];
+  Param lhz[LANES];
+  int lanes; // the lanes in use, a bit each
 } Song;
+
+// the phaser and its water bed, as the Player's PH_* and WATER in index.html
+#define PH_HZ 900
+#define PH_DEPTH 600
+#define PH_Q 0.7f
+static const float WATER[3][4] = {{380, 0.03f, 0.6f, 5}, {900, 0.02f, 0.7f, 7}, {2100, 0.012f, 0.8f, 11}};
 
 // the reverb, as the Player's RV_* in index.html
 static const float RV_MS[8] = {31.7f, 37.3f, 41.9f, 47.1f, 53.3f, 59.9f, 67.1f, 73.7f};
@@ -160,13 +174,14 @@ static Voice V[MAXV];
 static Song *S[MAXS];
 static double now; // seconds rendered so far
 static float vol = 0.36f, volTarget = 0.36f;
+static uint8_t laneNow; // the lane of the call being played: its voices go there
 
 static Voice *nv(int song, int dest, double t0, double t1) {
   for (int i = 0; i < MAXV; i++)
     if (!V[i].on) {
       Voice *v = &V[i];
       memset(v, 0, sizeof *v);
-      v->on = 1, v->song = song, v->dest = dest, v->t0 = t0, v->t1 = t1, v->nsrc = 1;
+      v->on = 1, v->song = song, v->dest = dest, v->t0 = t0, v->t1 = t1, v->nsrc = 1, v->lane = laneNow;
       v->out.v0 = v->src[0].gain.v0 = v->src[1].gain.v0 = 1;
       v->src[0].ratio = v->src[1].ratio = 1;
       return v;
@@ -326,8 +341,23 @@ static void play(Ctx c, const Ev *e) {
   double t = c.at + a[1]; // notes: (note, time, length, velocity)
   float n = a[0], dur = a[2], vel = a[3];
   Voice *v;
+  laneNow = e->lane;
 #define IS(s) !strcmp(m, s)
-  if (IS("keys")) fmv(c, n, t, dur, vel, 1, 1.8f, 0.12f);
+  if (IS("bright")) { // (time, lane, hz, time constant): Player.bright, from wherever the low-pass is now
+    int l = (int)a[1];
+    if (l < 0 || l >= LANES) return;
+    Param *p = &S[c.k]->lhz[l];
+    p->v0 = pat(p, T), p->n = 0;
+    pev(p, TGT, T, a[2], a[3] > 0.001f ? a[3] : 0.001f);
+  } else if (IS("organ")) {
+    if (!(v = nv(c.k, TONE, t, t + dur + 3))) return;
+    v->freq.v0 = hz(n);
+    src(v, 0, SINE, 1);
+    src(v, 1, SINE, 2)->gain.v0 = 0.35f;
+    pev(&v->out, SET, t, 0, 0);
+    pev(&v->out, LIN, t + 0.8, vel, 0);
+    pev(&v->out, TGT, t + dur, 0, 0.5f);
+  } else if (IS("keys")) fmv(c, n, t, dur, vel, 1, 1.8f, 0.12f);
   else if (IS("bell")) fmv(c, n - 12, t, fminf(dur, 0.6f), vel * 0.8f, 3.5f, 1.2f, 0.05f);
   else if (IS("kalimba")) fmv(c, n, t, fminf(dur, 0.5f), vel * 1.1f, 5.4f, 0.7f, 0.02f);
   else if (IS("flute")) wind(c, n - 12, t, dur, vel * 0.9f, SINE, 0, 0, 0.15f, 25, 10, 0.006f);
@@ -601,7 +631,7 @@ static void play(Ctx c, const Ev *e) {
 // ---- rendering ----
 static void voiceBlock(Voice *v, Song *s, double T) {
   double Te = T + BLK / SR;
-  float *dst = v->dest == TONE ? s->tone : v->dest == BUS ? s->bus : s->amb;
+  float *dst = v->dest == AMB ? s->amb : v->lane ? s->ln[v->lane][v->dest == BUS] : v->dest == TONE ? s->tone : s->bus;
   int i0 = v->t0 > T ? (int)ceil((v->t0 - T) * SR) : 0;
   if (i0 < BLK) {
     if (T < v->t0) T = v->t0; // a voice starting inside this block: its settings from its start, not before
@@ -684,8 +714,33 @@ static void songBlock(int k, Song *s, double T, float *out) {
   }
   memset(s->tone, 0, sizeof s->tone), memset(s->bus, 0, sizeof s->bus);
   memset(s->amb, 0, sizeof s->amb), memset(s->direct, 0, sizeof s->direct);
+  if (s->lanes) memset(s->ln, 0, sizeof s->ln);
   for (int i = 0; i < MAXV; i++)
     if (V[i].on && V[i].song == k) voiceBlock(&V[i], s, T);
+  // the lanes' low-passes (their frequencies worked out once a block, as the voices' are), then the phaser
+  for (int l = 0; l < LANES; l++) {
+    float f = pat(&s->lhz[l], T);
+    if (fabsf(f - s->lnHz[l]) > 0.001f * f) {
+      s->lnHz[l] = f;
+      if (!l) bqset(&s->tape, LP, f, 0.4f);
+      else bqset(&s->lf[l][0], LP, f, 0), bqset(&s->lf[l][1], LP, f, 0);
+    }
+  }
+  for (int l = 1; l < LANES; l++)
+    if (s->lanes >> l & 1)
+      for (int i = 0; i < BLK; i++) {
+        float x = bq(&s->lf[l][0], s->ln[l][0][i]);
+        if (l == 4 && s->phHz) {
+          float w = x;
+          for (int a = 0; a < 2; a++) w = bq(&s->ap[a], w);
+          x = 0.5f * (x + w);
+        }
+        s->tone[i] += x, s->bus[i] += bq(&s->lf[l][1], s->ln[l][1][i]);
+      }
+  if (s->phHz) {
+    float f = PH_HZ + PH_DEPTH * sinf(2 * (float)PI * s->phHz * (float)(T - s->start));
+    for (int a = 0; a < 2; a++) bqset(&s->ap[a], AP, f, PH_Q);
+  }
   // the beds: vinyl straight to the fader, the others into the muffled sounds of the place
   for (int b = 0; b < s->nbed; b++) {
     Bed *d = &s->bed[b];
@@ -732,7 +787,7 @@ static const char *NOTES[] = {"keys", "bell", "kalimba", "flute", "felt", "vibes
                               "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub",
                               "bowed", "reed", "sax", "pipes", "fife", "shaku", "drone", "plucked", "zither", "riff",
                               "brass", "strings", "timpani", "accordion", "guitarra", "vox", "twang", "steel",
-                              "santur", "throat", "piano", "gaita", "spanish", "grand"};
+                              "santur", "throat", "piano", "gaita", "spanish", "grand", "organ"};
 static int byTime(const void *a, const void *b) {
   double d = ((const Ev *)a)->t - ((const Ev *)b)->t;
   return d < 0 ? -1 : d > 0;
@@ -782,23 +837,28 @@ static void loadSample(const char *p) {
 
 /*
  * Starts a song: text is the page's NativeSong text, a first line of numbers (bpm, cutoff, level, echo send,
- * echo steps, echo feedback, wobble, wobble rate, crackle, places, crowd, rain, sea, wind, seconds), then one
- * voice call a line. It starts delay seconds from now and fades in over fade seconds.
+ * echo steps, echo feedback, wobble, wobble rate, crackle, places, crowd, rain, sea, wind, seconds, and with the
+ * phaser on its rate and whether the water plays), then one voice call a line ("lane k" lines say which lane the
+ * calls after them play in). It starts delay seconds from now and fades in over fade seconds.
  */
 void lofi_start(int id, const char *text, float delay, float fade) {
   Song *s = calloc(1, sizeof *s);
-  float h[15] = {0};
+  float h[17] = {0};
   const char *p = text;
   char *end;
-  for (int i = 0; i < 15; i++) h[i] = strtof(p, &end), p = end;
+  for (int i = 0; i < 17; i++) {
+    while (*p == ' ') p++;
+    if (*p == '\n' || !*p) break;
+    h[i] = strtof(p, &end), p = end;
+  }
   float sd = 60 / (h[0] > 0 ? h[0] : 80) / 4;
   s->id = id, s->cutoff = h[1], s->level = h[2] ? h[2] : 1, s->send = h[3], s->fb = h[5];
   s->wobble = h[6], s->lfoHz = h[7], s->crackle = h[8], s->places = h[9], s->crowd = h[10];
-  s->rain = h[11], s->sea = h[12], s->wind = h[13], s->end = h[14];
+  s->rain = h[11], s->sea = h[12], s->wind = h[13], s->end = h[14], s->phHz = h[15], s->water = h[16];
   s->dlen = (int)(fminf(2, h[4] * sd) * SR);
   if (s->dlen < 1) s->dlen = 1;
   s->dl = calloc(2 * (int)SR, sizeof(float));
-  int cap = 1024;
+  int cap = 1024, lane = 0;
   s->ev = malloc(cap * sizeof(Ev));
   while ((p = strchr(p, '\n'))) {
     p++;
@@ -810,6 +870,13 @@ void lofi_start(int id, const char *text, float delay, float fade) {
       if (!strcmp(e.name, "@smp")) loadSample(p);
       continue;
     }
+    if (!strcmp(e.name, "lane")) { // the lane of the calls that follow
+      lane = (int)strtol(p, &end, 10);
+      if (lane < 0 || lane >= LANES) lane = 0;
+      s->lanes |= 1 << lane;
+      continue;
+    }
+    e.lane = (uint8_t)lane;
     for (int i = 0; i < 4; i++) {
       while (*p == ' ') p++;
       if (*p == '\n' || !*p) break;
@@ -823,6 +890,12 @@ void lofi_start(int id, const char *text, float delay, float fade) {
   }
   qsort(s->ev, s->nev, sizeof(Ev), byTime);
   bqset(&s->tape, LP, s->cutoff, 0.4f);
+  s->lhz[0].v0 = s->lnHz[0] = s->cutoff;
+  for (int l = 1; l < LANES; l++) {
+    s->lhz[l].v0 = s->lnHz[l] = 20000;
+    bqset(&s->lf[l][0], LP, 20000, 0), bqset(&s->lf[l][1], LP, 20000, 0);
+  }
+  for (int a = 0; a < 2; a++) bqset(&s->ap[a], AP, PH_HZ, PH_Q);
   bqset(&s->muffle, LP, 3200, 1);
   bqset(&s->dark, LP, 1500, 1);
   for (int k = 0; k < 8; k++) {
@@ -837,6 +910,8 @@ void lofi_start(int id, const char *text, float delay, float fade) {
     if (s->rain > 0) addBed(s, 0, 0, BP, 2400, 0.12f * s->rain, 0, 9), addBed(s, 0, 0, LP, 420, 0.16f * s->rain * s->rain, 0, 9);
     if (s->sea) addBed(s, 0, 0, LP, 650, 0.07f, 0.9f, 8);
     if (s->wind > 0.15f) addBed(s, 0, 0, BP, 420, 0.05f * s->wind, 0.8f, 13);
+    if (s->water && !(s->rain > 0))
+      for (int w = 0; w < 3; w++) addBed(s, 0, 0, BP, WATER[w][0], WATER[w][1], WATER[w][2], WATER[w][3]);
   }
   push((Cmd){C_START, id, delay, fade, s});
 }

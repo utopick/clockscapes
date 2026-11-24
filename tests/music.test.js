@@ -485,47 +485,56 @@ test("the native engine plays the page's recorded bagpipe, guitar and piano in t
 test("the parts don't rub: held notes a half step apart are rare in every style (the kaiju song excepted)", () => {
   // every pitched call of LOFI.score, with its part; two parts a half step apart for an eighth or longer rub
   const NODUR = ["bass", "sub", "upright", "timpani"];
-  for (const style of [undefined, ...Object.keys(LOFI.STYLES).filter((n) => n !== "kaiju")]) {
-    let rub = 0,
-      time = 0;
-    for (const seed of SEEDS.slice(0, 20)) {
-      const s = LOFI.song(seed, { night: (seed % 5) / 4, region: style }),
-        part = {};
-      for (const [v, p] of [
-        [s.voices.chords, "chords"],
-        [s.voices.lead, "mel"],
-        [s.voices.solo, "mel"],
-        [s.voices.bass, "bass"],
-        [s.drone, "drone"],
-        [s.strum?.[0], "strum"],
-        [s.ostinatoVoice, "ost"],
-      ])
-        if (v) part[v] ??= p;
-      const notes = LOFI.score(s)
-        .filter(([v, n]) => part[v] && n >= 20)
-        .map(([v, n, t, d]) => ({ p: part[v], n, t, d: NODUR.includes(v) ? 60 / s.bpm : d }))
-        .sort((a, b) => a.t - b.t);
-      time += Math.max(...notes.map((x) => x.t + x.d));
-      notes.forEach((x, i) => {
-        for (const y of notes.slice(Math.max(0, i - 40), i)) {
-          const over = Math.min(x.t + x.d, y.t + y.d) - x.t;
-          if (y.p !== x.p && over >= 0.35 && (Math.max(x.n, y.n) - Math.min(x.n, y.n)) % 12 === 1)
-            rub += over;
-        }
-      });
+  // as the pinned music plays and with the four ideas on (the answers, the organ)
+  const all = { drift: true, breathe: true, swell: true, phaser: true };
+  for (const nf of [undefined, all])
+    for (const style of [undefined, ...Object.keys(LOFI.STYLES).filter((n) => n !== "kaiju")]) {
+      let rub = 0,
+        time = 0;
+      for (const seed of SEEDS.slice(0, 20)) {
+        const s = LOFI.song(seed, { night: (seed % 5) / 4, region: style }),
+          part = {};
+        for (const [v, p] of [
+          [s.voices.chords, "chords"],
+          [s.voices.lead, "mel"],
+          [s.voices.solo, "mel"],
+          [s.voices.bass, "bass"],
+          [s.drone, "drone"],
+          [s.strum?.[0], "strum"],
+          [s.ostinatoVoice, "ost"],
+        ])
+          if (v) part[v] ??= p;
+        if (nf) part.organ = "organ";
+        const notes = LOFI.score(s, nf)
+          .filter(([v, n]) => part[v] && n >= 20)
+          .map(([v, n, t, d]) => ({ p: part[v], n, t, d: NODUR.includes(v) ? 60 / s.bpm : d }))
+          .sort((a, b) => a.t - b.t);
+        time += Math.max(...notes.map((x) => x.t + x.d));
+        notes.forEach((x, i) => {
+          for (const y of notes.slice(Math.max(0, i - 40), i)) {
+            const over = Math.min(x.t + x.d, y.t + y.d) - x.t;
+            if (y.p !== x.p && over >= 0.35 && (Math.max(x.n, y.n) - Math.min(x.n, y.n)) % 12 === 1)
+              rub += over;
+          }
+        });
+      }
+      assert.ok(
+        (rub / time) * 60 < 5,
+        `${style || "plain"}${nf ? " with nf" : ""}: ${((rub / time) * 60).toFixed(1)} s of rubs a minute`,
+      );
     }
-    assert.ok(
-      (rub / time) * 60 < 5,
-      `${style || "plain"}: ${((rub / time) * 60).toFixed(1)} s of rubs a minute`,
-    );
-  }
 });
 
 // The reverb: lofi.c's feedback delay network, and the same network's impulse response for the Player's convolver.
 test("the reverb rings for a couple of seconds and dies away, in both engines", () => {
   const fake = {
     sampleRate: 48000,
-    createBuffer: (ch, n) => ({ data: new Float32Array(n), getChannelData() { return this.data; } }),
+    createBuffer: (ch, n) => ({
+      data: new Float32Array(n),
+      getChannelData() {
+        return this.data;
+      },
+    }),
   };
   const ir = LOFI.reverbIR(fake).data,
     energy = (x, a, b) => x.subarray(a * 48000, b * 48000).reduce((e, v) => e + v * v, 0);
@@ -536,8 +545,9 @@ test("the reverb rings for a couple of seconds and dies away, in both engines", 
   assert.ok(energy(ir, 3, 4) < energy(ir, 0, 1) * 1e-4);
   // lofi.c: a short note leaves a tail that dies away
   const wasm = Buffer.from(html.match(/<script id="lofi-wasm"[^>]*>([\s\S]*?)<\/script>/)[1], "base64"),
-    c = new WebAssembly.Instance(new WebAssembly.Module(wasm), { env: { emscripten_notify_memory_growth() {} } })
-      .exports;
+    c = new WebAssembly.Instance(new WebAssembly.Module(wasm), {
+      env: { emscripten_notify_memory_growth() {} },
+    }).exports;
   c._initialize();
   c.lofi_init(48000);
   c.lofi_volume(1);
@@ -553,4 +563,190 @@ test("the reverb rings for a couple of seconds and dies away, in both engines", 
   }
   assert.ok(energy(x, 1, 1.5) > energy(x, 0, 0.5) * 1e-3, "no reverb tail after the note");
   assert.ok(energy(x, 3.5, 4) < energy(x, 1, 1.5) * 0.05, "the tail does not die away");
+});
+
+// The four ideas that each have a switch (CONFIG.music.nf, ?nf=): drift, breathe, swell and phaser.
+const NONE = { drift: false, breathe: false, swell: false, phaser: false },
+  ALL = { drift: true, breathe: true, swell: true, phaser: true };
+// a LOFI of its own whose Math.random can be seeded, so two scores can be compared call for call
+function seeded() {
+  const box = vm.createContext({}),
+    L = vm.runInContext(code + "\nLOFI", box);
+  return {
+    L,
+    seed: (a) =>
+      vm.runInContext(
+        `{let a=${a}; Math.random = () => ((a = (a * 16807) % 2147483647) / 2147483647);}`,
+        box,
+      ),
+  };
+}
+const DRUMS = [
+  "kick",
+  "snare",
+  "hat",
+  "open",
+  "softKick",
+  "brush",
+  "ride",
+  "rim",
+  "clap",
+  "shaker",
+  "tick",
+  "tock",
+];
+
+test("with the four ideas off, every song plays the pinned music's exact score", () => {
+  const { L, seed } = seeded(),
+    regions = [undefined, ...Object.keys(L.STYLES)],
+    all = [];
+  for (let i = 0; i < 24; i++) {
+    const s = L.song(SEEDS[i], {
+      night: (i % 5) / 4,
+      region: regions[i % regions.length],
+      rain: i % 3 ? 0 : 0.6,
+    });
+    seed(i + 1);
+    const off = L.score(s, NONE);
+    seed(i + 1);
+    assert.deepStrictEqual(off, L.score(s), "nf none is not the same as no nf");
+    all.push(off);
+  }
+  // the fingerprint of these scores at the tag pin-lofi-2026-11-24: change it only when the plain music is
+  // meant to change, and then move the pin too
+  const hash = require("crypto").createHash("sha256").update(JSON.stringify(all)).digest("hex").slice(0, 16);
+  assert.strictEqual(hash, "688f34485b30031a", "with nf none the score is no longer the pin's");
+});
+
+test("drift: each part's low-pass and the tape's move slowly and stay in range", () => {
+  for (const seed of SEEDS.slice(0, 40)) {
+    const s = LOFI.song(seed, { night: (seed % 5) / 4, places: false }),
+      calls = LOFI.score(s, { ...NONE, drift: true }),
+      bright = calls.filter(([n]) => n === "bright");
+    assert.ok(calls.some(([n]) => n === "lane"));
+    for (let lane = 0; lane <= 4; lane++) {
+      const hz = bright.filter(([, , k]) => k === lane).map(([, , , f]) => f);
+      assert.ok(hz.length >= s.bars / 4, `lane ${lane}: ${hz.length} moves`);
+      assert.ok(new Set(hz.map(Math.round)).size >= 3, `lane ${lane} does not move`);
+      const [lo, hi] = lane ? [500, 5000] : [s.cutoff * 0.59, s.cutoff * 1.42];
+      for (const f of hz) assert.ok(f >= lo && f <= hi, `lane ${lane}: ${f} Hz`);
+    }
+    // slow: after the first bar every move eases over a quarter of a bar or more
+    for (const [, t, , , tau] of bright) if (t > 0) assert.ok(tau >= 60 / s.bpm - 1e-9, `${tau} s`);
+  }
+});
+
+test("breathe: calls, answers on the root or fifth, and rests of two bars; the solo plays in full", () => {
+  for (const seed of SEEDS.slice(0, 80)) {
+    const s = LOFI.song(seed, { night: (seed % 5) / 4, places: false });
+    for (let bar = 0; bar < s.bars; bar++) {
+      const sec = s.form[Math.floor(bar / 4)],
+        name = { A: "melA", B: "melB", A2: "melA2", B2: "melB2", solo: "solo", break: "melA" }[sec];
+      if (!name) continue;
+      const notes = LOFI.breathe(s, name, bar);
+      if (sec === "solo") assert.deepStrictEqual(notes, s.solo[bar % 4]);
+      else if (bar % 4 > 1) assert.strictEqual(notes.length, 0, "bars 3 and 4 rest");
+      else if (bar % 4 === 1 && notes.length) {
+        const ch = (sec.startsWith("B") ? s.chordsB : s.chords)[1],
+          ok = [ch.root % 12, (ch.root + 7) % 12];
+        for (const [, n] of notes)
+          assert.ok(ok.includes(n % 12), `seed ${seed} bar ${bar}: answer note ${n}`);
+        const call = LOFI.breathe(s, name, bar - 1);
+        assert.deepStrictEqual(
+          notes.map(([ms]) => ms),
+          call.map(([ms]) => ms),
+          "the answer has the call's rhythm",
+        );
+        const [ms, , len] = notes.at(-1);
+        assert.strictEqual(ms + len, 16, "the answer's last note is held to the bar's end");
+      }
+    }
+    // the lead really rests: fewer notes, and a gap of a bar or more between its phrases (when the chords
+    // play on another voice, so the lead's calls can be told apart)
+    if (s.voices.lead === s.voices.chords) continue;
+    const lead = (nf) => LOFI.score(s, nf).filter(([n]) => n === s.voices.lead),
+      on = lead({ ...NONE, breathe: true }),
+      bar = (16 * 60) / s.bpm / 4;
+    assert.ok(on.length < lead(NONE).length);
+    assert.ok(
+      on.some(([, , t], i) => i && t - on[i - 1][2] - on[i - 1][3] >= bar - 1e-6),
+      `seed ${seed}: no rest`,
+    );
+  }
+});
+
+test("swell: the beat thins and fills in again, and the first step of every bar always plays", () => {
+  for (const seed of SEEDS.slice(0, 40)) {
+    const s = LOFI.song(seed, { night: (seed % 5) / 4, places: false }),
+      off = LOFI.score(s, NONE),
+      on = LOFI.score(s, { ...NONE, swell: true }),
+      bar = (16 * 60) / s.bpm / 4,
+      notes = (c) => !DRUMS.includes(c[0]) && !(s.perc && c[0] in s.perc) && c[0] !== s.gong,
+      when = (c) => (notes(c) ? c[2] : c[1]),
+      key = (c) => `${c[0]} ${when(c).toFixed(4)}`,
+      have = new Set(on.map(key));
+    for (const c of off) {
+      const at = when(c) / bar;
+      if (Math.abs(at - Math.round(at)) < 1e-6)
+        assert.ok(have.has(key(c)), `seed ${seed}: ${key(c)} left out`);
+    }
+    // the calls of each section, against the same section with every step
+    const per = (calls) => {
+      const n = Array(s.bars / 4).fill(0);
+      for (const c of calls) n[Math.min(n.length - 1, Math.floor(when(c) / bar / 4))]++;
+      return n;
+    };
+    const a = per(off),
+      b = per(on),
+      ratio = b.map((x, i) => x / a[i]).filter((r, i) => a[i] > 40);
+    assert.ok(
+      Math.min(...ratio) < 0.85 && Math.max(...ratio) > 0.97,
+      `seed ${seed}: ${ratio.map((r) => r.toFixed(2))}`,
+    );
+  }
+});
+
+test("the four ideas play in both engines: lofi.c knows their calls, and all four keep the loudness", () => {
+  const c = fs.readFileSync(path.join(__dirname, "..", "native", "lofi.c"), "utf8"),
+    known = new Set([...c.matchAll(/IS\("(\w+)"\)/g)].map((m) => m[1])),
+    wasm = Buffer.from(html.match(/<script id="lofi-wasm"[^>]*>([\s\S]*?)<\/script>/)[1], "base64");
+  // what NativeSong sends, rendered: its loudness in dB
+  function render(s, nf, secs) {
+    const e = new WebAssembly.Instance(new WebAssembly.Module(wasm), {
+      env: { emscripten_notify_memory_growth() {} },
+    }).exports;
+    e._initialize();
+    e.lofi_init(48000);
+    e.lofi_volume(1);
+    const round = (x) => Math.round(x * 1e4) / 1e4,
+      head = [s.bpm, s.cutoff, s.level || 1, ...(s.echo || [0, 3, 0]), s.wobble, 0.4 + (s.seed % 5) / 10];
+    head.push(s.crackle, +s.places, s.crowd, s.rain, +s.sea, s.wind, s.seconds);
+    if (nf.phaser) head.push(LOFI.phaserRate(s), 1);
+    const calls = LOFI.score(s, nf);
+    for (const [name] of calls) assert.ok(known.has(name) || name === "lane", `lofi.c has no "${name}"`);
+    const text = [head.map(round).join(" "), ...calls.map(([n, ...a]) => [n, ...a.map(round)].join(" "))],
+      bytes = Buffer.from(text.join("\n") + "\0", "latin1"),
+      p = e.malloc(bytes.length);
+    new Uint8Array(e.memory.buffer, p, bytes.length).set(bytes);
+    e.lofi_start(1, p, 0, 0.01);
+    const out = e.malloc(512);
+    let sum = 0;
+    for (let i = 0; i < secs * 48000; i += 128) {
+      e.lofi_render(out, 128);
+      for (const x of new Float32Array(e.memory.buffer, out, 128)) {
+        assert.ok(Number.isFinite(x));
+        sum += x * x;
+      }
+    }
+    return 10 * Math.log10(sum / (secs * 48000));
+  }
+  for (const region of [undefined, "galicia"]) {
+    const s = LOFI.song(SEEDS[3], { night: 0.5, region }),
+      off = render(s, NONE, 30),
+      on = render(s, ALL, 30);
+    assert.ok(
+      Math.abs(on - off) < 1.5,
+      `${region || "plain"}: ${off.toFixed(1)} dB, with all four ${on.toFixed(1)}`,
+    );
+  }
 });

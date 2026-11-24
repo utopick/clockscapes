@@ -1,5 +1,7 @@
 # clockscapes
 
+![Clockscapes: London near dusk, New York at dusk and Sydney at night](img/banner.png)
+
 Clockscapes shows up to four clocks in different time zones, each one over a pixel-art city lit by the real sun and the real weather there. It's meant as a cozy screensaver or an extra screen on your desk.
 
 ![An alarm message crossing Tokyo in the morning, Mexico City at sunset and Rio de Janeiro at night](img/demo.gif)

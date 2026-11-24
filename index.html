@@ -2134,6 +2134,7 @@
             pool = [];
           for (let n = 67; n <= 86; n++) if (pent.includes((n - key + 120) % 12)) pool.push(n);
           const nearest = (list, n) => list.reduce((b, p) => (Math.abs(p - n) < Math.abs(b - n) ? p : b));
+          const rubs = (n, pcs) => pcs.some((p) => [1, 11].includes((n - p + 120) % 12));
           // keep[bar], when given, is a bar copied as it is (a returning phrase keeps its hook)
           function phrase(from, cells, keep = [], ch = chords) {
             let note = from;
@@ -2154,6 +2155,12 @@
                     move = r() < 0.2 ? pick([-1, 0, 1]) : dir * Math.sign(m) * Math.min(2, Math.abs(m)),
                     i = pool.indexOf(nearest(pool, note)) + move;
                   note = pool[clamp(i, 0, pool.length - 1)];
+                  // a note held an eighth or longer moves off a half step from the chord (it would rub)
+                  if (len >= 2 && rubs(note, pcs)) {
+                    const k = pool.indexOf(note),
+                      near = [pool[k + dir], pool[k - dir]].find((n) => n && !rubs(n, pcs));
+                    if (near) note = near;
+                  }
                 }
                 return [step, note, len];
               });
@@ -2586,7 +2593,14 @@
                   (i ? 0.07 : 0.1) * human(),
                 ),
               );
-            if (has("bass") && L.bass[i] !== ".") this[v.bass](chord.root + +L.bass[i], t, sd * 3);
+            if (has("bass") && L.bass[i] !== ".") {
+              // a step that would sit a half step under a chord note (the loop's sixth under a seventh) plays
+              // the fifth, or the root, instead; the kaiju song keeps its rubs on purpose
+              const under = (x) => chord.keys.some((n) => (n - chord.root - x + 120) % 12 === 1);
+              let x = +L.bass[i];
+              if (s.region !== "kaiju" && under(x)) x = under(7) ? 0 : 7;
+              this[v.bass](chord.root + x, t, sd * 3);
+            }
             if (has("drums")) {
               const K = KITS[s.drums] || KITS.kit;
               if (L.kick[i] === "x") this[K.kick](t, human());
@@ -2609,8 +2623,15 @@
                   this[name === "solo" ? v.solo || v.lead : v.lead](n, t + 0.01, sd * len, 0.08 * human());
             // a regional style's parts (STYLES): the drone, a strummed chord, its percussion and the ostinato
             if (s.drone && bar % 4 === 0 && i === 0) {
-              const root = 45 + ((s.key + 3) % 12); // 45..56
-              for (const n of [root, root + 7]) this[s.drone](n, t, sd * 64 + 0.3, 0.03);
+              const root = 45 + ((s.key + 3) % 12), // 45..56
+                list = s.chordsB && s.form[Math.floor(bar / 4)]?.startsWith("B") ? s.chordsB : s.chords,
+                rubs = (n, c) => c.keys.concat(c.root).some((p) => [1, 11].includes((n - p + 120) % 12));
+              // each drone note holds for as many bars as the chords leave it alone (a half step would rub)
+              for (const n of [root, root + 7]) {
+                const run = list.findIndex((c) => rubs(n, c)),
+                  bars = run < 0 ? 4 : run;
+                if (bars) this[s.drone](n, t, sd * 16 * bars + 0.3, 0.03);
+              }
             }
             const lt = t + 0.012, // the regional parts sit a little behind the beat
               stroke = s.strum && has("drums") ? s.strum[1][i] : ".";

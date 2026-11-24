@@ -120,7 +120,10 @@ test("the songs vary: many progressions, a tranquil tempo (62 to 80) and every c
     progs = new Set(songs.map((s) => s.minor + s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "))),
     bpms = songs.map((s) => s.bpm);
   assert.ok(progs.size > 60, `only ${progs.size} progressions`);
-  assert.ok(Math.max(...bpms) - Math.min(...bpms) >= 10 && Math.max(...bpms) <= 80, `tempos ${Math.min(...bpms)}..${Math.max(...bpms)}`);
+  assert.ok(
+    Math.max(...bpms) - Math.min(...bpms) >= 10 && Math.max(...bpms) <= 80,
+    `tempos ${Math.min(...bpms)}..${Math.max(...bpms)}`,
+  );
   assert.strictEqual(new Set(songs.map((s) => s.colour)).size, 5);
 });
 
@@ -140,8 +143,15 @@ test("the native engine knows every voice a song calls, and when each one plays"
   const notes = new Set(c.match(/NOTES\[\] = \{([^}]*)\}/)[1].match(/\w+/g));
   // voices that take (note, time, ...) are the bands' chord, lead and bass voices, and no others
   const melodic = new Set(Object.values(LOFI.BANDS).flatMap((b) => [b.chords, b.bass, ...b.leads]));
-  assert.deepStrictEqual([...melodic].filter((v) => !notes.has(v)), []);
-  const moods = [{ crowd: 1, trains: true, rain: 0.8, thunder: true }, { night: 1, warm: true }, { night: 0 }];
+  assert.deepStrictEqual(
+    [...melodic].filter((v) => !notes.has(v)),
+    [],
+  );
+  const moods = [
+    { crowd: 1, trains: true, rain: 0.8, thunder: true },
+    { night: 1, warm: true },
+    { night: 0 },
+  ];
   for (const seed of SEEDS.slice(0, 60))
     for (const mood of moods) {
       const sheet = LOFI.song(seed, mood);
@@ -192,7 +202,8 @@ test("each place finds its style: a region's cities first, then the country", ()
   for (const id of ["samsun-tr", "rize-tr", "izmir-tr", "denizli-tr", "istanbul-tr"])
     assert.strictEqual(LOFI.regionOf("TR", id), "hijaz", id);
   assert.strictEqual(LOFI.regionOf("ES", "murcia-es"), "flamenco");
-  for (const id of ["valencia-es", "alicante-es", "castellon-es"]) assert.strictEqual(LOFI.regionOf("ES", id), "", id);
+  for (const id of ["valencia-es", "alicante-es", "castellon-es"])
+    assert.strictEqual(LOFI.regionOf("ES", id), "", id);
   assert.strictEqual(LOFI.regionOf("IR", "tehran-ir"), "persian");
   assert.strictEqual(LOFI.regionOf("AZ", "baku-az"), "persian");
   assert.strictEqual(LOFI.regionOf("KZ", "almaty-kz"), "steppe");
@@ -202,7 +213,14 @@ test("each place finds its style: a region's cities first, then the country", ()
   assert.strictEqual(LOFI.regionOf("BR", "rio-de-janeiro-br"), "bossa");
   assert.strictEqual(LOFI.regionOf("BR", "sao-paulo-br"), "bossa");
   assert.strictEqual(LOFI.regionOf("BR", "recife-br"), "forro");
-  for (const id of ["houston-us", "dallas-us", "fort-worth-us", "austin-us", "san-antonio-us", "nashville-us"])
+  for (const id of [
+    "houston-us",
+    "dallas-us",
+    "fort-worth-us",
+    "austin-us",
+    "san-antonio-us",
+    "nashville-us",
+  ])
     assert.strictEqual(LOFI.regionOf("US", id), "country", id);
   assert.strictEqual(LOFI.regionOf("US", "new-york-us"), "");
   assert.strictEqual(LOFI.regionOf("AR", "buenos-aires-ar"), "tango");
@@ -215,7 +233,14 @@ test("each place finds its style: a region's cities first, then the country", ()
 test("every style names voices, kits, loops and modes that exist", () => {
   const has = (v) => typeof LOFI.Player.prototype[v] === "function";
   for (const [name, st] of Object.entries(LOFI.STYLES)) {
-    const voices = [...(st.leads || []), st.drone, st.strum?.[0], st.ostinato?.voice, st.ostinato?.double, st.gong];
+    const voices = [
+      ...(st.leads || []),
+      st.drone,
+      st.strum?.[0],
+      st.ostinato?.voice,
+      st.ostinato?.double,
+      st.gong,
+    ];
     voices.push(...Object.keys(st.perc || {}));
     if (st.band) voices.push(st.band.chords, st.band.bass, ...(st.band.leads || []));
     for (const v of voices.filter(Boolean)) assert.ok(has(v), `${name}: no voice ${v}`);
@@ -291,10 +316,7 @@ test("regional songs stay lo-fi: relaxed tempos, high leads an octave down, a da
 test("a flamenco song walks down the Andalusian cadence and strums it with rasgueados", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "flamenco" });
-    assert.deepStrictEqual(
-      s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "),
-      "5 3 1 0",
-    );
+    assert.deepStrictEqual(s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "), "5 3 1 0");
     assert.ok(s.strum[1].includes("r") && s.perc.palmas && s.perc.castanets);
   }
 });
@@ -348,7 +370,9 @@ test("the kaiju song is a slow tread in D minor, with its fixed motto at every s
     assert.strictEqual(s.ostinatoDouble, "piano");
     for (const name of ["melA", "melB", "melA2", "melB2"]) assert.strictEqual(s[name][0].length, 0, name);
     // the motto opens each of the four sections, on the brass
-    const calls = LOFI.score(s).filter(([v, n, t]) => v === "brass" && n === 50 && t < 0.02 + (s.seconds / 4) * 4);
+    const calls = LOFI.score(s).filter(
+      ([v, n, t]) => v === "brass" && n === 50 && t < 0.02 + (s.seconds / 4) * 4,
+    );
     const starts = new Set(calls.map(([, , t]) => Math.round((t / s.seconds) * 4 * 100) / 100));
     for (const at of [0, 1, 2, 3]) assert.ok(starts.has(at), `section ${at}: ${[...starts]}`);
     assert.strictEqual(s.loop, "tread");
@@ -427,7 +451,7 @@ test("the native engine plays the page's recorded bagpipe and guitar in tune, wi
     for (let l = 48; l <= 320; l++) {
       let s = 0;
       for (let i = 0; i < 9600; i++) s += x[i] * x[i + l];
-      if (s > best) (best = s), (lag = l);
+      if (s > best) ((best = s), (lag = l));
     }
     return 48000 / lag;
   }
@@ -445,5 +469,44 @@ test("the native engine plays the page's recorded bagpipe and guitar in tune, wi
     for (let i = 0; i < sampled.length; i++) diff += Math.abs(sampled[i] - synth[i]);
     assert.ok(diff > 100, `${voice}: the recorded note was not used (${diff})`);
     assert.ok(sampled.every((x) => Number.isFinite(x) && Math.abs(x) < 1));
+  }
+});
+
+test("the parts don't rub: held notes a half step apart are rare in every style (the kaiju song excepted)", () => {
+  // every pitched call of LOFI.score, with its part; two parts a half step apart for an eighth or longer rub
+  const NODUR = ["bass", "sub", "upright", "timpani"];
+  for (const style of [undefined, ...Object.keys(LOFI.STYLES).filter((n) => n !== "kaiju")]) {
+    let rub = 0,
+      time = 0;
+    for (const seed of SEEDS.slice(0, 20)) {
+      const s = LOFI.song(seed, { night: (seed % 5) / 4, region: style }),
+        part = {};
+      for (const [v, p] of [
+        [s.voices.chords, "chords"],
+        [s.voices.lead, "mel"],
+        [s.voices.solo, "mel"],
+        [s.voices.bass, "bass"],
+        [s.drone, "drone"],
+        [s.strum?.[0], "strum"],
+        [s.ostinatoVoice, "ost"],
+      ])
+        if (v) part[v] ??= p;
+      const notes = LOFI.score(s)
+        .filter(([v, n]) => part[v] && n >= 20)
+        .map(([v, n, t, d]) => ({ p: part[v], n, t, d: NODUR.includes(v) ? 60 / s.bpm : d }))
+        .sort((a, b) => a.t - b.t);
+      time += Math.max(...notes.map((x) => x.t + x.d));
+      notes.forEach((x, i) => {
+        for (const y of notes.slice(Math.max(0, i - 40), i)) {
+          const over = Math.min(x.t + x.d, y.t + y.d) - x.t;
+          if (y.p !== x.p && over >= 0.35 && (Math.max(x.n, y.n) - Math.min(x.n, y.n)) % 12 === 1)
+            rub += over;
+        }
+      });
+    }
+    assert.ok(
+      (rub / time) * 60 < 5,
+      `${style || "plain"}: ${((rub / time) * 60).toFixed(1)} s of rubs a minute`,
+    );
   }
 });

@@ -51,7 +51,7 @@ You can show one to four clocks. Press **S** (or tap the screen, then **⚙ SETT
 
 1. Under Zones, pick a **Country** and then a **City** from about 3,000 cities, so a TV remote can do it too: every national and regional capital, the province capitals of Spain, Italy and France, and every city of a million people or more. That fills in its time zone, coordinates and scene.
 2. For a place that isn't in the list, open **Other place**, type its name in **Label** and press **FIND**, or type the time zone and coordinates yourself. It then gets a regional street scene.
-3. Press **+ ADD ZONE** for another clock, or **RANDOMIZE 3 CITIES** for a surprise, then **SAVE**.
+3. Press **+ ADD ZONE** for another clock, or **RANDOM** on a clock for a surprise city, then **SAVE**.
 
 The same tab sets the layout (side by side, stacked, or automatic), a 24 or 12 hour clock, °C or °F, and whether to fetch the live weather. With the weather off, the scenes still follow day and night.
 

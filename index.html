@@ -526,7 +526,6 @@
         color: #ffd479;
       }
       #addZone,
-      #randomize,
       #addAlarm,
       #newVariation,
       #nextSong {
@@ -930,7 +929,6 @@
               </p>
               <div id="zones"></div>
               <button type="button" id="addZone">+ ADD ZONE</button>
-              <button type="button" id="randomize">RANDOMIZE 3 CITIES</button>
             </fieldset>
           </div>
         </div>
@@ -23448,7 +23446,8 @@
           `<option value="${k}"${k === city?.id ? " data-city-art" : ""}${k === z.scene ? " selected" : ""}>${v}</option>`,
       )
       .join("")}</select></label>
-    <button type="button" data-act="del">✕</button>`;
+    <button type="button" data-act="random" title="Pick a random city for this clock">RANDOM</button>
+    <button type="button" data-act="del" title="Remove this clock">✕</button>`;
         return d;
       }
       function readZones() {
@@ -23604,6 +23603,16 @@
           }
           zs.splice(idx, 1);
           renderZones(zs);
+        } else if (b.dataset.act === "random") {
+          // a city that none of the other clocks shows
+          const zs = readZones(),
+            taken = zs.map((z) => z.scene),
+            cities = Object.values(CITY_ATLAS).filter((c) => !taken.includes(c.id)),
+            { id, label, tz, lat, lon } = cities[Math.floor(Math.random() * cities.length)];
+          zs[idx] = { label, tz, lat, lon, scene: id };
+          renderZones(zs);
+          zonesEl.querySelectorAll('[data-act="random"]')[idx].focus();
+          msg.textContent = label + " picked. Save to apply.";
         } else if (b.dataset.act === "find") {
           const q = row.querySelector("[data-k=label]").value.trim();
           if (q.length < 2) {
@@ -23636,18 +23645,6 @@
           zs.push({ label: "City", tz: "UTC", lat: 0, lon: 0, scene: "city" });
           renderZones(zs);
         }
-      };
-      function randomCityZones() {
-        const remaining = Object.values(CITY_ATLAS);
-        return Array.from({ length: 3 }, () => {
-          const [city] = remaining.splice(Math.floor(Math.random() * remaining.length), 1);
-          const { id, label, tz, lat, lon } = city;
-          return { label, tz, lat, lon, scene: id };
-        });
-      }
-      $("#randomize").onclick = () => {
-        renderZones(randomCityZones());
-        msg.textContent = "Three cities selected. Save to apply.";
       };
       $("#reset").onclick = () => {
         form.units.value = DEFAULT_CONFIG.units;

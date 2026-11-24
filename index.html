@@ -11469,24 +11469,32 @@
         );
       }
 
+      // 32 well-mixed bits from a city and a pass number, so neighbouring passes and cities look unrelated
+      function mix32(a, b) {
+        let h = (Math.imul(a + 1, 2654435761) ^ Math.imul(b + 7, 40503)) >>> 0;
+        h = Math.imul(h ^ (h >>> 16), 2246822507);
+        h = Math.imul(h ^ (h >>> 13), 3266489909);
+        return (h ^ (h >>> 16)) >>> 0;
+      }
       // Planes (or a helicopter) and flocks of birds crossing the sky, worked out from the time alone.
       // Birds stay home at night and in bad weather.
       function drawSkyLife(g, e, life, seconds, weather) {
         const { W, G } = e;
         const top = Math.max(6, Math.min(e.T + 6, Math.floor(G * 0.44))); // highest flight level
+        // seconds of empty sky between two planes: each city its own, so clocks whose planes come out
+        // together drift apart again
         const PLANE_SPEED = 25, // pixels a second
-          PLANE_GAP = 34; // seconds of empty sky between two planes
+          PLANE_GAP = 26 + (life.skyId % 17);
         const aircraftDistance = W + 64, // pixels flown in one pass, from off-screen to off-screen
           cycle = aircraftDistance + PLANE_SPEED * PLANE_GAP;
-        const run = (seconds + life.phase * 12) * PLANE_SPEED + aircraftDistance * 0.25;
+        // each city starts at its own point of the cycle, so the clocks' planes don't come out together
+        const run = seconds * PLANE_SPEED + life.phase * cycle;
         const aircraft = run % cycle; // how far into this cycle; a plane is on screen while below aircraftDistance
         // on Christmas Eve and the Kings' night, Santa or the Kings fly instead (City events)
         if (aircraft < aircraftDistance && !life.noPlanes) {
           // every pass is a new aircraft for this city: a jet, a jumbo, a small prop plane or a helicopter,
           // flying either way at its own height. roll mixes the city and the pass number into 32 bits.
-          let roll =
-            (Math.imul(life.skyId + 1, 2654435761) ^ Math.imul(Math.floor(run / cycle) + 7, 40503)) >>> 0;
-          roll = (roll ^ (roll >>> 15)) >>> 0;
+          const roll = mix32(life.skyId, Math.floor(run / cycle));
           const kind = ["jet", "jet", "jumbo", "prop", "heli"][roll % 5];
           const direction = roll & 8 ? 1 : -1;
           const x = Math.round(direction > 0 ? aircraft - 32 : W + 32 - aircraft);
@@ -11550,17 +11558,13 @@
         // Every pass is a new flock for this city: small birds, ducks or geese in a V, a loose cluster of
         // pigeons, gulls by the water, parrots in the tropics.
         const FLOCK_SPEED = 16, // pixels a second
-          FLOCK_GAP = 16; // seconds between two flocks
+          FLOCK_GAP = 11 + (life.skyId % 11); // seconds between two flocks, each city its own
         const flockDistance = W + 70,
           flockCycle = flockDistance + FLOCK_SPEED * FLOCK_GAP;
-        const flockRun = (seconds + life.phase * 3) * FLOCK_SPEED + flockDistance * 0.22;
+        const flockRun = seconds * FLOCK_SPEED + ((life.phase * 7) % 1) * flockCycle;
         const flock = flockRun % flockCycle;
         if (flock >= flockDistance) return;
-        let roll =
-          (Math.imul(life.skyId + 3, 2246822519) ^
-            Math.imul(Math.floor(flockRun / flockCycle) + 11, 3266489917)) >>>
-          0;
-        roll = (roll ^ (roll >>> 16)) >>> 0;
+        const roll = mix32(life.skyId + 5000, Math.floor(flockRun / flockCycle));
         const kinds = ["small", "small", "ducks", "geese", "pigeons"];
         if (life.coastal) kinds.push("gulls", "gulls");
         if (life.tropical) kinds.push("parrots", "parrots");

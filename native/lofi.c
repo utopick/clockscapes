@@ -476,7 +476,7 @@ static void play(Ctx c, const Ev *e) {
     pev(&v->out, LIN, t + 0.08, vel * 1.6f, 0);
     pev(&v->out, TGT, t + dur, 0, 0.1f);
   } else if (IS("twang")) plk(c, n, t, vel * 1.1f, SQR, 4500, 0.35f);
-  else if (IS("steel")) wind(c, n, t, dur, vel * 0.8f, SAW, 1200, 0.7f, 0.18f, 200, 10, 0);
+  else if (IS("steel")) wind(c, n, t, dur, vel * 0.9f, TRI, 0, 0, 0.3f, 120, 8, 0);
   else if (IS("santur")) fmv(c, n, t, fminf(dur, 0.8f), vel * 0.9f, 2, 1.5f, 0.08f);
   else if (IS("piano")) fmv(c, n, t, dur, vel * 1.3f, 1, 3.5f, 0.2f);
   else if (IS("throat")) {

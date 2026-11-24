@@ -464,13 +464,13 @@ static void play(Ctx c, const Ev *e) {
   } else if (IS("frame")) thump(c, T, 110, 65, 0.08f, 0.3f * a[1], 0.3f), hit(c, T, 0.05f, BP, 800, 0.08f * a[1], 0.002f);
   else if (IS("goblet")) thump(c, T, 330, 260, 0.04f, 0.3f * a[1], 0.15f), hit(c, T, 0.03f, HP, 3000, 0.12f * a[1], 0.002f);
   else if (IS("taiko")) thump(c, T, 140, 70, 0.1f, 0.4f * a[1], 0.4f), hit(c, T, 0.1f, BP, 500, 0.1f * a[1], 0.002f);
-  else if (IS("jingles")) hit(c, T, 0.2f, HP, 7500, 0.12f * a[1], 0.004f), hit(c, T + 0.025, 0.12f, HP, 9000, 0.07f * a[1], 0.002f);
+  else if (IS("jingles")) hit(c, T, 0.2f, HP, 7500, 0.08f * a[1], 0.004f), hit(c, T + 0.025, 0.12f, HP, 9000, 0.05f * a[1], 0.002f);
   else if (IS("castanets")) hit(c, T, 0.015f, BP, 3500, 0.3f * a[1], 0.002f), hit(c, T + 0.028, 0.015f, BP, 3800, 0.22f * a[1], 0.002f);
   else if (IS("palmas")) {
     for (int i = 0; i < 3; i++) hit(c, T + i * 0.007, 0.015f, BP, 2000, 0.14f * a[1], 0.002f);
     hit(c, T + 0.02, 0.09f, BP, 1700, 0.1f * a[1], 0.002f);
   } else if (IS("tamboril")) hit(c, T, 0.12f, BP, 2300, 0.26f * a[1], 0.002f), thump(c, T, 260, 220, 0.03f, 0.18f * a[1], 0.1f);
-  else if (IS("triangle")) ping(c, 4200, T, 0.5f, 0.03f * a[1], SINE);
+  else if (IS("triangle")) ping(c, 4200, T, 0.5f, 0.02f * a[1], SINE);
   else if (IS("scrape")) hit(c, T, 0.07f, BP, 3200, 0.12f * a[1], 0.03f);
   else if (IS("gong"))
     ping(c, 98, T, 2.5f, 0.3f * a[1], SINE), ping(c, 98 * 2.76f, T, 1.5f, 0.1f * a[1], SINE),

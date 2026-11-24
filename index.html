@@ -988,11 +988,11 @@
             bass: "0...0...0...7...",
           },
           // the muiñeira, for a sheet in 6/8 (meter): each group of four steps is one dotted beat, so the
-          // bombo falls on the strong beats and the pandeireta on each beat's third eighth
+          // bombo falls on each 6/8 bar's first beat and the pandeireta on its second beat's third eighth
           muineira: {
-            kick: "x...x...x...x...",
+            kick: "x.......x.......",
             snare: "................",
-            hat: "..x...x...x...x.",
+            hat: "......x.......x.",
             open: "................",
             bass: "0.......7.......",
           },
@@ -1007,7 +1007,7 @@
           // country: the train beat on the brushes, a boom-chick bass from the root to the fifth
           train: {
             kick: "x.......x.......",
-            snare: "x.xxx.xxx.xxx.xx",
+            snare: "....x.x.....x.x.",
             hat: "................",
             open: "................",
             bass: "0...7...0...7...",
@@ -1023,7 +1023,7 @@
           cumbia: {
             kick: "x.......x.......",
             snare: "....x.......x...",
-            hat: "x.xxx.xxx.xxx.xx",
+            hat: "x.x.x.x.x.x.x.x.",
             open: "................",
             bass: "0.....0.7.....7.",
           },
@@ -1038,7 +1038,7 @@
           afro: {
             kick: "x.....x...x.....",
             snare: "....x.......x...",
-            hat: "x.xxx.xxx.xxx.xx",
+            hat: "x.x.x.x.x.x.x.x.",
             open: "..x...x...x...x.",
             bass: "0..0..7...0.7...",
           },
@@ -1350,24 +1350,36 @@
           leads: ["pipes", "fife"],
           grace: true,
           drone: "drone",
-          perc: { frame: "x..x..x.x..x..x." }, // the bodhrán
+          perc: { frame: "x.....x.x.....x." }, // the bodhrán
           swing: 0.33,
         };
+        // regional leads that are too bright in the melody's usual range (G4 to D6), so they play it an octave down
+        const LOW_LEADS = [
+          "pipes",
+          "fife",
+          "bowed",
+          "steel",
+          "guitarra",
+          "reed",
+          "accordion",
+          "vox",
+          "shaku",
+        ];
         const STYLES = {
           celtic,
           // a Galician gaita band playing a muiñeira: the gaita (pipes, cuts and the drone) in a major key
-          // or Mixolydian, the bombo on the strong beats and the tamboril with flams (f) and a roll (r) on
-          // the off-beats, all in a real 6/8 (meter) instead of the Celtic swing
+          // or Mixolydian, the bombo on the strong beats and the tamboril with a flam (f) on the off-beats and
+          // a roll (r) into each section, all in a real 6/8 (meter) instead of the Celtic swing
           galicia: {
             modes: ["mixolydian", "major", "major"],
             leads: ["pipes"],
             grace: true,
             drone: "drone",
             meter: "6/8",
-            bpm: [88, 100],
+            bpm: [72, 82],
             swing: 0,
-            band: { drums: "gaita", loops: ["muineira"], echo: [0.3, 4, 0.4] },
-            perc: { tamboril: "x.fxx.f.x.fxx.fr" },
+            band: { drums: "gaita", loops: ["muineira"], echo: [0.3, 4, 0.4], level: 1.2 },
+            perc: { tamboril: "..x...f...x...xr" },
           },
           // the Andalusian cadence (Am G F E over E) strummed on a guitar, with palmas and castanets
           flamenco: {
@@ -1378,10 +1390,10 @@
               [1, 5, 8],
               [0, 4, 7],
             ],
-            strum: ["plucked", "r..x..x.r..x..x."],
-            perc: { palmas: "..x...x...x...x.", castanets: "x.......x.x....." },
+            strum: ["plucked", "r.....x.x.....x."],
+            perc: { palmas: "....x.......x...", castanets: "x.........x....." },
           },
-          rioja: { leads: ["reed"], perc: { tamboril: "x..x..x.x...x.x." } }, // the dulzaina and the tamboril
+          rioja: { leads: ["reed"], perc: { tamboril: "x.....x.....x..." } }, // the dulzaina and the tamboril
           // New Orleans: a soul-jazz trio, swung, with ninth chords, a walking upright and a muted trumpet or sax
           soul: {
             colour: "ninth",
@@ -1399,7 +1411,7 @@
           // Berlin and Detroit: four on the floor, off-beat hats and a riff whose filter opens and closes
           techno: {
             colour: "sus",
-            bpm: [104, 118],
+            bpm: [90, 98],
             band: {
               chords: "pad",
               leads: ["pluck", "bell"],
@@ -1435,7 +1447,7 @@
             leads: ["shaku"], // the bansuri
             drone: "drone", // the tanpura
             strum: ["zither", "x.......x..x...."],
-            perc: { goblet: "x..x..x...x.x..." }, // the tabla
+            perc: { goblet: "x.....x...x....." }, // the tabla
           },
           china: { leads: ["bowed"], strum: ["zither", "x...x...x...x..."] }, // the erhu and the guzheng
           hijaz: {
@@ -1448,14 +1460,14 @@
             ],
             leads: ["reed", "shaku"], // the zurna or mizmar, and the ney
             strum: ["plucked", "x..x..x...x....."], // the oud or the saz
-            perc: { goblet: "x..x..x.x...x..." }, // the darbuka
+            perc: { goblet: "x.....x.x......." }, // the darbuka
           },
           // forró, Brazil's north-east: an accordion in Mixolydian over the zabumba and a triangle
           forro: {
             modes: ["mixolydian"],
             leads: ["accordion"],
-            bpm: [84, 95],
-            perc: { frame: "x..x...xx..x...x", triangle: "x.xxx.xxx.xxx.xx" },
+            bpm: [76, 88],
+            perc: { frame: "x......x.x......", triangle: "..x...x...x...x." },
           },
           // bossa nova: a nylon guitar on the bossa rhythm, ninth chords, brushes and a shaker, a flute or a
           // wordless voice
@@ -1521,7 +1533,7 @@
               [2, 5, 9],
               [7, 11, 14],
             ],
-            bpm: [74, 92],
+            bpm: [70, 84],
             swing: 0.25,
             leads: ["steel", "bowed"],
             strum: ["twang", "....x.......x..."],
@@ -1541,7 +1553,7 @@
             modes: ["shur", "phrygianDom"],
             leads: ["bowed", "plucked"],
             drone: "drone",
-            strum: ["santur", "x.xx..x.x.xx..x."],
+            strum: ["santur", "x..x..x...x....."],
             perc: { goblet: "x..x..x...x....." },
             bpm: [60, 76],
             swing: 0.15,
@@ -1551,9 +1563,9 @@
             modes: ["aeolian", "mixolydian"],
             leads: ["bowed"],
             drone: "throat",
-            strum: ["plucked", "x.xxx.xxx.xxx.xx"],
-            perc: { frame: "x...x...x...x..." },
-            bpm: [84, 100],
+            strum: ["plucked", "x..x..x.x..x..x."],
+            perc: { frame: "x.......x......." },
+            bpm: [76, 88],
             band: { level: 0.8 },
           },
           // tango: a bandoneón (or a violin on the solo) over marcato chords and the habanera bass
@@ -1587,7 +1599,7 @@
           // cumbia: an accordion, the guacharaca's scrape, the tambor alegre
           cumbia: {
             leads: ["accordion"],
-            bpm: [84, 96],
+            bpm: [78, 88],
             band: { bass: "bass", drums: "cumbia", loops: ["cumbia"] },
             perc: { goblet: "..x...x...x...x." },
           },
@@ -1595,9 +1607,9 @@
           andean: {
             modes: ["aeolian"],
             leads: ["shaku"],
-            strum: ["plucked", "x.xx..x.x.xx..x."],
-            perc: { frame: "x.xx....x.xx...." },
-            bpm: [78, 92],
+            strum: ["plucked", "x..x..x.x..x...."],
+            perc: { frame: "x.......x..x...." },
+            bpm: [72, 86],
             band: { level: 0.85 },
           },
           // reggae: the one drop, a skank on the off-beats, a melodica or a trumpet
@@ -1619,8 +1631,8 @@
           // afrobeat: interlocking guitar, a sax or a trumpet, shekere and the busy hats
           afrobeat: {
             modes: ["dorian"],
-            bpm: [88, 100],
-            strum: ["twang", "x.x..x.x.x..x.x."],
+            bpm: [80, 90],
+            strum: ["twang", "x....x....x..x.."],
             perc: { goblet: "x..x.x....x..x.." },
             band: {
               chords: "rhodes",
@@ -1636,9 +1648,9 @@
           balkan: {
             modes: ["phrygianDom", "harmonic"],
             leads: ["reed", "accordion"],
-            strum: ["plucked", "x..x..x.x..x..x."],
-            perc: { goblet: "x..x..x.x..x..x." },
-            bpm: [84, 100],
+            strum: ["plucked", "x.....x.x......."],
+            perc: { goblet: "x.....x.x......." },
+            bpm: [76, 88],
             band: { level: 0.85 },
           },
           // Slavic folk: a bayan or a fiddle, and a balalaika's tremolo
@@ -1648,11 +1660,11 @@
             strum: ["guitarra", "x...x...x...x..."],
             bpm: [70, 86],
           },
-          mexico: { leads: ["horn"], strum: ["plucked", "x.x..x.x.x..x.x."] },
+          mexico: { leads: ["horn"], strum: ["plucked", "x....x....x....."] },
           westAfrica: {
             leads: ["marimba"], // the balafon
-            strum: ["zither", "x.x..x.x.x..x.x."], // the kora
-            perc: { goblet: "x..x.xx...x..x.." }, // the djembe or the talking drum
+            strum: ["zither", "x..x....x..x...."], // the kora
+            perc: { goblet: "x....x....x....." }, // the djembe or the talking drum
           },
           // The kaiju song (LOFI.song(seed, { kaiju: true })), in the manner of a 1950s-60s monster-film score:
           // a slow, relentless tread in D minor or Phrygian, a stubborn low ostinato in the strings doubled by
@@ -2219,6 +2231,12 @@
           const own = style.leads?.[(seed >>> 3) % style.leads.length];
           if (own) sheet.voices = { ...sheet.voices, lead: own, solo: lead };
           if (style.swing != null) sheet.swing = style.swing;
+          // pulled back towards lo-fi: a darker tape, and a lead that would sit high (a whistle, the pipes, a
+          // fiddle, a steel, a reed) an octave down
+          sheet.cutoff = Math.round(sheet.cutoff * 0.8);
+          if (LOW_LEADS.includes(sheet.voices.lead))
+            for (const name of ["melA", "melB", "melA2", "melB2"])
+              sheet[name] = sheet[name].map((bar) => bar.map(([step, n, len]) => [step, n - 12, len]));
           if (style.fanfare)
             for (const name of ["melA", "melB", "melA2", "melB2"])
               sheet[name] = [[], ...sheet[name].slice(1)];
@@ -2575,24 +2593,25 @@
               const root = 45 + ((s.key + 3) % 12); // 45..56
               for (const n of [root, root + 7]) this[s.drone](n, t, sd * 64 + 0.3, 0.03);
             }
-            const stroke = s.strum && has("drums") ? s.strum[1][i] : ".";
+            const lt = t + 0.012, // the regional parts sit a little behind the beat
+              stroke = s.strum && has("drums") ? s.strum[1][i] : ".";
             if (stroke === "a")
-              chord.keys.forEach((n, j) => this[s.strum[0]](n, t + (j * sd) / 2, sd * 3, 0.05 * human()));
+              chord.keys.forEach((n, j) => this[s.strum[0]](n, lt + (j * sd) / 2, sd * 3, 0.05 * human()));
             else if (stroke !== ".")
               for (let k = 0; k < (stroke === "r" ? 3 : 1); k++)
                 chord.keys.forEach((n, j) =>
-                  this[s.strum[0]](n, t + (k * sd) / 3 + j * 0.015, sd * 2, 0.045 * human()),
+                  this[s.strum[0]](n, lt + (k * sd) / 3 + j * 0.015, sd * 2, 0.04 * human()),
                 );
             if (s.perc && has("drums"))
               for (const [drum, steps] of Object.entries(s.perc))
-                if (steps[i] === "x") this[drum](t, (i % 4 ? 0.6 : 1) * human());
+                if (steps[i] === "x") this[drum](lt, (i % 4 ? 0.45 : 0.8) * human());
                 else if (steps[i] === "f") {
                   // a flam: a soft grace stroke just before the real one
-                  this[drum](t - 0.025, 0.25 * human());
-                  this[drum](t, 0.7 * human());
-                } else if (steps[i] === "r")
-                  // a roll: four quick strokes that grow into the next beat
-                  for (let k = 0; k < 4; k++) this[drum](t + (k * sd) / 6, (0.3 + k * 0.12) * human());
+                  this[drum](lt - 0.025, 0.15 * human());
+                  this[drum](lt, 0.5 * human());
+                } else if (steps[i] === "r" && bar % 4 === 3)
+                  // a roll: four quick strokes that grow into the next section
+                  for (let k = 0; k < 4; k++) this[drum](lt + (k * sd) / 6, (0.2 + k * 0.08) * human());
             if (s.ostinato && has("bass"))
               for (const [ms, n, len] of s.ostinato[bar % 4])
                 // the riff's filter opens and closes over eight bars (its brightness follows the velocity)
@@ -3005,8 +3024,8 @@
           }
           jingles(t, vel) {
             // a tambourine's jingles: the pandeireta, the pandeiro
-            this.hit(t, 0.2, "highpass", 7500, 0.12 * vel, 0.004);
-            this.hit(t + 0.025, 0.12, "highpass", 9000, 0.07 * vel);
+            this.hit(t, 0.2, "highpass", 7500, 0.08 * vel, 0.004);
+            this.hit(t + 0.025, 0.12, "highpass", 9000, 0.05 * vel);
           }
           castanets(t, vel) {
             this.hit(t, 0.015, "bandpass", 3500, 0.3 * vel);
@@ -3103,7 +3122,7 @@
             g.connect(this.tone);
           }
           triangle(t, vel) {
-            this.ping(4200, t, 0.5, 0.03 * vel);
+            this.ping(4200, t, 0.5, 0.02 * vel);
           }
           scrape(t, vel) {
             this.hit(t, 0.07, "bandpass", 3200, 0.12 * vel, 0.03); // a güira or guacharaca
@@ -3146,7 +3165,7 @@
     </script>
     <!-- native/lofi.c as WebAssembly, base64 (the native music engine in a browser). Written by
          tools/lofi-wasm.sh, never by hand; data-c is the lofi.c it was built from. -->
-    <script id="lofi-wasm" type="application/octet-stream" data-c="af014d517c9d9d56">
+    <script id="lofi-wasm" type="application/octet-stream" data-c="bd0c0924ed55f774">
       AGFzbQEAAAABtgItYAJ/fwBgAX8Bf2ABfwBgAX0BfWAFf35+fn4AYAJ/fwF/YAN/f38Bf2ADf39/AGAEf35+fwBgAXwBfWABfwF9
       YAJ9fQF9YAAAYAR/f319AGADf319AGABfQBgAn98AX1gBH9/fX0Bf2AEf398fAF/YAV/fH19fQBgBn98fX19fQBgB398fX99fX0A
       YAd/fXx9f319AGAMf318fX1/fX19fX19AGAIf318fX19fX0AYAd/fH19fX19AGAGf318fX1/AGADf3x9AGAJf3x/fX19fX19AGAC
@@ -3475,8 +3494,8 @@
       AIJDQwrXIz0gI0OamZk+lEOamRk+EBQgAioCGCEgIAUgAykDCDcDyAIgBSADKQMANwPAAiAFQcACaiAZQ4/C9TxBAUMAgDtFICBD
       j8L1PZRDbxIDOxAPDAELIARBvQkQM0UEQCAFIAMpAwg3A/gCIAUgAykDADcD8AIgBUHwAmogGUMAAAxDQwAAjEJDzczMPSAjQ83M
       zD6UQ83MzD4QFCACKgIYISAgBSADKQMINwPoAiAFIAMpAwA3A+ACIAVB4AJqIBlDzczMPUECQwAA+kMgIEPNzMw9lENvEgM7EA8M
-      AQsgBEHnCBAzRQRAIAUgAykDCDcDmAMgBSADKQMANwOQAyAFQZADaiAZQ83MTD5BAUMAYOpFICNDj8L1PZRDbxKDOxAPIAIqAhgh
-      ICAFIAMpAwg3A4gDIAUgAykDADcDgAMgBUGAA2ogGUSamZmZmZmZP6BDj8L1PUEBQwCgDEYgIEMpXI89lENvEgM7EA8MAQsgBEHE
+      AQsgBEHnCBAzRQRAIAUgAykDCDcDmAMgBSADKQMANwOQAyAFQZADaiAZQ83MTD5BAUMAYOpFICNDCtejPZRDbxKDOxAPIAIqAhgh
+      ICAFIAMpAwg3A4gDIAUgAykDADcDgAMgBUGAA2ogGUSamZmZmZmZP6BDj8L1PUEBQwCgDEYgIEPNzEw9lENvEgM7EA8MAQsgBEHE
       CBAzRQRAIAUgAykDCDcDuAMgBSADKQMANwOwAyAFQbADaiAZQ4/CdTxBAkMAwFpFICNDmpmZPpRDbxIDOxAPIAIqAhghICAFIAMp
       Awg3A6gDIAUgAykDADcDoAMgBUGgA2ogGUR56SYxCKycP6BDj8J1PEECQwCAbUUgIEOuR2E+lENvEgM7EA8MAQsgBEH8CBAzRQRA
       IAUgAykDCDcD+AMgBSADKQMANwPwAyAFQfADaiAZRAAAAAAAAAAAoEOPwnU8QQJDAAD6RCAjQylcDz6UQ28SAzsQDyACKgIYISAg
@@ -3485,7 +3504,7 @@
       AykDCDcDyAMgBSADKQMANwPAAyAFQcADaiAZRHsUrkfhepQ/oEPsUbg9QQJDAIDURCAgQ83MzD2UQ28SAzsQDwwBCyAEQYsKEDNF
       BEAgBSADKQMINwOYBCAFIAMpAwA3A5AEIAVBkARqIBlDj8L1PUECQwDAD0UgI0O4HoU+lENvEgM7EA8gAioCGCEgIAUgAykDCDcD
       iAQgBSADKQMANwOABCAFQYAEaiAZQwAAgkNDAABcQ0OPwvU8ICBD7FE4PpRDzczMPRAUDAELIARBgwsQM0UEQCAFIAMpAwg3A6gE
-      IAUgAykDADcDoAQgBUGgBGpDAECDRSAZQwAAAD8gI0OPwvU8lEEAEBUMAQsgBEHoChAzRQRAIAUgAykDCDcDuAQgBSADKQMANwOw
+      IAUgAykDADcDoAQgBUGgBGpDAECDRSAZQwAAAD8gI0MK16M8lEEAEBUMAQsgBEHoChAzRQRAIAUgAykDCDcDuAQgBSADKQMANwOw
       BCAFQbAEaiAZQylcjz1BAkMAAEhFICNDj8L1PZRDj8L1PBAPDAELIARBzAoQM0UEQCAFIAMpAwg3A+gEIAUgAykDADcD4AQgBUHg
       BGpDAADEQiAZQwAAIEAgI0OamZk+lEEAEBUgAioCGCEgIAUgAykDCDcD2AQgBSADKQMANwPQBCAFQdAEakNxPYdDIBlDAADAPyAg
       Q83MzD2UQQAQFSACKgIYISAgBSADKQMINwPIBCAFIAMpAwA3A8AEIAVBwARqIBlDZmbmP0ECQwAAlkQgIEOPwvU9lEMK1yM8EA8M

@@ -260,15 +260,32 @@ test("Galicia is a gaita band playing a muiñeira in a real 6/8, with bombo and 
       at = (name) => score.filter(([n]) => n === name).map(([, t]) => t);
     assert.ok(at("bombo").length > 0 && at("tamboril").length > 0, "bombo and tamboril");
     // every bombo hit falls on a dotted beat, many tamboril strokes on its eighths (thirds of the beat),
-    // and none where a 4/4 bar's sixteenths would be (a quarter of the beat, three quarters)
+    // and none where a 4/4 bar's sixteenths would be (a quarter of the beat, three quarters); the
+    // tamboril sits 12 ms behind the beat
     const beat = 60 / s.bpm,
       frac = (t) => (t / beat) % 1,
-      near = (t, ps) => ps.some((p) => Math.abs(frac(t) - p) < 1e-6);
+      near = (t, ps) => ps.some((p) => Math.abs(frac(t) - p) < 1e-6),
+      tamboril = at("tamboril").map((t) => t - 0.012);
     for (const t of at("bombo")) assert.ok(near(t, [0, 1]), `bombo at ${t}`);
-    const eighths = at("tamboril").filter((t) => near(t, [0, 1 / 3, 2 / 3, 1]));
-    assert.ok(eighths.length > at("tamboril").length / 3, "the tamboril is on the eighths");
-    assert.ok(!at("tamboril").some((t) => near(t, [1 / 4, 3 / 4])), "no straight sixteenths");
+    const eighths = tamboril.filter((t) => near(t, [0, 1 / 3, 2 / 3, 1]));
+    assert.ok(eighths.length > tamboril.length / 3, "the tamboril is on the eighths");
+    assert.ok(!tamboril.some((t) => near(t, [1 / 4, 3 / 4])), "no straight sixteenths");
   }
+});
+
+test("regional songs stay lo-fi: relaxed tempos, high leads an octave down, a darker tape", () => {
+  for (const [name, st] of Object.entries(LOFI.STYLES))
+    if (st.bpm) assert.ok(st.bpm[1] <= (name === "techno" ? 98 : 90), `${name}: ${st.bpm}`);
+  const high = ["pipes", "fife", "bowed", "steel", "guitarra", "reed", "accordion", "vox", "shaku"];
+  for (const region of Object.keys(LOFI.STYLES))
+    for (const seed of SEEDS.slice(0, 20)) {
+      const s = LOFI.song(seed, { region }),
+        plain = LOFI.song(seed, {});
+      assert.ok(s.cutoff < plain.cutoff, `${region}: cutoff ${s.cutoff}`);
+      if (!high.includes(s.voices.lead)) continue;
+      for (const n of [s.melA, s.melB, s.melA2, s.melB2].flat(2).map((note) => note[1]))
+        assert.ok(n <= 74, `${region} seed ${seed}: ${s.voices.lead} plays ${n}`);
+    }
 });
 
 test("a flamenco song walks down the Andalusian cadence and strums it with rasgueados", () => {

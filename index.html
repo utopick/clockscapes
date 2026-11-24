@@ -13748,17 +13748,20 @@
       const homeOf = (z) =>
         CITY_ATLAS[z.scene] ||
         CITY_ATLAS[{ madrid: "madrid-es", london: "london-gb", austin: "austin-us" }[z.scene]];
-      const cityEvents = (home) => [
-        ...new Set([
-          ...(CITY_EVENTS[home?.id] || []),
-          ...(CITY_EVENTS[home?.country] || []),
-          ...(PRAYER_PLACES.has(home?.id) || PRAYER_PLACES.has(home?.country) ? ["adhan"] : []),
-          ...(LNY_PLACES.has(home?.country) ? ["lnyEve", "lnyParade"] : []),
-          ...(hasCarnival(home) ? ["carnival"] : []),
-          "newYear",
-          "fireworks",
-        ]),
-      ];
+      const cityEvents = (home) =>
+        home?.id === "atlantis"
+          ? Object.keys(EVENTS)
+          : [
+              ...new Set([
+                ...(CITY_EVENTS[home?.id] || []),
+                ...(CITY_EVENTS[home?.country] || []),
+                ...(PRAYER_PLACES.has(home?.id) || PRAYER_PLACES.has(home?.country) ? ["adhan"] : []),
+                ...(LNY_PLACES.has(home?.country) ? ["lnyEve", "lnyParade"] : []),
+                ...(hasCarnival(home) ? ["carnival"] : []),
+                "newYear",
+                "fireworks",
+              ]),
+            ];
       const markOf = (e, name) => e.marks?.find((m) => m.name.includes(name)) || e.marks?.[0];
       const sidewalk = (e) => e.walk?.lanes[0] ?? e.G + 2;
 
@@ -17594,7 +17597,8 @@
         applyFilter();
         const root = $("#cols");
         root.innerHTML = "";
-        COLS = CONFIG.zones.slice(0, 4).map((z, i) => new Column(z, i));
+        const zones = atlantis ? [atlantisZone()] : CONFIG.zones.slice(0, 4);
+        COLS = zones.map((z, i) => new Column(z, i));
         for (const c of COLS) root.appendChild(c.el);
         for (const c of COLS) c.resize();
       }
@@ -17760,7 +17764,7 @@
       // A city's country line, with its state in the US.
       const placeName = (c) => (US_STATES[c.id] ? US_STATES[c.id] + " - " : "") + countryName(c.country);
       const REGIONS = Intl.DisplayNames ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
-      const countryName = (code) => (code === "KO" ? "Kosovo" : REGIONS?.of(code) || code);
+      const countryName = (code) => (code === "KO" ? "Kosovo" : (code && REGIONS?.of(code)) || code); // "" for Atlantis
       // The cities of each country, A to Z, and the countries A to Z by name, for the two lists in each zone
       // (lists instead of a search box, so a TV remote can pick a city).
       const COUNTRY_CITIES = {};
@@ -18373,6 +18377,7 @@
         if (keys.endsWith("UUDDLRLR")) ((arrowKeys = []), triggerEncounter());
         else if (keys.endsWith("UUUUUU")) ((arrowKeys = []), playTestAlarm());
         else if (keys === "LRLR") ((arrowKeys = []), cycleEventTest());
+        else if (keys.endsWith("DDDRRR")) ((arrowKeys = []), toggleAtlantis());
       });
       const ZIG_LEG = 40, // CSS pixels each stroke of the zigzag must cover
         ZIG_TURN = 15; // moving back this far ends a stroke
@@ -18415,6 +18420,99 @@
         zig = null;
       });
       $("#cols").addEventListener("pointercancel", () => (zig = null));
+
+      // ---- secret: Atlantis, a city with everything. Type "atlantis", swipe down three times then right three
+      // times on the clocks, or press Down Down Down Right Right Right on a remote; the same again comes back ----
+      // It shows alone, at the local time, and plays every event of every city two seconds each (through the
+      // event test, so each at its time of day). A tap stops on the event showing, and another goes on.
+      // A harbour city of ten million: water, a deep street with its median, towers and landmarks. Not
+      // enumerable, so the city lists and the random cities never offer it, and nothing saves it.
+      Object.defineProperty(CITY_ATLAS, "atlantis", {
+        value: {
+          id: "atlantis",
+          label: "Atlantis",
+          country: "",
+          lat: 36.4,
+          lon: 25.4,
+          tz: "UTC",
+          style: "harbor",
+          art: "",
+          capital: true,
+          population: 1e7,
+        },
+      });
+      CITY_LANDMARKS.atlantis = [
+        ["Temple of Poseidon", "column", { n: 6, h: 12, s: 1, pw: 2, ph: 3, top: "none", c: 0 }],
+        ["Clock tower", "belfry", { w: 7, h: 30, clock: 1, top: "spire", c: 13, t: 8, sp: 6 }],
+        ["Lighthouse", "light", { h: 28, w: 3, b: 10, c: 6 }],
+      ];
+      let atlantis = null; // { start, i, paused, timer } while Atlantis shows
+      const atlantisZone = () => {
+        const { label, lat, lon } = CITY_ATLAS.atlantis;
+        return { label, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, lat, lon, scene: "atlantis" };
+      };
+      function atlantisStep() {
+        const names = Object.keys(EVENTS);
+        eventTest = { name: names[atlantis.i % names.length], start: atlantis.start };
+        for (const c of COLS) c.key = ""; // build again: the sky goes to the event's time of day
+        toast(EVENTS[eventTest.name].label);
+      }
+      function toggleAtlantis() {
+        clearInterval(atlantis?.timer);
+        if (atlantis) {
+          atlantis = eventTest = null;
+          buildColumns();
+          return toast("Back from Atlantis");
+        }
+        // 20 s in, so parades are already crossing and the events' sounds (in their first 3 s) stay quiet
+        atlantis = { start: Date.now() - 20000, i: 0, paused: false };
+        buildColumns();
+        atlantisStep();
+        atlantis.timer = setInterval(() => atlantis.paused || (atlantis.i++, atlantisStep()), 2000);
+      }
+      const SECRET = "atlantis";
+      let typed = "";
+      addEventListener(
+        "keydown",
+        (ev) => {
+          const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "");
+          if (ev.key.length !== 1 || typing || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+          if (!modal.classList.contains("hidden")) return;
+          const k = ev.key.toLowerCase();
+          typed = SECRET.startsWith(typed + k) ? typed + k : SECRET.startsWith(k) ? k : "";
+          // past its first letter the word's keys do nothing else (S would open the settings, N skip a song)
+          if (typed.length > 1) ev.stopImmediatePropagation();
+          if (typed === SECRET) ((typed = ""), toggleAtlantis());
+        },
+        true,
+      );
+      // straight swipes (down three times, then right three times), and taps, which stop and go on
+      let swipeFrom = null,
+        swipes = [];
+      $("#cols").addEventListener("pointerdown", (ev) => {
+        swipeFrom = ev.isPrimary ? { x: ev.clientX, y: ev.clientY } : null;
+      });
+      $("#cols").addEventListener("pointerup", (ev) => {
+        if (!swipeFrom || !ev.isPrimary || !modal.classList.contains("hidden")) return;
+        const dx = ev.clientX - swipeFrom.x,
+          dy = ev.clientY - swipeFrom.y,
+          now = Date.now();
+        swipeFrom = null;
+        if (Math.hypot(dx, dy) < 10) {
+          if (!atlantis) return;
+          atlantis.paused = !atlantis.paused;
+          return toast(atlantis.paused ? `Stopped: ${EVENTS[eventTest.name].label}` : "Atlantis goes on");
+        }
+        const k = dy > 40 && dy > 2 * Math.abs(dx) ? "D" : dx > 40 && dx > 2 * Math.abs(dy) ? "R" : "";
+        swipes = swipes.filter((s) => now - s.t < 6000).concat({ k, t: now });
+        if (
+          swipes
+            .map((s) => s.k)
+            .join("")
+            .endsWith("DDDRRR")
+        )
+          ((swipes = []), toggleAtlantis());
+      });
 
       // ---- boot ----
       // Open storage, load saved settings over the defaults, build the clocks, start the loop, the alarm

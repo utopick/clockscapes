@@ -251,6 +251,26 @@ test("a Celtic song is modal, with a drone, cuts, a lilt and pipes or a whistle"
   assert.ok(modes.has("dorian") && modes.has("mixolydian"), [...modes]);
 });
 
+test("Galicia is a gaita band playing a muiñeira in a real 6/8, with bombo and tamboril", () => {
+  for (const seed of SEEDS.slice(0, 30)) {
+    const s = LOFI.song(seed, { region: "galicia" });
+    assert.ok(["mixolydian", "major"].includes(s.mode) && s.voices.lead === "pipes", s.mode);
+    assert.ok(s.meter === "6/8" && s.swing === 0 && s.drone === "drone" && s.grace);
+    const score = LOFI.score(s),
+      at = (name) => score.filter(([n]) => n === name).map(([, t]) => t);
+    assert.ok(at("bombo").length > 0 && at("tamboril").length > 0, "bombo and tamboril");
+    // every bombo hit falls on a dotted beat, many tamboril strokes on its eighths (thirds of the beat),
+    // and none where a 4/4 bar's sixteenths would be (a quarter of the beat, three quarters)
+    const beat = 60 / s.bpm,
+      frac = (t) => (t / beat) % 1,
+      near = (t, ps) => ps.some((p) => Math.abs(frac(t) - p) < 1e-6);
+    for (const t of at("bombo")) assert.ok(near(t, [0, 1]), `bombo at ${t}`);
+    const eighths = at("tamboril").filter((t) => near(t, [0, 1 / 3, 2 / 3, 1]));
+    assert.ok(eighths.length > at("tamboril").length / 3, "the tamboril is on the eighths");
+    assert.ok(!at("tamboril").some((t) => near(t, [1 / 4, 3 / 4])), "no straight sixteenths");
+  }
+});
+
 test("a flamenco song walks down the Andalusian cadence and strums it with rasgueados", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "flamenco" });

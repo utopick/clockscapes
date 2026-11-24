@@ -475,6 +475,7 @@ static void play(Ctx c, const Ev *e) {
   else if (IS("gong"))
     ping(c, 98, T, 2.5f, 0.3f * a[1], SINE), ping(c, 98 * 2.76f, T, 1.5f, 0.1f * a[1], SINE),
         hit(c, T, 1.8f, BP, 1200, 0.12f * a[1], 0.01f);
+  else if (IS("bombo")) thump(c, T, 100, 55, 0.08f, 0.5f * a[1], 0.35f), hit(c, T, 0.03f, LP, 600, 0.15f * a[1], 0.002f);
   else if (IS("bigdrum")) thump(c, T, 85, 38, 0.25f, 0.8f * a[1], 0.9f), hit(c, T, 0.25f, LP, 300, 0.35f * a[1], 0.002f);
   // drums: (time, velocity)
   else if (IS("kick")) kick(c, T, a[1]);

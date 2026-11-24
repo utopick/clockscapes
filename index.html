@@ -5979,6 +5979,7 @@
   ["viedma-ar","Viedma","AR",-40.815,-63.0,"America/Argentina/Salta","old","",false,48940],
   ["vienna-at","Vienna","AT",48.2,16.3667,"Europe/Vienna","old","",true,1691468],
   ["vientiane-la","Vientiane","LA",17.9667,102.6,"Asia/Vientiane","lush","",true,840940],
+  ["vigo-es","Vigo","ES",42.2406,-8.7207,"Europe/Madrid","harbor","",false,293642],
   ["viet-tri-vn","Việt Trì","VN",21.323,105.402,"Asia/Bangkok","lush","",false,415280],
   ["vijayawada-in","Vijayawada","IN",16.507,80.647,"Asia/Kolkata","lush","",false,1143232],
   ["vila-real-pt","Vila Real","PT",41.3,-7.743,"Europe/Lisbon","old","",false,17001],
@@ -7646,7 +7647,7 @@
   "cape-coast-gh": [["Cape Coast Castle","castle",{w:31,wh:10,n:3,th:14,tw:5,top:"crenel",c:6}]],
   "cape-town-za": [["Table Mountain","table"],["Cape Town Stadium","stadium",{w:27,h:10,c:6,t:6,rc:6,mesh:6}],["Green Point Lighthouse","light",{h:18,w:3,tw:2,band:3,b:10,c:6}]],
   "caracas-ve": [["Parque Central Towers","sky",{n:2,w:7,gap:3,h:44,c:8,t:2}],["Panteón Nacional","cathedral",{w:21,nh:12,h:24,top:"spire",c:6,t:6}]],
-  "carcassonne-fr": [["La Cité","castle",{w:35,wh:12,n:5,th:18,tw:5,top:"cone",kh:22,kw:9,ktop:"cone",c:13,t:2}]],
+  "carcassonne-fr": [["La Cité ramparts","castle",{w:61,wh:9,n:9,th:14,tw:5,top:"cone",c:13,t:2}],["Château Comtal","castle",{w:31,wh:12,n:4,th:19,tw:5,top:"cone",kh:24,kw:9,ktop:"cone",c:13,t:2}],["Basilica of Saint-Nazaire","church",{w:19,nh:11,h:26,tw:5,top:"gothic",c:13,t:13}]],
   "cardiff-gb": [["Cardiff Castle","castle",{w:31,wh:12,n:2,th:16,tw:5,top:"crenel",kh:30,kw:7,ktop:"spire",c:13,t:2}],["Principality Stadium","stadium",{w:33,h:12,c:6,t:8,rc:6,lights:1}]],
   "carson-city-us": [["Nevada State Capitol","palace",{w:21,nh:10,r:3,dd:5,dc:8,cols:2,c:13}]],
   "cartagena-co": [["Castillo San Felipe de Barajas","castle",{w:33,wh:10,n:3,th:13,tw:5,top:"crenel",kh:16,kw:9,c:13}],["Torre del Reloj","belfry",{w:9,h:22,clock:1,lan:5,top:"dome",c:12,t:13}]],
@@ -8489,6 +8490,7 @@
   "vidin-bg": [["Baba Vida Fortress","castle",{w:27,wh:12,n:4,th:16,tw:5,top:"crenel",c:13}]],
   "vienna-at": [["St. Stephen’s Cathedral","church",{w:23,nh:14,h:40,tw:7,tx:-6,top:"spire",sp:16,c:13,t:7,rc:7}],["Wiener Riesenrad","wheel",{r:14,c:10,t:10}]],
   "vientiane-la": [["Pha That Luang","stupa",{w:25,h:36,c:12,t:3}],["Patuxai","arch",{w:19,h:18,ow:4,top:"towers",tc:"pyr",cap:"pyr",c:13,t:12}]],
+  "vigo-es": [["Co-cathedral of Santa María","church",{w:19,nh:10,h:26,tw:5,top:"dome",c:13,t:8}],["Castro Fortress","castle",{w:29,wh:8,n:3,th:11,tw:5,top:"crenel",c:0}]],
   "vilnius-lt": [["Gediminas Tower","belfry",{w:9,h:20,top:"pyr",c:1,t:1}],["Vilnius Cathedral","palace",{w:21,nh:12,top:"flat",cols:6,c:6}]],
   "visby-se": [["Visby City Wall","castle",{w:35,wh:12,n:4,th:18,tw:5,top:"pyr",c:13,t:2}],["Visby Cathedral","church",{w:21,nh:12,h:30,tw:7,tx:-5,top:"baroque",c:6,t:2}]],
   "vitebsk-by": [["Holy Assumption Cathedral","cathedral",{w:21,nh:13,h:28,top:"bulb",r:4,dc:9,c:6,t:9}]],
@@ -14872,7 +14874,7 @@
         }
       }
       // Red lanterns strung over the street, swaying, glowing at night.
-      function drawLanterns(g, e, t) {
+      function drawStrungLanterns(g, e, t) {
         const y0 = sidewalk(e) - 22,
           night = e.k < 0.45;
         for (let x = 4; x < e.W; x += 11) {
@@ -14905,7 +14907,7 @@
       }
       // Lunar New Year's Eve: lanterns over the street and firecrackers (fireworks behind).
       function drawLnyEve(g, e, since, t) {
-        drawLanterns(g, e, t);
+        drawStrungLanterns(g, e, t);
         drawFirecrackers(g, e, t);
       }
       // The Lunar New Year parade: the dragon dance (the long dragon on its dancers' poles, chasing the pearl),
@@ -14916,7 +14918,7 @@
           span = e.W + gap * 2,
           gold = [240, 200, 60],
           red = [210, 40, 40];
-        drawLanterns(g, e, t);
+        drawStrungLanterns(g, e, t);
         drawConfetti(g, e, 0, e.W, t, [red, gold, red, [250, 240, 200]]);
         for (let i = 0; i * gap < span; i++) {
           const x = Math.round((((t / 1000) * 6 + i * gap) % span) - gap),
@@ -15155,7 +15157,8 @@
             g.fillRect(cx - 2, cy + 2, 5, 1);
           }
         }
-        // the Naviluz: a red double-decker without a roof, its outline in lights, on the road
+        // the Naviluz: a red double-decker without a roof, its outline in lights, on the road (Madrid only)
+        if (e.cityId !== "madrid-es") return;
         const span = e.W + 60,
           bx = Math.round(((t / 1000) * 9) % span) - 30,
           by = e.G + SYNC_LANE + 2;
@@ -15358,6 +15361,317 @@
         g.fillRect(x, y - (bow ? 7 : 8), 1, 1);
         g.fillRect(x, y - 6, 2, 3);
         g.fillRect(x - 1, y - 6, 1, 1);
+      }
+      // The scene seen by candle or bar light: colours keep half of their daylight at night, so people in a
+      // night procession or outside a lit bar still show.
+      const candlelit = (e) => ({ ...e, sh: (c) => mixc(e.sh(c), c, 0.5) });
+      // A string of paper lanterns over the street: white with coloured dots (the Feria's farolillos), lit
+      // from inside at night.
+      function farolillos(g, e, t, colors) {
+        const y0 = sidewalk(e) - 23,
+          night = e.k < 0.45;
+        for (let x = 3, k = 0; x < e.W; x += 6, k++) {
+          const sag = Math.round(Math.sin(((x % 36) / 36) * Math.PI) * 3),
+            sway = Math.round(Math.sin(t * 0.0012 + x) * 0.6),
+            y = y0 + sag;
+          g.fillStyle = css([60, 50, 40], 0.5);
+          g.fillRect(x - 3, y - 1, 6, 1);
+          if (night) softGlow(g, x + sway, y + 2, 3, "255,235,190", 0.3);
+          g.fillStyle = night ? "#fff2d6" : css(e.sh([246, 244, 236]));
+          g.fillRect(x - 1 + sway, y, 3, 4);
+          g.fillStyle = css(night ? colors[k % colors.length] : e.sh(colors[k % colors.length]));
+          g.fillRect(x - 1 + sway, y + 1, 1, 1);
+          g.fillRect(x + 1 + sway, y + 2, 1, 1);
+        }
+      }
+      // A flamenco dress: a woman (person) with a flared, ruffled skirt and a flower in her hair; dancing
+      // she raises her arms.
+      function flamenca(g, e, x, y, color, arms) {
+        person(g, e, x, y, color, arms);
+        g.fillStyle = css(e.sh(color));
+        g.fillRect(x - 1, y - 1, 4, 1);
+        g.fillRect(x - 1, y, 1, 1);
+        g.fillRect(x + 2, y, 1, 1);
+        g.fillStyle = css(e.sh([250, 250, 250]));
+        g.fillRect(x, y - 1, 1, 1); // a polka dot
+        g.fillStyle = css(e.sh([220, 30, 40]));
+        g.fillRect(x + 1, y - 4, 1, 1); // the flower
+      }
+      // Seville's Feria de Abril: the striped casetas along the street under strings of farolillos, couples
+      // dancing sevillanas in front of them, and by day riders and horse carriages going round on the road.
+      function drawFeria(g, e, since, t) {
+        const y = sidewalk(e),
+          stripe = [
+            [210, 40, 50],
+            [40, 140, 80],
+          ];
+        // the casetas: canvas booths in white and red (or green) stripes, with a scalloped front
+        for (let x = 2, k = 0; x < e.W - 10; x += 30, k++) {
+          const top = e.G - 11,
+            c = stripe[k % 2];
+          for (let s = 0; s < 24; s++) {
+            g.fillStyle = css(e.sh(s % 4 < 2 ? c : [244, 240, 232]));
+            g.fillRect(x + s, top, 1, 11);
+          }
+          g.fillStyle = css(e.sh(c));
+          for (let s = 0; s < 24; s += 3) g.fillRect(x + s, top + 3, 2, 1);
+          g.fillRect(x + 10, top - 3, 4, 3); // the gable
+          g.fillStyle = css(e.k < 0.45 ? [255, 214, 140] : e.sh([90, 60, 40]));
+          g.fillRect(x + 8, top + 5, 8, 6); // the open front, lit inside at night
+        }
+        // couples dancing sevillanas, turning round each other
+        for (let k = 0; k < Math.max(2, Math.round(e.W / 60)); k++) {
+          const x = Math.round(((k + 0.5) * e.W) / Math.max(2, Math.round(e.W / 60))),
+            turn = Math.round(Math.sin(t * 0.003 + k) * 3),
+            up = Math.floor(t / 500 + k) % 2 === 0;
+          flamenca(g, e, x + turn, y, BRIGHT[k % BRIGHT.length], up);
+          flamenca(g, e, x + 6 - turn, y, BRIGHT[(k + 3) % BRIGHT.length], !up);
+        }
+        farolillos(g, e, t, ["220,40,50", "40,150,80", "250,200,60"]);
+        if (e.k < 0.45) return; // the horses go home at night
+        // riders (a man in a flat black hat, a woman in a flamenco dress riding behind) and carriages
+        const road = e.G + SYNC_LANE + 2,
+          span = e.W + 80,
+          step = Math.floor(t / 250) % 2;
+        for (let k = 0; k < 3; k++) {
+          const x = Math.round(((t / 1000) * 7 + k * (span / 3)) % span) - 40;
+          SPRITES.horse(g, e, x, road, 1, (step + k) % 2, 3 + k);
+          g.fillStyle = css(e.sh([30, 30, 36]));
+          g.fillRect(x - 1, road - 10, 4, 1); // the sombrero cordobés over the rider
+          if (k === 1) {
+            // a carriage behind the horse, with two women in flamenco dresses
+            g.fillStyle = css(e.sh([40, 40, 46]));
+            g.fillRect(x - 15, road - 6, 10, 4);
+            g.fillStyle = css(e.sh([200, 160, 60]));
+            disc(g, x - 13, road - 1, 1);
+            disc(g, x - 7, road - 1, 1);
+            flamenca(g, e, x - 13, road - 7, [220, 40, 50]);
+            flamenca(g, e, x - 9, road - 7, [250, 200, 60]);
+          }
+        }
+      }
+      // Holy Week: a procession at walking pace, with its cross in front, rows of nazarenos in tall
+      // pointed hoods holding candles, the paso (a float of gold and candles carried by costaleros, whose
+      // feet show under its velvet skirt, rocking as they step) and a band behind. Each city dresses it its
+      // own way: ev.robes are the robe and hood colours, ev.hoods false for a procession without them
+      // (Vigo's Cristo da Vitoria, whose faithful walk in their own clothes), ev.float the float's colour.
+      function drawProcession(g, e0, since, t, ev) {
+        const e = candlelit(e0),
+          y = sidewalk(e),
+          head = paradeHead(e, since, 3, 160),
+          step = Math.floor(t / 600) % 2,
+          night = e.k < 0.45,
+          robes = ev.robes || [
+            [60, 30, 90],
+            [30, 30, 34],
+          ];
+        const candle = (x, cy) => {
+          if (night) softGlow(g, x, cy, 2, "255,200,110", 0.5);
+          g.fillStyle = night ? "#ffd27a" : css(e.sh([250, 240, 210]));
+          g.fillRect(x, cy, 1, 2);
+        };
+        // the cross at the front
+        if (head > -4 && head < e.W + 4) {
+          g.fillStyle = css(e.sh([200, 170, 80]));
+          g.fillRect(head, y - 12, 1, 10);
+          g.fillRect(head - 2, y - 10, 5, 1);
+          person(g, e, head - 1, y - step, robes[0]);
+        }
+        // two rows of nazarenos (or the faithful, without hoods)
+        for (let k = 0; k < 14; k++) {
+          const x = Math.round(head - 8 - k * 5),
+            lift = (step + k) % 2;
+          if (x < -4 || x > e.W + 4) continue;
+          const robe = ev.hoods === false ? BRIGHT[k % BRIGHT.length] : robes[k % robes.length];
+          person(g, e, x, y - lift, robe);
+          if (ev.hoods !== false) {
+            g.fillStyle = css(e.sh(robe));
+            g.fillRect(x, y - 3 - lift, 2, 1); // the hood over the face
+            g.fillRect(x, y - 5 - lift, 2, 2);
+            g.fillRect(x, y - 7 - lift, 1, 2); // the capirote's point
+            g.fillRect(x, y - 1 - lift, 2, 2); // the robe down to the feet
+          }
+          candle(x + 2, y - 4 - lift);
+        }
+        // the paso: a gilded float under candles, rocking as the costaleros step
+        const px = Math.round(head - 86),
+          rock = Math.round(Math.sin(t * 0.004) * 0.8);
+        if (px > -20 && px < e.W + 20) {
+          const top = y - 7 + rock;
+          g.fillStyle = css(e.sh([70, 20, 40]));
+          g.fillRect(px - 12, top, 25, 6); // the velvet skirt
+          g.fillStyle = css(e.sh(ev.float || [210, 170, 60]));
+          g.fillRect(px - 12, top - 1, 25, 2); // the gilded platform
+          for (let f = -10; f <= 10; f += 4) {
+            g.fillStyle = css(e.sh([45, 42, 57]));
+            g.fillRect(px + f + ((step + f) % 2), y - 1, 1, 1); // the costaleros' feet under the skirt
+          }
+          g.fillStyle = css(e.sh([150, 110, 90]));
+          g.fillRect(px - 1, top - 10, 3, 9); // the figure
+          g.fillStyle = css(e.sh([240, 210, 100]));
+          g.fillRect(px - 2, top - 12, 5, 1); // its crown or halo
+          for (let c = -10; c <= 10; c += 3) if (Math.abs(c) > 2) candle(px + c, top - 3);
+        }
+        // the band behind, its brass catching the light
+        for (let k = 0; k < 6; k++) {
+          const x = Math.round(head - 104 - k * 5);
+          if (x < -4 || x > e.W + 4) continue;
+          person(g, e, x, y - ((step + k) % 2), [40, 40, 60]);
+          g.fillStyle = css(e.sh([230, 190, 80]));
+          g.fillRect(x + 2, y - 3, 2, 1);
+        }
+      }
+      // Vigo's Christmas lights, among the biggest in the world: the garlands, plus the giant Christmas tree,
+      // a gift box as tall as a house and the big wheel by the port, all in lights.
+      function drawVigoLights(g, e, since, t) {
+        drawXmasLights(g, e, since, t);
+        const G = sidewalk(e),
+          warm = ["255,236,180", "255,250,235", "255,210,120"],
+          tw = (k) => (k * 7 + Math.floor(t / 350)) % 5 !== 0;
+        // the tree: a cone of lights with a star on top
+        const tx = Math.round(e.W * 0.5),
+          th = clamp(Math.round(e.G * 0.4), 24, 60);
+        for (let r = 0; r < th; r += 2) {
+          const half = Math.round((r / th) * th * 0.3);
+          for (let p = -half; p <= half; p += 2) {
+            g.fillStyle = tw(r + p)
+              ? `rgba(${r % 6 ? "120,230,140" : warm[(r + p) & 1]},.95)`
+              : "rgba(60,120,70,.6)";
+            g.fillRect(tx + p, G - th + r, 1, 1);
+          }
+        }
+        softGlow(g, tx, G - th - 2, 5, "255,230,140", 0.6);
+        g.fillStyle = "#fff0b0";
+        g.fillRect(tx - 1, G - th - 3, 3, 3);
+        // the gift box
+        const bx = Math.round(e.W * 0.2);
+        g.fillStyle = "rgba(220,40,60,.85)";
+        g.fillRect(bx - 8, G - 12, 17, 12);
+        g.fillStyle = `rgba(${warm[0]},.95)`;
+        g.fillRect(bx, G - 12, 1, 12);
+        g.fillRect(bx - 8, G - 7, 17, 1);
+        g.fillRect(bx - 3, G - 14, 3, 2);
+        g.fillRect(bx + 1, G - 14, 3, 2);
+        // the big wheel, turning slowly, its spokes and rim in lights
+        const wx = Math.round(e.W * 0.84),
+          r = clamp(Math.round(e.W * 0.11), 10, 24),
+          wy = G - r - 4,
+          a0 = t * 0.00025;
+        g.fillStyle = "rgba(200,200,220,.7)";
+        g.fillRect(wx - 3, wy, 1, G - wy);
+        g.fillRect(wx + 3, wy, 1, G - wy);
+        softGlow(g, wx, wy, r, "180,200,255", 0.12);
+        for (let k = 0; k < 48; k++) {
+          const a = a0 + (k / 48) * Math.PI * 2;
+          g.fillStyle = tw(k) ? `rgba(${warm[k % 3]},.95)` : "rgba(255,255,255,.3)";
+          g.fillRect(Math.round(wx + Math.cos(a) * r), Math.round(wy + Math.sin(a) * r), 1, 1);
+          if (k % 6 === 0)
+            for (let d = 2; d < r; d += 2) {
+              g.fillStyle = "rgba(180,200,255,.8)";
+              g.fillRect(Math.round(wx + Math.cos(a) * d), Math.round(wy + Math.sin(a) * d), 1, 1);
+            }
+        }
+      }
+      // Logroño's San Mateo, the grape harvest festival: the giants and big-heads (gigantes y cabezudos)
+      // dancing down the street, and on its second day the first grapes trodden in a wooden tub by the
+      // cathedral, the must running out red.
+      const sanMateoStart = (e) => {
+        const d21 = new Date(Date.UTC(e.year, 8, 21)).getUTCDay();
+        return 21 - ((d21 + 1) % 7); // the Saturday on or before 21 September
+      };
+      function drawSanMateo(g, e, since, t) {
+        const y = sidewalk(e),
+          head = paradeHead(e, since, 4, 120),
+          step = Math.floor(t / 400) % 2;
+        // the giants: tall figures in long dresses, swaying as their carriers turn them
+        for (let k = 0; k < 4; k++) {
+          const x = Math.round(head - k * 16),
+            sway = Math.round(Math.sin(t * 0.003 + k) * 1.2);
+          if (x < -6 || x > e.W + 6) continue;
+          const dress = BRIGHT[(k * 2) % BRIGHT.length];
+          g.fillStyle = css(e.sh(dress));
+          g.fillRect(x - 2 + sway, y - 12, 5, 12);
+          g.fillRect(x - 3 + sway, y - 3, 7, 3);
+          g.fillStyle = css(e.sh([240, 200, 160]));
+          g.fillRect(x - 1 + sway, y - 16, 3, 4); // the head
+          g.fillStyle = css(e.sh(k % 2 ? [40, 30, 30] : [200, 160, 60]));
+          g.fillRect(x - 1 + sway, y - 17, 3, 1); // hair or a crown
+        }
+        // the big-heads, running about between them
+        for (let k = 0; k < 4; k++) {
+          const x = Math.round(head - 8 - k * 16 + Math.sin(t * 0.004 + k * 2) * 4);
+          if (x < -4 || x > e.W + 4) continue;
+          person(g, e, x, y - ((step + k) % 2), BRIGHT[(k + 1) % BRIGHT.length]);
+          g.fillStyle = css(e.sh([240, 200, 160]));
+          g.fillRect(x - 1, y - 6, 4, 4);
+          g.fillStyle = css(e.sh([30, 30, 36]));
+          g.fillRect(x, y - 4, 1, 1);
+          g.fillRect(x + 2, y - 4, 1, 1);
+        }
+        if (e.day !== sanMateoStart(e) + 1) return;
+        // the grape treading
+        const tx = Math.round(e.W * 0.78);
+        g.fillStyle = css(e.sh([120, 80, 50]));
+        g.fillRect(tx - 7, y - 5, 15, 5);
+        g.fillStyle = css(e.sh([90, 30, 60]));
+        g.fillRect(tx - 6, y - 5, 13, 1); // the grapes
+        for (let k = 0; k < 2; k++)
+          person(g, e, tx - 3 + k * 5, y - 5 - ((step + k) % 2), [240, 240, 240], k === step);
+        g.fillStyle = css(e.sh([130, 20, 50]));
+        g.fillRect(tx + 8, y - 1, 2 + (Math.floor(t / 300) % 3), 1); // the must running out
+      }
+      // San Bernabé in Logroño: by the old city wall, the cofrades hand out a fried fish, bread and a cup of
+      // wine to a long queue, as the town did after the siege of 1521.
+      function drawSanBernabe(g, e, since, t) {
+        const y = sidewalk(e),
+          wx = Math.round(e.W * 0.55);
+        // a stretch of the wall, with its battlements
+        g.fillStyle = css(e.sh([176, 150, 112]));
+        g.fillRect(wx - 30, e.G - 12, 60, 12);
+        for (let p = wx - 30; p < wx + 30; p += 4) g.fillRect(p, e.G - 14, 2, 2);
+        g.fillStyle = css(e.sh([150, 126, 92]));
+        for (let p = wx - 28; p < wx + 30; p += 6) g.fillRect(p, e.G - 8 + ((p >> 2) % 2) * 3, 3, 1);
+        // the table, and the cofrades behind it in their red scarves
+        g.fillStyle = css(e.sh([120, 80, 50]));
+        g.fillRect(wx - 8, y - 3, 17, 1);
+        g.fillRect(wx - 7, y - 2, 1, 2);
+        g.fillRect(wx + 7, y - 2, 1, 2);
+        for (let k = 0; k < 3; k++) {
+          person(g, e, wx - 5 + k * 5, y - 3, [240, 240, 240], Math.floor(t / 700 + k) % 3 === 0);
+          g.fillStyle = css(e.sh([200, 30, 40]));
+          g.fillRect(wx - 5 + k * 5, y - 5, 2, 1);
+        }
+        for (let k = 0; k < 5; k++) {
+          g.fillStyle = css(e.sh(k % 2 ? [190, 200, 210] : [120, 30, 50]));
+          g.fillRect(wx - 7 + k * 3, y - 4, 2, 1); // fish and cups of wine
+        }
+        // the queue, shuffling forward one place every few seconds
+        const shuffle = (t / 3000) % 1;
+        for (let k = 0; k < 14; k++) {
+          const x = Math.round(wx + 12 + k * 5 - shuffle * 5);
+          if (x > e.W + 4) break;
+          person(g, e, x, y, BRIGHT[(k + Math.floor(t / 3000)) % BRIGHT.length]);
+        }
+      }
+      // Calle Laurel in Logroño: on weekend evenings people crowd outside the tapas bars, glass of Rioja in
+      // hand, the bar doors lit warm behind them.
+      function drawLaurel(g, e0, since, t) {
+        const e = candlelit(e0),
+          y = sidewalk(e);
+        for (let x = 6, k = 0; x < e.W - 8; x += 26, k++) {
+          softGlow(g, x + 3, e.G - 4, 6, "255,190,110", 0.35);
+          g.fillStyle = "#ffcf86";
+          g.fillRect(x, e.G - 8, 6, 8); // the bar's door
+          g.fillStyle = css(e.sh(BRIGHT[k % BRIGHT.length]));
+          g.fillRect(x - 1, e.G - 10, 8, 2); // its sign
+          for (let p = 0; p < 3; p++) {
+            const px = x + 9 + p * 4 + Math.round(Math.sin(t * 0.001 + k + p) * 1),
+              raise = Math.floor(t / 900 + k * 3 + p) % 6 === 0;
+            person(g, e, px, y, BRIGHT[(k + p + 2) % BRIGHT.length]);
+            g.fillStyle = "#a01c3c";
+            g.fillRect(px + 2, y - (raise ? 5 : 3), 1, 1); // the glass of wine
+          }
+        }
       }
       // Thanksgiving: the parade's giant balloons float down the avenue on their handlers' lines, with
       // marching bands between them and party balloons let go.
@@ -15957,6 +16271,16 @@
         trashumancia: { label: "La Trashumancia: shepherds drive their sheep through the city", date: "10/-1/Sun", hours: [11, 14], sky: "day", layer: "street", draw: drawTrashumancia, parade: true, road: true, sound: "cowbells" },
         rastro: { label: "El Rastro, the Sunday flea market", days: ["Sun"], hours: [9, 15], sky: "day", layer: "street", draw: drawMarket, rastro: true },
         guard: { label: "The Changing of the Guard at the Royal Palace", days: ["Wed", "Sat"], hours: [11, 14], sky: "day", layer: "street", draw: drawGuard, parade: true },
+        xmasLightsES: { label: "The Christmas lights over the streets", on: (e) => (e.month === 10 && e.day >= 27) || e.month === 11 || (e.month === 0 && e.day <= 6), hours: [18, 0], sky: "night", layer: "front", draw: drawXmasLights },
+        vigoLights: { label: "Vigo's Christmas lights: the giant tree, the gift box and the big wheel", on: (e) => (e.month === 10 && e.day >= 14) || e.month === 11 || (e.month === 0 && e.day <= 11), hours: [18, 0], sky: "night", layer: "front", draw: drawVigoLights },
+        feria: { label: "The Feria de Abril: casetas, farolillos, sevillanas, horses and carriages", date: "E+16+5", hours: [12, 4], sky: "dusk", layer: "street", draw: drawFeria, road: true },
+        feriaFireworks: { label: "Fireworks over the Guadalquivir close the Feria", date: "E+22", at: ["00:00"], len: 20, sky: "night", layer: "back", draw: drawFireworks },
+        semanaSanta: { label: "Holy Week: nazarenos, candles and a paso carried through the streets", date: "E-7+6", hours: [17, 2], sky: "dusk", layer: "street", draw: drawProcession, parade: true, robes: [[70, 30, 100], [24, 24, 28], [240, 240, 236]] },
+        cristoVitoria: { label: "The procession of the Cristo da Vitoria", date: "08/1/Sun", at: ["19:30"], len: 180, sky: "dusk", layer: "street", draw: drawProcession, parade: true, hoods: false, float: [140, 30, 40] },
+        sanMateo: { label: "San Mateo: giants and big-heads, and the first grapes trodden", on: (e) => e.month === 8 && e.day >= sanMateoStart(e) && e.day < sanMateoStart(e) + 7, hours: [11, 21], sky: "day", layer: "street", draw: drawSanMateo, parade: true },
+        sanMateoFireworks: { label: "San Mateo's fireworks over the Ebro", on: (e) => e.month === 8 && e.day >= sanMateoStart(e) && e.day < sanMateoStart(e) + 7, at: ["23:00"], len: 20, sky: "night", layer: "back", draw: drawFireworks },
+        sanBernabe: { label: "San Bernabé: fish, bread and wine for everyone by the old wall", date: "06-11", hours: [11, 14], sky: "day", layer: "street", draw: drawSanBernabe },
+        laurel: { label: "An evening of tapas and Rioja on Calle Laurel", days: ["Thu", "Fri", "Sat", "Sun"], hours: [20, 24], sky: "dusk", layer: "street", draw: drawLaurel },
         xmasLights: { label: "The Christmas lights, and the Naviluz bus touring them", on: (e) => (e.month === 10 && e.day >= 27) || e.month === 11 || (e.month === 0 && e.day <= 6), hours: [18, 0], sky: "night", layer: "front", draw: drawXmasLights },
         solChimes: { label: "The twelve chimes from the Puerta del Sol clock", on: (e) => (e.month === 11 && e.day === 31) || (e.month === 0 && e.day === 1), at: ["23:59:45"], len: 1, testLen: 52, sky: "night", layer: "front", draw: drawSolChimes, sound: "campanadas" },
         sanIsidro: { label: "San Isidro: chulapos dance the chotis", date: "05-15", hours: [12, 22], sky: "day", layer: "street", draw: drawChotis, sound: "organillo" },
@@ -16024,7 +16348,7 @@
         "kabul-af": ["fridayKites"], "kano-ng": ["durbar"], "karachi-pk": ["camels"], "kinshasa-cd": ["sapeurs"],
         "kolkata-in": ["yellowTaxis"], "krakow-pl": ["hejnal"], "kunming-cn": ["gulls"], "kyoto-jp": ["cherryKyoto"],
         "lagos-ng": ["danfo"], "las-vegas-us": ["bellagio"], "lima-pe": ["paragliders"], "lisbon-pt": ["jacarandaJune"],
-        "london-gb": ["bigBen"], "los-angeles-us": ["parrots"], "madrid-es": ["swifts", "trashumancia", "rastro", "guard", "xmasLights", "solChimes", "sanIsidro", "pride", "retiro"], "barcelona-es": ["cotorras", "magicFountain", "santJoanFireworks", "santJoanFires", "santJordi"], "melbourne-au": ["penguins"],
+        "london-gb": ["bigBen"], "los-angeles-us": ["parrots"], "seville-es": ["feria", "feriaFireworks", "semanaSanta", "xmasLightsES"], "logrono-es": ["sanMateo", "sanMateoFireworks", "sanBernabe", "laurel", "xmasLightsES"], "vigo-es": ["vigoLights", "cristoVitoria"], "madrid-es": ["swifts", "trashumancia", "rastro", "guard", "xmasLights", "solChimes", "sanIsidro", "pride", "retiro"], "barcelona-es": ["cotorras", "magicFountain", "santJoanFireworks", "santJoanFires", "santJordi"], "melbourne-au": ["penguins"],
         "mexico-city-mx": ["jacarandaMarch", "paseoDominical"], "montreal-ca": ["feux"], "moscow-ru": ["kremlin"],
         "mumbai-in": ["flamingos"], "nairobi-ke": ["giraffes"], "new-delhi-in": ["independenceKites"], "new-york-us": ["tribute", "thanksgivingParade"],
         "osaka-jp": ["cherryKyoto"], "paris-fr": ["sparkle"], "pretoria-za": ["jacarandaSpring"], "rio-de-janeiro-br": ["hangGliders"],

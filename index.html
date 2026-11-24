@@ -18325,7 +18325,8 @@
       };
       const nativeMusic = () =>
         Boolean(window.ClockscapesAndroid?.nativeMusic?.()) ||
-        Boolean(window.AudioWorkletNode && window.WebAssembly && !music.noWasm);
+        // (an http page outside localhost has AudioWorkletNode but no audioWorklet: it plays on LOFI.Player)
+        Boolean(window.isSecureContext && window.AudioWorkletNode && window.WebAssembly && !music.noWasm);
       const musicNow = () =>
         music.engine === ANDROID_ENGINE ? performance.now() / 1000 : audioCtx.currentTime;
       // The AudioWorklet that runs the WebAssembly engine; its source goes to the worklet as text.

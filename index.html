@@ -771,6 +771,12 @@
             </fieldset>
           </div>
           <div data-panel="screen" hidden>
+            <!-- only shown inside the Android app, which provides window.ClockscapesAndroid -->
+            <fieldset id="androidBox" hidden>
+              <legend>Android</legend>
+              <p class="hint atlasHint">Put the clocks on your home and lock screen as a live wallpaper.</p>
+              <button type="button" id="setWallpaper" style="margin-bottom: 10px">SET AS WALLPAPER</button>
+            </fieldset>
             <fieldset>
               <legend>Display</legend>
               <label
@@ -849,12 +855,6 @@
                   <option value="0">Off</option>
                 </select></label
               >
-            </fieldset>
-            <!-- only shown inside the Android app, which provides window.ClockscapesAndroid -->
-            <fieldset id="androidBox" hidden>
-              <legend>Android</legend>
-              <p class="hint atlasHint">Put the clocks on your home and lock screen as a live wallpaper.</p>
-              <button type="button" id="setWallpaper">SET AS WALLPAPER</button>
             </fieldset>
           </div>
           <div data-panel="music" hidden>

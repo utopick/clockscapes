@@ -358,11 +358,6 @@
         margin: 0 -6px;
         padding: 0 6px;
       }
-      #cfg > .hint {
-        max-height: 30%;
-        overflow-y: auto;
-        flex-shrink: 0;
-      }
       #cfg h2 {
         margin: 0 0 12px;
         color: #ffd27a;
@@ -570,7 +565,6 @@
         font-size: 14px;
         text-align: left;
       }
-      html.remote #cfg > .hint,
       html.remote #cfg [data-panel]:not([data-panel="license"]) .atlasHint {
         display: none;
       }
@@ -658,7 +652,13 @@
           <button type="button" role="tab" data-tab="music" aria-selected="false" title="Lo-fi music">
             MUSIC
           </button>
-          <button type="button" role="tab" data-tab="screen" aria-selected="false" title="Screen filters">
+          <button
+            type="button"
+            role="tab"
+            data-tab="screen"
+            aria-selected="false"
+            title="Layout, clock, weather and screen"
+          >
             SCREEN
           </button>
           <button
@@ -673,6 +673,20 @@
         </div>
         <div class="pane">
           <div data-panel="license" hidden>
+            <fieldset>
+              <legend>Keys and storage</legend>
+              <p class="hint atlasHint">
+                1–4 zones. “Find” looks up coordinates and time zone for the label using Open-Meteo. Weather
+                refreshes every 10 minutes; everything is stored only in this browser (IndexedDB).<br />
+                Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>M</b> music · <b>N</b> next song ·
+                <b>Esc</b> close.<br />
+                Made by
+                <a href="https://github.com/utopick" target="_blank" rel="noopener">utopick on GitHub</a>,
+                where the
+                <a href="https://github.com/utopick/clockscapes" target="_blank" rel="noopener">code</a>
+                is too.
+              </p>
+            </fieldset>
             <fieldset>
               <legend>Weather and places</legend>
               <p class="hint atlasHint">
@@ -716,6 +730,45 @@
             </fieldset>
           </div>
           <div data-panel="screen" hidden>
+            <fieldset>
+              <legend>Display</legend>
+              <label
+                >Layout
+                <select name="layout">
+                  <option value="auto">Auto (horizontal on phones)</option>
+                  <option value="columns">Vertical: side-by-side columns</option>
+                  <option value="rows">Horizontal: stacked bands</option>
+                </select></label
+              >
+              <label
+                >Clock
+                <select name="hour12">
+                  <option value="0">24 h</option>
+                  <option value="1">12 h</option>
+                </select></label
+              >
+            </fieldset>
+            <fieldset>
+              <legend>Weather</legend>
+              <label
+                >Live weather
+                <select name="weather">
+                  <option value="1">On</option>
+                  <option value="0">Off</option>
+                </select></label
+              >
+              <label
+                >Units
+                <select name="units">
+                  <option value="metric">°C</option>
+                  <option value="imperial">°F</option>
+                </select></label
+              >
+              <p class="hint" style="margin: 0 0 10px">
+                Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No
+                API key required. With weather off, scenes still follow the local day/night cycle.
+              </p>
+            </fieldset>
             <fieldset>
               <legend>Screen</legend>
               <p class="hint atlasHint">
@@ -883,45 +936,6 @@
           </div>
           <div data-panel="clocks">
             <fieldset>
-              <legend>Display</legend>
-              <label
-                >Layout
-                <select name="layout">
-                  <option value="auto">Auto (horizontal on phones)</option>
-                  <option value="columns">Vertical: side-by-side columns</option>
-                  <option value="rows">Horizontal: stacked bands</option>
-                </select></label
-              >
-              <label
-                >Clock
-                <select name="hour12">
-                  <option value="0">24 h</option>
-                  <option value="1">12 h</option>
-                </select></label
-              >
-            </fieldset>
-            <fieldset>
-              <legend>Weather</legend>
-              <label
-                >Live weather
-                <select name="weather">
-                  <option value="1">On</option>
-                  <option value="0">Off</option>
-                </select></label
-              >
-              <label
-                >Units
-                <select name="units">
-                  <option value="metric">°C</option>
-                  <option value="imperial">°F</option>
-                </select></label
-              >
-              <p class="hint" style="margin: 0 0 10px">
-                Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No
-                API key required. With weather off, scenes still follow the local day/night cycle.
-              </p>
-            </fieldset>
-            <fieldset>
               <legend>Zones (1–4)</legend>
               <p class="hint atlasHint">
                 Choose a country, then a city, to set its coordinates, time zone and artwork. Cities without a
@@ -938,15 +952,6 @@
           <button type="button" id="cancel">CANCEL</button>
           <button type="submit">SAVE</button>
         </div>
-        <p class="hint">
-          1–4 zones. “Find” looks up coordinates and time zone for the label using Open-Meteo. Weather
-          refreshes every 10 minutes; everything is stored only in this browser (IndexedDB).<br />
-          Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>M</b> music · <b>N</b> next song ·
-          <b>Esc</b> close.<br />
-          Made by <a href="https://github.com/utopick" target="_blank" rel="noopener">utopick on GitHub</a>,
-          where the <a href="https://github.com/utopick/clockscapes" target="_blank" rel="noopener">code</a>
-          is too.
-        </p>
       </form>
     </div>
     <datalist id="tzlist"></datalist>

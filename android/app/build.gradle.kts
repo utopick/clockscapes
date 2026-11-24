@@ -34,7 +34,7 @@ val buildLofi by tasks.registering {
             val lib = out.get().dir(abi).asFile.apply { mkdirs() }.resolve("liblofi.so")
             val cmd = listOf(
                 clang.path, "--target=$target", "-O2", "-shared", "-fPIC", "-s", "-Wall",
-                "-Wl,-z,max-page-size=16384", "-o", lib.path, src.path, "-lm",
+                "-Wl,-z,max-page-size=16384", "-o", lib.path, src.path, "-lm", "-llog",
             )
             val p = ProcessBuilder(cmd).redirectErrorStream(true).start()
             val log = p.inputStream.bufferedReader().readText()

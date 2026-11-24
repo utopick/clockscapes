@@ -19,6 +19,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __ANDROID__
+#include <android/log.h> // "adb logcat -s lofi" shows the samples as they load
+#endif
 
 #define BLK 8      // parameters (envelopes, sweeps) are worked out every 8 samples
 #define MAXV 256   // voices sounding at once, over all songs
@@ -97,7 +100,7 @@ static inline float bq(Bq *f, float x) {
 }
 
 // ---- sources ----
-enum { SINE, TRI, SAW, SQR, NOISE };
+enum { SINE, TRI, SAW, SQR, NOISE, SMP };
 static float sintab[TAB + 1], *noise, *vinyl;
 static int NN, NV; // lengths of the noise (2 s) and vinyl (4 s) buffers
 static uint32_t seed = 2463534242u;
@@ -116,7 +119,7 @@ static inline float blep(float t, float dt) { // smooths a jump, so saws and squ
   return 0;
 }
 
-typedef struct { uint8_t wave; float ratio, cents, ph; int pos; Param gain; } Src;
+typedef struct { uint8_t wave, smp; float ratio, cents, ph; int pos; Param gain; } Src;
 typedef struct { uint8_t type; float q; Param f; Bq b; } Flt;
 typedef struct {
   uint8_t on, song, dest, nsrc, nflt, par, nowob, fm;
@@ -277,6 +280,33 @@ static Voice *duo(Ctx c, int dest, int wave, float f, double t, double end, floa
   return v;
 }
 
+// ---- the sampled instruments: the page sends them with a song ("@smp" lines, from script#lofi-samples) ----
+typedef struct { char name[12]; float root; int a, b, n; float *pcm; } Smp; // a, b: the loop (0 0 for none)
+static Smp SM[16];
+static int nsm;
+#define GAITA 0.85f
+#define SPANISH 2.0f
+static float ulaw(int u) { // G.711 mu-law to -1..1, as the page's ULAW
+  u = ~u & 0xFF;
+  int x = (((u & 0x0F) << 3) + 0x84) << ((u >> 4) & 7);
+  return (u & 0x80 ? 0x84 - x : x - 0x84) / 32768.0f;
+}
+// Player.sample: the note nearest n, played faster or slower, looped while held. 0 when there is none.
+static int sampler(Ctx c, const char *name, float n, double t, float dur, float vel, float attack, float tail) {
+  int best = -1;
+  for (int i = 0; i < nsm; i++)
+    if (!strcmp(SM[i].name, name) && (best < 0 || fabsf(SM[i].root - n) < fabsf(SM[best].root - n))) best = i;
+  if (best < 0) return 0;
+  Voice *v = nv(c.k, TONE, t, t + dur + tail * 8);
+  if (!v) return 1;
+  v->freq.v0 = hz(n);
+  src(v, 0, SMP, 11025 / hz(SM[best].root))->smp = (uint8_t)best;
+  pev(&v->out, SET, t, 0, 0);
+  pev(&v->out, LIN, t + attack, vel, 0);
+  pev(&v->out, TGT, t + dur, 0, tail);
+  return 1;
+}
+
 static void play(Ctx c, const Ev *e) {
   const char *m = e->name;
   const float *a = e->a;
@@ -392,7 +422,11 @@ static void play(Ctx c, const Ev *e) {
   else if (IS("bowed")) wind(c, n, t, dur, vel * 0.9f, SAW, 1400, 1.2f, 0.12f, 40, 22, 0);
   else if (IS("reed")) wind(c, n, t, dur, vel * 0.7f, SQR, 1900, 2.5f, 0.03f, 25, 12, 0);
   else if (IS("sax")) wind(c, n - 12, t, dur, vel * 0.9f, SAW, 1000, 0.9f, 0.04f, 30, 15, 0.01f);
-  else if (IS("pipes")) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
+  else if (IS("gaita")) {
+    if (!sampler(c, "gaita", n, t, dur, vel * GAITA, 0.02f, 0.06f)) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
+  } else if (IS("spanish")) {
+    if (!sampler(c, "spanish", n, t, dur + 0.4f, vel * SPANISH, 0.003f, 0.15f)) plk(c, n, t, vel * 1.4f, SAW, 2200, 0.6f);
+  } else if (IS("pipes")) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
   else if (IS("fife")) wind(c, n, t, dur, vel * 0.8f, TRI, 0, 0, 0.02f, 0, 10, 0.015f);
   else if (IS("shaku")) wind(c, n, t, dur, vel * 0.9f, SINE, 0, 0, 0.1f, 60, 15, 0.03f);
   else if (IS("drone")) wind(c, n, t, dur, vel, SAW, 700, 0.8f, 0.3f, 0, 0, 0);
@@ -614,10 +648,17 @@ static void voiceBlock(Voice *v, Song *s, double T) {
             y = (sr->ph < 0.5f ? 1 : -1) + blep(sr->ph, adt) - blep(p, adt);
             break;
           }
+          case SMP: { // ph counts the sample's own samples; past its end it is silent
+            const Smp *m = &SM[sr->smp];
+            int j = (int)sr->ph, k = m->b && j + 1 >= m->b ? m->a : j + 1;
+            y = j + 1 < m->n ? m->pcm[j] + (m->pcm[k] - m->pcm[j]) * (sr->ph - j) : 0;
+            break;
+          }
           default: y = noise[sr->pos], sr->pos = (sr->pos + 1) % NN;
         }
         sr->ph += dt;
-        sr->ph -= floorf(sr->ph); // into 0..1 either way
+        if (sr->wave != SMP) sr->ph -= floorf(sr->ph); // into 0..1 either way
+        else if (SM[sr->smp].b && sr->ph >= SM[sr->smp].b) sr->ph -= SM[sr->smp].b - SM[sr->smp].a;
         x += y * (g0[k] + (g1[k] - g0[k]) * fr);
       }
       if (v->par) x = bq(&v->flt[0].b, x) + bq(&v->flt[1].b, x);
@@ -692,7 +733,7 @@ static const char *NOTES[] = {"keys", "bell", "kalimba", "flute", "felt", "vibes
                               "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub",
                               "bowed", "reed", "sax", "pipes", "fife", "shaku", "drone", "plucked", "zither", "riff",
                               "brass", "strings", "timpani", "accordion", "guitarra", "vox", "twang", "steel",
-                              "santur", "throat", "piano"};
+                              "santur", "throat", "piano", "gaita", "spanish"};
 static int byTime(const void *a, const void *b) {
   double d = ((const Ev *)a)->t - ((const Ev *)b)->t;
   return d < 0 ? -1 : d > 0;
@@ -703,6 +744,41 @@ static void addBed(Song *s, int buf, int fader, int type, float freq, float gain
   b->hz = swell ? 1 / (period * (0.8f + rnd() * 0.4f)) : 0;
   b->pos = (int)(rnd() * 2 * SR) % (buf ? NV : NN);
   bqset(&b->f, type, freq, 1);
+}
+
+static int b64(int ch) {
+  return ch >= 'A' && ch <= 'Z' ? ch - 'A' : ch >= 'a' && ch <= 'z' ? ch - 'a' + 26 : ch >= '0' && ch <= '9' ? ch - '0' + 52
+       : ch == '+' ? 62 : ch == '/' ? 63 : -1;
+}
+// "@smp name root loopStart loopEnd base64": one recorded note, decoded the first time and kept for good
+static void loadSample(const char *p) {
+  Smp m = {0};
+  int k = 0;
+  if (sscanf(p, "%11s %f %d %d %n", m.name, &m.root, &m.a, &m.b, &k) < 4 || !k) return;
+  pthread_mutex_lock(&lock);
+  int have = nsm == 16;
+  for (int i = 0; i < nsm; i++) have |= !strcmp(SM[i].name, m.name) && SM[i].root == m.root;
+  pthread_mutex_unlock(&lock);
+  if (have) return;
+  p += k;
+  size_t len = strcspn(p, "\n");
+  if (!(m.pcm = malloc((len / 4 * 3 + 3) * sizeof(float)))) return;
+  unsigned acc = 0;
+  for (size_t i = 0, bits = 0; i < len; i++) {
+    int d = b64((unsigned char)p[i]);
+    if (d < 0) continue;
+    acc = acc << 6 | d, bits += 6;
+    if (bits >= 8) bits -= 8, m.pcm[m.n++] = ulaw(acc >> bits & 0xFF);
+  }
+  if (m.b > m.n || m.a >= m.b) m.a = m.b = 0;
+  // filled in before it is counted: the audio thread only reads the first nsm
+  pthread_mutex_lock(&lock);
+  if (nsm < 16) SM[nsm++] = m;
+  else free(m.pcm);
+  pthread_mutex_unlock(&lock);
+#ifdef __ANDROID__
+  __android_log_print(ANDROID_LOG_INFO, "lofi", "sample %s %.2f: %d samples", m.name, m.root, m.n);
+#endif
 }
 
 /*
@@ -731,6 +807,10 @@ void lofi_start(int id, const char *text, float delay, float fade) {
     int n = 0;
     if (sscanf(p, "%11s%n", e.name, &n) != 1) break;
     p += n;
+    if (e.name[0] == '@') { // a sample the song uses, before its voice calls
+      if (!strcmp(e.name, "@smp")) loadSample(p);
+      continue;
+    }
     for (int i = 0; i < 4; i++) {
       while (*p == ' ') p++;
       if (*p == '\n' || !*p) break;

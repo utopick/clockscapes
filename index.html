@@ -1376,10 +1376,13 @@
             grace: true,
             drone: "drone",
             meter: "6/8",
-            bpm: [66, 76],
+            // after "O son do ar" (the feel, not the tune): a slow air, a harp's arpeggios under the gaita, the
+            // bombo on the strong beats and only a soft tamboril, no rolls
+            bpm: [56, 64],
             swing: 0,
-            band: { drums: "gaita", loops: ["muineira"], echo: [0.3, 4, 0.4], level: 1.2 },
-            perc: { tamboril: "..x...f...x...xr" },
+            strum: ["zither", "a.......a......."],
+            band: { drums: "gaita", loops: ["muineira"], echo: [0.35, 4, 0.5], level: 1.1 },
+            perc: { tamboril: "........x......." },
           },
           // the Andalusian cadence (Am G F E over E) strummed on a guitar, with palmas and castanets
           flamenco: {
@@ -1409,8 +1412,11 @@
             },
           },
           // Berlin and Detroit: four on the floor, off-beat hats and a riff whose filter opens and closes
+          // after Kraftwerk's "Computer Love" (the sound, not the tune): minor seventh chords on a warm pad, a
+          // sequencer's steady eighths up and down the chord, a clean bell-like synth on a slow tune
           techno: {
-            colour: "sus",
+            modes: ["aeolian"],
+            colour: "seventh",
             bpm: [84, 90],
             band: {
               chords: "pad",
@@ -1424,14 +1430,16 @@
             },
             ostinato: {
               voice: "riff",
-              base: 60,
+              follow: true, // x is a note of the bar's chord (0 its lowest), an octave down
               bars: Array(4).fill([
                 [0, 0, 1],
-                [3, 12, 1],
-                [6, 7, 1],
-                [8, 0, 1],
-                [10, 10, 1],
-                [14, 7, 1],
+                [2, 1, 1],
+                [4, 2, 1],
+                [6, 3, 1],
+                [8, 4, 1],
+                [10, 3, 1],
+                [12, 2, 1],
+                [14, 1, 1],
               ]),
             },
           },
@@ -1538,17 +1546,19 @@
               [2, 5, 9],
               [7, 11, 14],
             ],
-            bpm: [64, 78],
-            swing: 0.25,
-            leads: ["steel", "bowed"],
-            strum: ["twang", "....x.......x..."],
+            // after the Eagles' "Lyin' Eyes" (the feel, not the song): an easy country-rock ballad, a steady
+            // acoustic strum, a soft piano under it, a clean pedal steel on the tune, brushes on two and four
+            bpm: [62, 72],
+            swing: 0.1,
+            leads: ["steel"],
+            strum: ["spanish", "x...x.x.x...x.x."],
             band: {
-              chords: "guitar",
-              leads: ["steel", "bowed"],
+              chords: "felt",
+              leads: ["steel"],
               bass: "upright",
               drums: "brush",
-              loops: ["train"],
-              hits: [0, 8],
+              loops: ["lazy"],
+              hits: [0],
               echo: [0.2, 3, 0.3],
               level: 1,
             },
@@ -2285,8 +2295,9 @@
             perc: style.perc || {},
             meter: style.meter || "",
             ostinato: o
-              ? o.bars.map((bar) => bar.map(([step, x, len]) => [step, o.base + key + x, len]))
+              ? o.bars.map((bar) => bar.map(([step, x, len]) => [step, o.follow ? x : o.base + key + x, len]))
               : null,
+            ostinatoFollow: Boolean(o?.follow),
             ostinatoVoice: o?.voice || "",
             ostinatoDouble: o?.double || "",
             fanfare: style.fanfare || null,
@@ -2682,9 +2693,11 @@
                   // a roll: four quick strokes that grow into the next section
                   for (let k = 0; k < 4; k++) this[drum](lt + (k * sd) / 6, (0.2 + k * 0.08) * human());
             if (s.ostinato && has("bass"))
-              for (const [ms, n, len] of s.ostinato[bar % 4])
+              for (const [ms, x, len] of s.ostinato[bar % 4])
                 // the riff's filter opens and closes over eight bars (its brightness follows the velocity)
                 if (ms === i) {
+                  const keys = [...chord.keys].sort((a, b) => a - b),
+                    n = s.ostinatoFollow ? keys[x % keys.length] + 12 * Math.floor(x / keys.length) - 12 : x;
                   this[s.ostinatoVoice](n, t, sd * len, 0.07 + 0.03 * Math.sin((bar * Math.PI) / 4));
                   if (s.ostinatoDouble) this[s.ostinatoDouble](n, t, sd * len, 0.06);
                 }

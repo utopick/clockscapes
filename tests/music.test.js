@@ -276,7 +276,7 @@ test("a Celtic song is modal, with a drone, cuts, a lilt and pipes or a whistle"
   assert.ok(modes.has("dorian") && modes.has("mixolydian"), [...modes]);
 });
 
-test("Galicia is a gaita band playing a muiñeira in a real 6/8, with bombo and tamboril", () => {
+test("Galicia is a slow gaita air in a real 6/8, with a harp, the bombo and a soft tamboril", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "galicia" });
     assert.ok(["mixolydian", "major"].includes(s.mode) && s.voices.lead === "gaita", s.mode);
@@ -284,6 +284,7 @@ test("Galicia is a gaita band playing a muiñeira in a real 6/8, with bombo and 
     const score = LOFI.score(s),
       at = (name) => score.filter(([n]) => n === name).map(([, t]) => t);
     assert.ok(at("bombo").length > 0 && at("tamboril").length > 0, "bombo and tamboril");
+    assert.ok(s.bpm <= 64 && s.strum[0] === "zither", "slow, with a harp");
     // every bombo hit falls on a dotted beat, many tamboril strokes on its eighths (thirds of the beat),
     // and none where a 4/4 bar's sixteenths would be (a quarter of the beat, three quarters); the
     // tamboril sits 12 ms behind the beat
@@ -344,13 +345,13 @@ test("bossa nova is a nylon guitar on the bossa rhythm with ninth chords, 64 to 
   }
 });
 
-test("lo-fi country goes I IV V I and IV I ii V, with a steel or a fiddle and a twangy backbeat", () => {
+test("lo-fi country goes I IV V I and IV I ii V, a pedal steel over an acoustic strum and brushes", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "country" }),
       roots = (ch) => ch.map((c) => (c.root - s.key + 120) % 12).join(" ");
     assert.strictEqual(roots(s.chords), "0 5 7 0");
     assert.strictEqual(roots(s.chordsB), "5 0 2 7");
-    assert.ok(["steel", "bowed"].includes(s.voices.lead) && s.strum[0] === "twang" && s.loop === "train");
+    assert.ok(s.voices.lead === "steel" && s.strum[0] === "spanish" && s.loop === "lazy");
   }
 });
 

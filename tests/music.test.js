@@ -414,11 +414,11 @@ test("the native engine plays every voice of the regional styles and the kaiju s
 
 // The sampled instruments (script#lofi-samples): the page hands them to the native engine with each song
 // ("@smp" lines), and the engine plays the recorded note nearest each one at the right pitch.
-test("the native engine plays the page's recorded bagpipe and guitar in tune, with the synth as a fallback", () => {
+test("the native engine plays the page's recorded bagpipe, guitar and piano in tune, with the synth as a fallback", () => {
   const json = html.match(/<script id="lofi-samples"[^>]*>([\s\S]*?)<\/script>/)[1],
     S = vm.runInNewContext(code + "\nLOFI", { document: { getElementById: () => ({ textContent: json }) } }),
     bank = JSON.parse(json);
-  assert.deepStrictEqual(Object.keys(bank).sort(), ["gaita", "spanish"]);
+  assert.deepStrictEqual(Object.keys(bank).sort(), ["gaita", "grand", "spanish"]);
   for (const notes of Object.values(bank))
     for (const [root, a, b, data] of notes)
       assert.ok(root > 40 && root < 90 && a <= b && b <= (data.length / 4) * 3, `${root} ${a} ${b}`);
@@ -460,6 +460,7 @@ test("the native engine plays the page's recorded bagpipe and guitar in tune, wi
   for (const [voice, n, hz] of [
     ["gaita", 69, 440],
     ["spanish", 57, 220],
+    ["grand", 64, 329.6],
   ]) {
     const call = `${voice} ${n} 0.1 2 0.1`,
       sampled = render([head, ...S.sampleLines(new Set([voice])), call].join("\n"), 1.2),
@@ -471,6 +472,14 @@ test("the native engine plays the page's recorded bagpipe and guitar in tune, wi
     assert.ok(diff > 100, `${voice}: the recorded note was not used (${diff})`);
     assert.ok(sampled.every((x) => Number.isFinite(x) && Math.abs(x) < 1));
   }
+  // a piano note rings to its own end, however short the key is held
+  const tailOf = (len) => {
+    const x = render([head, ...S.sampleLines(new Set(["grand"])), `grand 64 0.1 ${len} 0.1`].join("\n"), 1.2);
+    let e = 0;
+    for (let i = 0.8 * 48000; i < 1.1 * 48000; i++) e += x[i] * x[i];
+    return e;
+  };
+  assert.ok(tailOf(0.1) > 0.9 * tailOf(2), "a short piano note is cut off");
 });
 
 test("the parts don't rub: held notes a half step apart are rare in every style (the kaiju song excepted)", () => {
@@ -510,4 +519,38 @@ test("the parts don't rub: held notes a half step apart are rare in every style 
       `${style || "plain"}: ${((rub / time) * 60).toFixed(1)} s of rubs a minute`,
     );
   }
+});
+
+// The reverb: lofi.c's feedback delay network, and the same network's impulse response for the Player's convolver.
+test("the reverb rings for a couple of seconds and dies away, in both engines", () => {
+  const fake = {
+    sampleRate: 48000,
+    createBuffer: (ch, n) => ({ data: new Float32Array(n), getChannelData() { return this.data; } }),
+  };
+  const ir = LOFI.reverbIR(fake).data,
+    energy = (x, a, b) => x.subarray(a * 48000, b * 48000).reduce((e, v) => e + v * v, 0);
+  assert.ok(ir.every(Number.isFinite));
+  // about 60 dB in 3.2 s: the second second is some 12 to 28 dB under the first
+  const drop = 10 * Math.log10(energy(ir, 0, 1) / energy(ir, 1, 2));
+  assert.ok(drop > 12 && drop < 28, `${drop} dB`);
+  assert.ok(energy(ir, 3, 4) < energy(ir, 0, 1) * 1e-4);
+  // lofi.c: a short note leaves a tail that dies away
+  const wasm = Buffer.from(html.match(/<script id="lofi-wasm"[^>]*>([\s\S]*?)<\/script>/)[1], "base64"),
+    c = new WebAssembly.Instance(new WebAssembly.Module(wasm), { env: { emscripten_notify_memory_growth() {} } })
+      .exports;
+  c._initialize();
+  c.lofi_init(48000);
+  c.lofi_volume(1);
+  const text = Buffer.from("80 20000 1 0 3 0 0 0.5 0 0 0 0 0 0 4\nflute 72 0.1 0.3 0.1\0", "latin1"),
+    p = c.malloc(text.length);
+  new Uint8Array(c.memory.buffer, p, text.length).set(text);
+  c.lofi_start(1, p, 0, 0.01);
+  const o = c.malloc(512),
+    x = new Float32Array(4 * 48000);
+  for (let i = 0; i < x.length; i += 128) {
+    c.lofi_render(o, 128);
+    x.set(new Float32Array(c.memory.buffer, o, 128), i);
+  }
+  assert.ok(energy(x, 1, 1.5) > energy(x, 0, 0.5) * 1e-3, "no reverb tail after the note");
+  assert.ok(energy(x, 3.5, 4) < energy(x, 1, 1.5) * 0.05, "the tail does not die away");
 });

@@ -141,10 +141,20 @@ typedef struct {
   Ev *ev;
   Bq tape, muffle, dark;
   float *dl;
+  float rv[8][4096], rvg[8]; // the reverb's delay lines (Player's RV_MS) and their feedback gains
+  int rvl[8], rvp[8];
+  Bq rvf[8];
   int dlen, dpos;
   Bed bed[6];
   float tone[BLK], bus[BLK], amb[BLK], direct[BLK];
 } Song;
+
+// the reverb, as the Player's RV_* in index.html
+static const float RV_MS[8] = {31.7f, 37.3f, 41.9f, 47.1f, 53.3f, 59.9f, 67.1f, 73.7f};
+#define RV_TIME 3.2f
+#define RV_DAMP 2000
+#define RV_SEND 0.4f
+#define RV_OUT 0.4f
 
 static Voice V[MAXV];
 static Song *S[MAXS];
@@ -286,13 +296,14 @@ static Smp SM[16];
 static int nsm;
 #define GAITA 0.85f
 #define SPANISH 2.0f
+#define GRAND 1.6f
 static float ulaw(int u) { // G.711 mu-law to -1..1, as the page's ULAW
   u = ~u & 0xFF;
   int x = (((u & 0x0F) << 3) + 0x84) << ((u >> 4) & 7);
   return (u & 0x80 ? 0x84 - x : x - 0x84) / 32768.0f;
 }
 // Player.sample: the note nearest n, played faster or slower, looped while held. 0 when there is none.
-static int sampler(Ctx c, const char *name, float n, double t, float dur, float vel, float attack, float tail) {
+static int sampler(Ctx c, const char *name, float n, double t, float dur, float vel, float attack, float tail, float lp) {
   int best = -1;
   for (int i = 0; i < nsm; i++)
     if (!strcmp(SM[i].name, name) && (best < 0 || fabsf(SM[i].root - n) < fabsf(SM[best].root - n))) best = i;
@@ -301,6 +312,7 @@ static int sampler(Ctx c, const char *name, float n, double t, float dur, float 
   if (!v) return 1;
   v->freq.v0 = hz(n);
   src(v, 0, SMP, 11025 / hz(SM[best].root))->smp = (uint8_t)best;
+  if (lp) flt(v, LP, lp, 0);
   pev(&v->out, SET, t, 0, 0);
   pev(&v->out, LIN, t + attack, vel, 0);
   pev(&v->out, TGT, t + dur, 0, tail);
@@ -316,16 +328,12 @@ static void play(Ctx c, const Ev *e) {
   Voice *v;
 #define IS(s) !strcmp(m, s)
   if (IS("keys")) fmv(c, n, t, dur, vel, 1, 1.8f, 0.12f);
-  else if (IS("bell")) fmv(c, n, t, fminf(dur, 0.6f), vel * 0.8f, 3.5f, 2.5f, 0.05f);
-  else if (IS("kalimba")) fmv(c, n, t, fminf(dur, 0.5f), vel * 1.1f, 5.4f, 1.2f, 0.02f);
-  else if (IS("flute")) {
-    if (!(v = nv(c.k, TONE, t, t + dur + 0.6))) return;
-    v->freq.v0 = hz(n);
-    src(v, 0, SINE, 1);
-    pev(&v->out, SET, t, 0, 0);
-    pev(&v->out, LIN, t + 0.08, vel * 0.8f, 0);
-    pev(&v->out, TGT, t + dur, 0, 0.08f);
-  } else if (IS("felt")) {
+  else if (IS("bell")) fmv(c, n - 12, t, fminf(dur, 0.6f), vel * 0.8f, 3.5f, 1.2f, 0.05f);
+  else if (IS("kalimba")) fmv(c, n, t, fminf(dur, 0.5f), vel * 1.1f, 5.4f, 0.7f, 0.02f);
+  else if (IS("flute")) wind(c, n - 12, t, dur, vel * 0.9f, SINE, 0, 0, 0.15f, 25, 10, 0.006f);
+  // the recorded piano rings to its own end; without samples it is the felt piano
+  else if (IS("grand") && sampler(c, "grand", n, t, 2.2f, vel * GRAND, 0.004f, 0.3f, 1600)) {
+  } else if (IS("felt") || IS("grand")) {
     if (!(v = nv(c.k, TONE, t, t + dur + 2.5))) return;
     v->freq.v0 = hz(n);
     src(v, 0, TRI, 1);
@@ -336,19 +344,19 @@ static void play(Ctx c, const Ev *e) {
     if (!(v = nv(c.k, TONE, t, t + dur + 2.5))) return;
     v->freq.v0 = hz(n);
     src(v, 0, SINE, 1);
-    env(&src(v, 1, SINE, 4)->gain, t, 0.3f, 0.002f, 0.25f);
+    env(&src(v, 1, SINE, 4)->gain, t, 0.12f, 0.002f, 0.25f);
     v->tremHz = 4.5f, v->tremD = 0.25f;
     env(&v->out, t, vel * 1.1f, 0.003f, dur + 1.8f);
   } else if (IS("horn")) {
     if (!(v = nv(c.k, TONE, t, t + dur + 0.5))) return;
-    v->freq.v0 = hz(n);
+    v->freq.v0 = hz(n - 12);
     src(v, 0, SAW, 1);
     pev(&v->det, SET, t, -40, 0);
     pev(&v->det, LIN, t + 0.06, 0, 0);
-    flt(v, BP, 1300, 2.5f);
+    flt(v, BP, 900, 2.5f);
     pev(&v->out, SET, t, 0, 0);
-    pev(&v->out, LIN, t + 0.05, vel, 0);
-    pev(&v->out, TGT, t + 0.05, vel * 0.6f, 0.2f);
+    pev(&v->out, LIN, t + 0.08, vel, 0);
+    pev(&v->out, TGT, t + 0.08, vel * 0.6f, 0.2f);
     pev(&v->out, TGT, t + dur, 0, 0.06f);
   } else if (IS("pad")) {
     if (!(v = nv(c.k, TONE, t, t + dur + 2.5))) return;
@@ -377,14 +385,14 @@ static void play(Ctx c, const Ev *e) {
     env(&v->out, t, vel * 0.55f, 0.005f, dur + 0.6f);
   } else if (IS("musicbox")) {
     if (!(v = nv(c.k, TONE, t, t + 2))) return;
-    v->freq.v0 = hz(n + 12);
+    v->freq.v0 = hz(n);
     env(&src(v, 0, SINE, 1)->gain, t, vel * 0.8f, 0.002f, 1.2f);
-    env(&src(v, 1, SINE, 3)->gain, t, vel * 0.15f, 0.001f, 0.15f);
+    env(&src(v, 1, SINE, 3)->gain, t, vel * 0.06f, 0.001f, 0.15f);
   } else if (IS("marimba")) {
     if (!(v = nv(c.k, TONE, t, t + 1))) return;
     v->freq.v0 = hz(n);
     env(&src(v, 0, SINE, 1)->gain, t, vel * 1.2f, 0.002f, 0.5f);
-    env(&src(v, 1, SINE, 4)->gain, t, vel * 0.3f, 0.001f, 0.06f);
+    env(&src(v, 1, SINE, 4)->gain, t, vel * 0.12f, 0.001f, 0.06f);
   } else if (IS("guitar")) {
     if (!(v = nv(c.k, TONE, t, t + dur + 1))) return;
     v->freq.v0 = hz(n);
@@ -392,21 +400,8 @@ static void play(Ctx c, const Ev *e) {
     env(&src(v, 1, SAW, 1)->gain, t, 0.25f, 0.002f, 0.3f);
     sweep(v, t, 1600, hz(n) * 2, 0.15f, 0.8f);
     env(&v->out, t, vel * 1.2f, 0.003f, fminf(dur, 0.8f) + 0.4f);
-  } else if (IS("whistle")) {
-    float f = hz(n + 12);
-    if (!(v = nv(c.k, TONE, t, t + dur + 0.5))) return;
-    v->freq.v0 = f;
-    src(v, 0, SINE, 1);
-    pev(&v->det, SET, t, -30, 0);
-    pev(&v->det, LIN, t + 0.05, 0, 0);
-    v->vibHz = 5.5f;
-    pev(&v->vib, SET, t, 0, 0);
-    pev(&v->vib, LIN, t + fminf(dur, 0.6f), 18, 0);
-    pev(&v->out, SET, t, 0, 0);
-    pev(&v->out, LIN, t + 0.05, vel * 0.45f, 0);
-    pev(&v->out, TGT, t + dur, 0, 0.06f);
-    hit(c, t, fminf(dur, 0.4f), BP, f * 2, 0.012f, 0.002f);
-  } else if (IS("pluck")) plk(c, n, t, vel * 0.9f, SQR, 3000, 0.3f);
+  } else if (IS("whistle")) wind(c, n - 12, t, dur, vel * 0.6f, SINE, 0, 0, 0.12f, 40, 16, 0.006f);
+  else if (IS("pluck")) plk(c, n - 12, t, vel * 0.9f, SQR, 1400, 0.3f);
   else if (IS("nylon")) plk(c, n, t, vel * 1.4f, SAW, 2200, 0.6f);
   else if (IS("upright") || IS("bass") || IS("sub")) { // (note, time, length)
     int up = IS("upright"), sub = IS("sub");
@@ -420,14 +415,14 @@ static void play(Ctx c, const Ev *e) {
   }
   // the voices of regional styles and of the kaiju song
   else if (IS("bowed")) wind(c, n, t, dur, vel * 0.9f, SAW, 1400, 1.2f, 0.12f, 40, 22, 0);
-  else if (IS("reed")) wind(c, n, t, dur, vel * 0.7f, SQR, 1900, 2.5f, 0.03f, 25, 12, 0);
+  else if (IS("reed")) wind(c, n, t, dur, vel * 0.7f, SQR, 1300, 2.5f, 0.06f, 25, 12, 0);
   else if (IS("sax")) wind(c, n - 12, t, dur, vel * 0.9f, SAW, 1000, 0.9f, 0.04f, 30, 15, 0.01f);
   else if (IS("gaita")) {
-    if (!sampler(c, "gaita", n, t, dur, vel * GAITA, 0.02f, 0.06f)) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
+    if (!sampler(c, "gaita", n, t, dur, vel * GAITA, 0.02f, 0.06f, 0)) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
   } else if (IS("spanish")) {
-    if (!sampler(c, "spanish", n, t, dur + 0.4f, vel * SPANISH, 0.003f, 0.15f)) plk(c, n, t, vel * 1.4f, SAW, 2200, 0.6f);
+    if (!sampler(c, "spanish", n, t, dur + 0.4f, vel * SPANISH, 0.003f, 0.15f, 0)) plk(c, n, t, vel * 1.4f, SAW, 2200, 0.6f);
   } else if (IS("pipes")) wind(c, n, t, dur, vel * 0.9f, SAW, 1600, 1.8f, 0.01f, 0, 0, 0);
-  else if (IS("fife")) wind(c, n, t, dur, vel * 0.8f, TRI, 0, 0, 0.02f, 0, 10, 0.015f);
+  else if (IS("fife")) wind(c, n, t, dur, vel * 0.8f, TRI, 0, 0, 0.07f, 0, 10, 0.01f);
   else if (IS("shaku")) wind(c, n, t, dur, vel * 0.9f, SINE, 0, 0, 0.1f, 60, 15, 0.03f);
   else if (IS("drone")) wind(c, n, t, dur, vel, SAW, 700, 0.8f, 0.3f, 0, 0, 0);
   else if (IS("plucked")) plk(c, n, t, vel * 1.3f, SAW, 2600, 0.45f);
@@ -449,7 +444,7 @@ static void play(Ctx c, const Ev *e) {
     pev(&v->out, TGT, t + dur, 0, 0.08f);
   } else if (IS("accordion")) {
     if (!(v = duo(c, TONE, SQR, hz(n), t, t + dur + 0.6, 12))) return;
-    flt(v, LP, 1800, 0.7f);
+    flt(v, LP, 1300, 0.7f);
     pev(&v->out, SET, t, 0, 0);
     pev(&v->out, LIN, t + 0.03, vel * 0.4f, 0);
     pev(&v->out, TGT, t + dur, 0, 0.08f);
@@ -458,7 +453,7 @@ static void play(Ctx c, const Ev *e) {
     if (!(v = nv(c.k, TONE, t, t + ring + 0.6))) return;
     v->freq.v0 = hz(n);
     src(v, 0, SAW, 1);
-    sweep(v, t, 5000, hz(n) * 3, 0.15f, 1);
+    sweep(v, t, 2800, hz(n) * 3, 0.15f, 1);
     v->tremHz = 11, v->tremD = 0.45f;
     env(&v->out, t, vel * 2.2f, 0.002f, ring + 0.3f);
   } else if (IS("vox")) {
@@ -705,7 +700,11 @@ static void songBlock(int k, Song *s, double T, float *out) {
     float back = bq(&s->dark, s->dl[(s->dpos + 2 * (int)SR - s->dlen) % (2 * (int)SR)]);
     s->dl[s->dpos] = s->send * s->tone[i] + s->fb * back;
     s->dpos = (s->dpos + 1) % (2 * (int)SR);
-    float bus = (s->bus[i] + s->tone[i] + back) * 0.8f * s->level;
+    // the reverb: eight lines, each darkened and turned down, mixed into all the others (Householder)
+    float rin = RV_SEND * s->tone[i], sum = 0, ry[8];
+    for (int k = 0; k < 8; k++) ry[k] = bq(&s->rvf[k], s->rv[k][s->rvp[k]]) * s->rvg[k], sum += ry[k];
+    for (int k = 0; k < 8; k++) s->rv[k][s->rvp[k]] = rin + ry[k] - 0.25f * sum, s->rvp[k] = (s->rvp[k] + 1) % s->rvl[k];
+    float bus = (s->bus[i] + s->tone[i] + back + RV_OUT * sum) * 0.8f * s->level;
     float y = bq(&s->tape, shape(bus)) * 0.8f + bq(&s->muffle, s->amb[i]) + s->direct[i];
     out[i] += y * (f0 + (f1 - f0) * (float)i / BLK);
   }
@@ -733,7 +732,7 @@ static const char *NOTES[] = {"keys", "bell", "kalimba", "flute", "felt", "vibes
                               "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub",
                               "bowed", "reed", "sax", "pipes", "fife", "shaku", "drone", "plucked", "zither", "riff",
                               "brass", "strings", "timpani", "accordion", "guitarra", "vox", "twang", "steel",
-                              "santur", "throat", "piano", "gaita", "spanish"};
+                              "santur", "throat", "piano", "gaita", "spanish", "grand"};
 static int byTime(const void *a, const void *b) {
   double d = ((const Ev *)a)->t - ((const Ev *)b)->t;
   return d < 0 ? -1 : d > 0;
@@ -826,6 +825,12 @@ void lofi_start(int id, const char *text, float delay, float fade) {
   bqset(&s->tape, LP, s->cutoff, 0.4f);
   bqset(&s->muffle, LP, 3200, 1);
   bqset(&s->dark, LP, 1500, 1);
+  for (int k = 0; k < 8; k++) {
+    int len = (int)lroundf(RV_MS[k] * SR / 1000);
+    s->rvl[k] = len < 1 ? 1 : len > 4096 ? 4096 : len;
+    s->rvg[k] = powf(10, -3 * RV_MS[k] / 1000 / RV_TIME);
+    bqset(&s->rvf[k], LP, RV_DAMP, -3.01f); // Butterworth: no peak, so the loop can never ring up
+  }
   addBed(s, 1, 1, HP, 900, 0.25f * s->crackle, 0, 9);
   if (s->places) {
     if (s->crowd > 0) addBed(s, 0, 0, LP, 160, 0.13f * s->crowd, 0.3f, 17);

@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """Writes index.html's <script id="lofi-samples">, the sampled instruments of the music engines.
 
-Both sets come from FreePats (https://freepats.zenvoid.org/) and are CC0 1.0 (public domain):
+All three sets are CC0 1.0 (public domain). Two come from FreePats (https://freepats.zenvoid.org/):
   gaita    the Bagpipe, small SFZ+FLAC 2026-08-06, recorded by Gilles Sadowski
            https://freepats.zenvoid.org/Ethnic/bagpipe.html
   spanish  the Spanish classical guitar, SFZ+FLAC 2019-06-18, by roberto@zenvoid.org
            https://freepats.zenvoid.org/Guitar/acoustic-guitar.html
+and the piano from Versilian Studios' Virtual Community Sample Library (VCSL, https://github.com/sgossner/VCSL):
+  grand    the Kawai grand, its softest layer (v1) of F#2, C3, F#3 and C4 (VCSL calls middle C "C3"), from
+           Chordophones/Zithers/Grand Piano, Kawai/Sustains/GPiano_sus_<note>_v1_rr1_Player.wav
 
-Download the two .7z files from those pages, unpack them anywhere outside the repo (bsdtar -xf file.7z), then
-    python3 tools/samples.py <the bagpipe's folder> <the guitar's folder>
+Download the two .7z files from the FreePats pages and unpack them anywhere outside the repo (bsdtar -xf
+file.7z), put the four piano .wav files in a folder of their own, then
+    python3 tools/samples.py <the bagpipe's folder> <the guitar's folder> <the piano's folder>
 It needs ffmpeg. Each note is cut short, made mono at 11025 Hz (the tape's low-pass never opens past about
 4 kHz, so nothing audible is lost), peak-normalised and stored as 8-bit mu-law in base64. A sustained note
 (the bagpipe) keeps its attack and then a stretch the engines loop, its end crossfaded into the bars before the
-loop so the seam can't click; a plucked note (the guitar) keeps its first 1.2 s and fades out at the end.
+loop so the seam can't click; a plucked or struck note keeps its start (the guitar 1.2 s, the piano 2 s, so it
+can ring) and fades out at the end.
 The tag is JSON: {voice: [[root, loop start, loop end, base64], ...]}, roots as MIDI notes (fractional when
 the sample is out of tune), the loop in samples (0 0 for no loop).
 """
@@ -54,7 +59,7 @@ def onset(x):
     return next(i for i, v in enumerate(x) if abs(v) > peak * 0.1)
 
 
-def note(x, root, loop):
+def note(x, root, loop, secs=1.2, tail=0.3):
     start = max(0, onset(x) - int(0.01 * RATE))
     if loop:
         a = start + int(0.25 * RATE)  # the attack, then the looped part
@@ -68,8 +73,8 @@ def note(x, root, loop):
             w = (i + 1) / fade
             x[b - fade + i] = x[b - fade + i] * (1 - w) + x[a - fade + i] * w
     else:
-        x = x[start:start + int(1.2 * RATE)]
-        n = int(0.3 * RATE)
+        x = x[start:start + int(secs * RATE)]
+        n = int(tail * RATE)
         for i in range(n):
             x[-n + i] *= 1 - (i + 1) / n
         a = b = 0
@@ -78,8 +83,8 @@ def note(x, root, loop):
     return [round(root, 2), a, b, base64.b64encode(data).decode()]
 
 
-def main(bag, gtr):
-    out = {"gaita": [], "spanish": []}
+def main(bag, gtr, pno):
+    out = {"gaita": [], "spanish": [], "grand": []}
     sfz = next(os.path.join(bag, f) for f in os.listdir(bag) if f.endswith(".sfz"))
     for r in regions(sfz):
         name = os.path.basename(r["sample"])
@@ -88,6 +93,9 @@ def main(bag, gtr):
             out["gaita"].append(note(pcm(os.path.join(bag, r["sample"])), key - int(r.get("tune", 0)) / 100, True))
     for name, key in [("G3", 55), ("D4", 62), ("A4", 69), ("E5", 76)]:
         out["spanish"].append(note(pcm(os.path.join(gtr, "samples", name + ".flac")), key, False))
+    for name, key in [("F#2", 54), ("C3", 60), ("F#3", 66), ("C4", 72)]:
+        wav = next(f for f in os.listdir(pno) if f.replace("%23", "#").startswith(f"GPiano_sus_{name}_v1"))
+        out["grand"].append(note(pcm(os.path.join(pno, wav)), key, False, 2.0, 0.5))
     for v in out.values():
         v.sort()
     tag = (
@@ -103,6 +111,6 @@ def main(bag, gtr):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         sys.exit(__doc__)
-    main(sys.argv[1], sys.argv[2])
+    main(*sys.argv[1:])

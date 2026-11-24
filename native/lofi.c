@@ -444,6 +444,7 @@ static void play(Ctx c, const Ev *e) {
   } else if (IS("twang")) plk(c, n, t, vel * 1.1f, SQR, 4500, 0.35f);
   else if (IS("steel")) wind(c, n, t, dur, vel * 0.8f, SAW, 1200, 0.7f, 0.18f, 200, 10, 0);
   else if (IS("santur")) fmv(c, n, t, fminf(dur, 0.8f), vel * 0.9f, 2, 1.5f, 0.08f);
+  else if (IS("piano")) fmv(c, n, t, dur, vel * 1.3f, 1, 3.5f, 0.2f);
   else if (IS("throat")) {
     float f = hz(n - 12);
     if (!(v = nv(c.k, TONE, t, t + dur + 0.5))) return;
@@ -471,6 +472,9 @@ static void play(Ctx c, const Ev *e) {
   } else if (IS("tamboril")) hit(c, T, 0.12f, BP, 2300, 0.26f * a[1], 0.002f), thump(c, T, 260, 220, 0.03f, 0.18f * a[1], 0.1f);
   else if (IS("triangle")) ping(c, 4200, T, 0.5f, 0.03f * a[1], SINE);
   else if (IS("scrape")) hit(c, T, 0.07f, BP, 3200, 0.12f * a[1], 0.03f);
+  else if (IS("gong"))
+    ping(c, 98, T, 2.5f, 0.3f * a[1], SINE), ping(c, 98 * 2.76f, T, 1.5f, 0.1f * a[1], SINE),
+        hit(c, T, 1.8f, BP, 1200, 0.12f * a[1], 0.01f);
   else if (IS("bigdrum")) thump(c, T, 85, 38, 0.25f, 0.8f * a[1], 0.9f), hit(c, T, 0.25f, LP, 300, 0.35f * a[1], 0.002f);
   // drums: (time, velocity)
   else if (IS("kick")) kick(c, T, a[1]);
@@ -687,7 +691,7 @@ static const char *NOTES[] = {"keys", "bell", "kalimba", "flute", "felt", "vibes
                               "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub",
                               "bowed", "reed", "sax", "pipes", "fife", "shaku", "drone", "plucked", "zither", "riff",
                               "brass", "strings", "timpani", "accordion", "guitarra", "vox", "twang", "steel",
-                              "santur", "throat"};
+                              "santur", "throat", "piano"};
 static int byTime(const void *a, const void *b) {
   double d = ((const Ev *)a)->t - ((const Ev *)b)->t;
   return d < 0 ? -1 : d > 0;

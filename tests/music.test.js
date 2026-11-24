@@ -215,7 +215,8 @@ test("each place finds its style: a region's cities first, then the country", ()
 test("every style names voices, kits, loops and modes that exist", () => {
   const has = (v) => typeof LOFI.Player.prototype[v] === "function";
   for (const [name, st] of Object.entries(LOFI.STYLES)) {
-    const voices = [...(st.leads || []), st.drone, st.strum?.[0], st.ostinato?.voice, ...Object.keys(st.perc || {})];
+    const voices = [...(st.leads || []), st.drone, st.strum?.[0], st.ostinato?.voice, st.ostinato?.double, st.gong];
+    voices.push(...Object.keys(st.perc || {}));
     if (st.band) voices.push(st.band.chords, st.band.bass, ...(st.band.leads || []));
     for (const v of voices.filter(Boolean)) assert.ok(has(v), `${name}: no voice ${v}`);
     if (st.band?.drums) assert.ok(LOFI.KITS[st.band.drums], `${name}: no kit ${st.band.drums}`);
@@ -294,10 +295,26 @@ test("lo-fi country goes I IV V I and IV I ii V, with a steel or a fiddle and a 
   }
 });
 
-test("the kaiju song is a low march in a minor key", () => {
+test("the kaiju song is a slow tread in D minor, with its fixed motto at every section", () => {
+  // the motto: D, A and A flat in the brass, in fifths and octaves, the same in every song
+  const motto = JSON.stringify([
+    [0, 0, [50, 57, 62], 6],
+    [0, 6, [57, 64, 69], 2],
+    [0, 8, [56, 63, 68], 8],
+  ]);
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { kaiju: true, places: false });
-    assert.ok(s.minor && s.bpm >= 74 && s.bpm <= 82 && s.swing === 0);
+    assert.ok(s.minor && s.bpm >= 66 && s.bpm <= 74 && s.swing === 0, `${s.bpm}`);
+    assert.strictEqual(s.key, 2);
+    assert.strictEqual(JSON.stringify(s.fanfare.filter(([bar]) => bar === 0)), motto);
+    assert.strictEqual(s.gong, "gong");
+    assert.strictEqual(s.ostinatoDouble, "piano");
+    for (const name of ["melA", "melB", "melA2", "melB2"]) assert.strictEqual(s[name][0].length, 0, name);
+    // the motto opens each of the four sections, on the brass
+    const calls = LOFI.score(s).filter(([v, n, t]) => v === "brass" && n === 50 && t < 0.02 + (s.seconds / 4) * 4);
+    const starts = new Set(calls.map(([, , t]) => Math.round((t / s.seconds) * 4 * 100) / 100));
+    for (const at of [0, 1, 2, 3]) assert.ok(starts.has(at), `section ${at}: ${[...starts]}`);
+    assert.strictEqual(s.loop, "tread");
     assert.strictEqual(s.form.join(" "), "A B A2 B2");
     assert.strictEqual(s.voices.lead, "brass");
     assert.strictEqual(s.drums, "march");
@@ -316,7 +333,13 @@ test("the native engine plays every voice of the regional styles and the kaiju s
   for (const seed of SEEDS.slice(0, 10))
     for (const mood of moods) {
       const sheet = LOFI.song(seed, mood),
-        melodic = new Set([...Object.values(sheet.voices), sheet.drone, sheet.strum?.[0], sheet.ostinatoVoice]);
+        melodic = new Set([
+          ...Object.values(sheet.voices),
+          sheet.drone,
+          sheet.strum?.[0],
+          sheet.ostinatoVoice,
+          sheet.ostinatoDouble,
+        ]);
       for (const [name, ...args] of LOFI.score(sheet)) {
         assert.ok(known.has(name), `lofi.c has no voice "${name}"`);
         assert.strictEqual(notes.has(name), melodic.has(name), `${name}: is it a note voice?`);

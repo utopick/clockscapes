@@ -765,17 +765,13 @@
                 </select></label
               >
               <p class="hint" style="margin: 0 0 10px">
-                Weather data by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>. No
-                API key required. With weather off, scenes still follow the local day/night cycle.
+                Weather by <a href="https://open-meteo.com/" style="color: inherit">Open-Meteo</a>; with it
+                off, scenes still follow day and night.
               </p>
             </fieldset>
             <fieldset>
               <legend>Screen</legend>
-              <p class="hint atlasHint">
-                A filter over the clocks that imitates an old screen. CRT looks like a tube television, with
-                scanlines, glowing colours and dark rounded corners. LCD shows the thin gaps between the
-                pixels of a handheld screen. Save to see it.
-              </p>
+              <p class="hint atlasHint">An old-screen filter over the clocks, shown after you save.</p>
               <label
                 >Filter
                 <select name="filter">
@@ -788,10 +784,8 @@
             <fieldset>
               <legend>Power and screen care</legend>
               <p class="hint atlasHint">
-                Battery saver draws 5 frames a second instead of 15, so the phone stays cooler. Letting the
-                screen sleep saves the most. Burn-in protection keeps OLED screens safe when the clocks stay
-                up for hours: the picture moves by a pixel or two every 2 minutes, and a soft line sweeps down
-                the screen every 10 minutes.
+                Battery saver and sleep keep a phone cool, and burn-in protection nudges the picture to spare
+                OLED screens.
               </p>
               <label
                 >Motion
@@ -818,12 +812,7 @@
             <!-- only shown inside the Android app, which provides window.ClockscapesAndroid -->
             <fieldset id="androidBox" hidden>
               <legend>Android</legend>
-              <p class="hint atlasHint">
-                Show these clocks on your home screen and lock screen as a live wallpaper. Your phone adds its
-                own clock on the lock screen, which Clockscapes can't hide, so you may want to make it smaller
-                or hide it in the phone's lock screen settings. Some phones only let you change its style, and
-                on Samsung phones the free Good Lock app (its LockStar part) can hide it.
-              </p>
+              <p class="hint atlasHint">Put the clocks on your home and lock screen as a live wallpaper.</p>
               <button type="button" id="setWallpaper">SET AS WALLPAPER</button>
             </fieldset>
           </div>
@@ -831,16 +820,7 @@
             <fieldset>
               <legend>Music</legend>
               <p class="hint atlasHint">
-                Lo-fi music written live in this page, so nothing is downloaded. Each song comes from one of
-                your clocks in turn: its city and its hour choose the song, and its sun sets the mood, so the
-                night is slower and darker than the day. City sounds play behind it: voices and traffic as
-                busy as the place and the hour, trains, birds, crickets, waves, wind, and the rain and thunder
-                when it rains there. After two or three minutes a song fades into the next clock's song. The
-                same variation number at the same hour plays the same songs again, and a new number gives you
-                new ones. The music button starts the variation of the time it's pressed, so at 15:32 you hear
-                variation 1532 (a random time when none of your clocks is in this device's time zone). With
-                Regional music on, each song takes the style of the place it is about, such as flamenco in
-                Seville or pipes over a drone in Galicia.
+                Lo-fi made live from your cities, their hour and their weather, with city sounds behind it.
               </p>
               <label
                 >Music
@@ -902,18 +882,12 @@
             <fieldset>
               <legend>Alarms (this device’s time)</legend>
               <p class="hint atlasHint">
-                Each alarm goes off every day at this device’s time, and for a minute its message crosses your
-                clocks, one word per truck or sign: neon trucks where it is night and a march where it is day.
-                With the clocks side by side it drives from one clock into the next along the same road, and
-                stacked in bands every clock shows it (by day a band may get banner planes instead). Tap any
-                clock to stop it. The sound can only play once you have tapped or clicked the page since
-                opening it.
+                Each alarm rings daily at this device’s time and its message crosses the clocks for a minute;
+                tap a clock to stop it.
               </p>
               <!-- only shown inside the Android app -->
               <p class="hint atlasHint" id="androidAlarmHint" hidden>
-                The app also rings each alarm as a phone alarm, with a notification and the alarm sound, even
-                when the app is closed. The message only crosses the clocks while the app or the wallpaper is
-                on screen.
+                The app also rings it as a phone alarm, even when closed.
               </p>
               <div id="alarms"></div>
               <button type="button" id="addAlarm" title="Add an alarm">+ ADD ALARM</button>
@@ -929,8 +903,8 @@
                 /></label>
               </div>
               <p class="hint" style="margin: 0 0 10px">
-                To try it, save, then press <b>A</b> three times, press Up six times on a TV remote, or swipe
-                down, up and down again on the clocks in one stroke.
+                Save, then press <b>A</b> three times, Up six times on a remote, or swipe down-up-down to try
+                it.
               </p>
             </fieldset>
           </div>
@@ -938,8 +912,7 @@
             <fieldset>
               <legend>Zones (1–4)</legend>
               <p class="hint atlasHint">
-                Choose a country, then a city, to set its coordinates, time zone and artwork. Cities without a
-                named landmark use a regional streetscape. For a place that isn't listed, open "Other place".
+                Pick a country and a city, or open Other place for one that isn’t listed.
               </p>
               <div id="zones"></div>
               <button type="button" id="addZone">+ ADD ZONE</button>

@@ -1471,8 +1471,13 @@
           },
           // bossa nova: a nylon guitar on the bossa rhythm, ninth chords, brushes and a shaker, a flute or a
           // wordless voice
+          // after "Águas de Março" (the technique, not the song): the batida's strokes are short, so one never
+          // rings into the next or into the next chord, and the shapes stay close, under the tune, moving a
+          // finger or two by a step from chord to chord
           bossa: {
             colour: "ninth",
+            close: true,
+            hold: 2.5,
             bpm: [64, 74],
             swing: 0.08,
             band: {
@@ -2129,6 +2134,29 @@
                 (key + c[0]) % 12,
               ),
             );
+          // close voice leading (style.close): each chord in the shape nearest the one before, in 52..69
+          if (style?.close) {
+            const shapes = (keys) => {
+              const out = [];
+              for (let inv = 0; inv < keys.length; inv++)
+                for (let oct = -24; oct <= 24; oct += 12) {
+                  const v = keys.map((n, j) => n + oct + (j < inv ? 12 : 0)).sort((a, b) => a - b);
+                  if (v[0] >= 52 && v.at(-1) <= 69) out.push(v);
+                }
+              return out;
+            };
+            const lead = (list, prev) =>
+              list.map((c) => {
+                const sorted = [...c.keys].sort((a, b) => a - b),
+                  options = shapes(sorted);
+                if (!options.length) return (prev = c);
+                const far = (v) =>
+                  prev ? v.reduce((a, n, j) => a + Math.abs(n - (prev.keys[j] ?? n)), 0) : v[0];
+                return (prev = { ...c, keys: options.reduce((b, v) => (far(v) < far(b) ? v : b)) });
+              });
+            chords = lead(chords);
+            chordsB = lead(chordsB, chords.at(-1));
+          }
           // melody: a walk on the pentatonic scale that lands on a chord tone at the start of each bar
           const pent = mode ? mode.pent : minor ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9],
             pool = [];
@@ -2263,6 +2291,7 @@
             ostinatoDouble: o?.double || "",
             fanfare: style.fanfare || null,
             gong: style.gong || "",
+            hold: style.hold || 0,
           });
         }
 
@@ -2589,7 +2618,7 @@
                 this[v.chords](
                   n,
                   t + j * 0.012,
-                  sd * (hits.length < 2 ? 15 : i ? 6 : 7),
+                  s.hold ? Math.min(s.hold, 16 - i) * sd : sd * (hits.length < 2 ? 15 : i ? 6 : 7),
                   (i ? 0.07 : 0.1) * human(),
                 ),
               );

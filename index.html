@@ -421,6 +421,16 @@
         flex-wrap: wrap;
         align-items: flex-end;
       }
+      /* RANDOM CITY and REMOVE CITY: a row of their own under the lists, sharing its width */
+      .zoneActs {
+        flex-basis: 100%;
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      #cfg .zoneActs button {
+        flex: 1;
+      }
       .zone .atlas select {
         width: min(100%, 260px);
         box-sizing: border-box;
@@ -23424,8 +23434,8 @@
           `<option value="${k}"${k === city?.id ? " data-city-art" : ""}${k === z.scene ? " selected" : ""}>${v}</option>`,
       )
       .join("")}</select></label>
-    <button type="button" data-act="random" title="Pick a random city for this clock">RANDOM</button>
-    <button type="button" data-act="del" title="Remove this clock">✕</button>`;
+    <div class="zoneActs"><button type="button" data-act="random" title="Pick a random city for this clock">RANDOM CITY</button>
+    <button type="button" data-act="del" title="Remove this clock">REMOVE CITY</button></div>`;
         return d;
       }
       function readZones() {

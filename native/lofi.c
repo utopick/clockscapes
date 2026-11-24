@@ -267,13 +267,13 @@ static void thump(Ctx c, double t, float from, float to, float drop, float vel, 
   pev(&v->freq, EXP, t + drop, to, 0);
   env(&v->out, t, vel, 0.003f, decay);
 }
-// Player.brass and Player.strings: two detuned sawtooths
-static Voice *duo(Ctx c, int dest, float f, double t, double end, float cents) {
+// Player.brass, Player.strings and Player.accordion: two waves a few cents apart
+static Voice *duo(Ctx c, int dest, int wave, float f, double t, double end, float cents) {
   Voice *v = nv(c.k, dest, t, end);
   if (!v) return NULL;
   v->freq.v0 = f;
-  src(v, 0, SAW, 1)->cents = -cents;
-  src(v, 1, SAW, 1)->cents = cents;
+  src(v, 0, wave, 1)->cents = -cents;
+  src(v, 1, wave, 1)->cents = cents;
   return v;
 }
 
@@ -400,19 +400,60 @@ static void play(Ctx c, const Ev *e) {
   else if (IS("zither")) plk(c, n, t, vel * 1.2f, TRI, 4000, 0.9f);
   else if (IS("riff")) plk(c, n, t, vel, SAW, 300 + 20000 * vel * vel, 0.25f);
   else if (IS("brass")) {
-    if (!(v = duo(c, TONE, hz(n - 12), t, t + dur + 0.6, 6))) return;
+    if (!(v = duo(c, TONE, SAW, hz(n - 12), t, t + dur + 0.6, 6))) return;
     sweep(v, t, 250, 1500, 0.08f, 1);
     pev(&v->out, SET, t, 0, 0);
     pev(&v->out, LIN, t + 0.06, vel * 0.9f, 0);
     pev(&v->out, TGT, t + 0.06, vel * 0.6f, 0.3f);
     pev(&v->out, TGT, t + dur, 0, 0.1f);
   } else if (IS("strings")) {
-    if (!(v = duo(c, BUS, hz(n), t, t + dur + 0.5, 10))) return;
+    if (!(v = duo(c, BUS, SAW, hz(n), t, t + dur + 0.5, 10))) return;
     flt(v, LP, 900, 0.5f);
     pev(&v->out, SET, t, 0, 0);
     pev(&v->out, LIN, t + 0.03, vel, 0);
     pev(&v->out, TGT, t + 0.03, vel * 0.6f, 0.15f);
     pev(&v->out, TGT, t + dur, 0, 0.08f);
+  } else if (IS("accordion")) {
+    if (!(v = duo(c, TONE, SQR, hz(n), t, t + dur + 0.6, 12))) return;
+    flt(v, LP, 1800, 0.7f);
+    pev(&v->out, SET, t, 0, 0);
+    pev(&v->out, LIN, t + 0.03, vel * 0.4f, 0);
+    pev(&v->out, TGT, t + dur, 0, 0.08f);
+  } else if (IS("guitarra")) {
+    float ring = fmaxf(dur, 0.3f);
+    if (!(v = nv(c.k, TONE, t, t + ring + 0.6))) return;
+    v->freq.v0 = hz(n);
+    src(v, 0, SAW, 1);
+    sweep(v, t, 5000, hz(n) * 3, 0.15f, 1);
+    v->tremHz = 11, v->tremD = 0.45f;
+    env(&v->out, t, vel * 2.2f, 0.002f, ring + 0.3f);
+  } else if (IS("vox")) {
+    if (!(v = nv(c.k, TONE, t, t + dur + 0.5))) return;
+    v->freq.v0 = hz(n), v->par = 1;
+    src(v, 0, SAW, 1);
+    pev(&v->det, SET, t, -30, 0);
+    pev(&v->det, LIN, t + 0.08, 0, 0);
+    v->vibHz = 5.5f;
+    pev(&v->vib, SET, t, 0, 0);
+    pev(&v->vib, LIN, t + fminf(dur, 0.5f), 25, 0);
+    flt(v, BP, 700, 5);
+    flt(v, BP, 1150, 6);
+    pev(&v->out, SET, t, 0, 0);
+    pev(&v->out, LIN, t + 0.08, vel * 1.6f, 0);
+    pev(&v->out, TGT, t + dur, 0, 0.1f);
+  } else if (IS("twang")) plk(c, n, t, vel * 1.1f, SQR, 4500, 0.35f);
+  else if (IS("steel")) wind(c, n, t, dur, vel * 0.8f, SAW, 1200, 0.7f, 0.18f, 200, 10, 0);
+  else if (IS("santur")) fmv(c, n, t, fminf(dur, 0.8f), vel * 0.9f, 2, 1.5f, 0.08f);
+  else if (IS("throat")) {
+    float f = hz(n - 12);
+    if (!(v = nv(c.k, TONE, t, t + dur + 0.5))) return;
+    v->freq.v0 = f, v->par = 1;
+    src(v, 0, SAW, 1);
+    flt(v, LP, 400, 1);
+    flt(v, BP, f * 6, 12);
+    pev(&v->out, SET, t, 0, 0);
+    pev(&v->out, LIN, t + 0.3, vel * 0.5f, 0);
+    pev(&v->out, TGT, t + dur, 0, 0.06f);
   } else if (IS("timpani")) { // (note, time, length)
     if (!(v = nv(c.k, BUS, t, t + 2))) return;
     v->freq.v0 = hz(n + 12);
@@ -428,6 +469,8 @@ static void play(Ctx c, const Ev *e) {
     for (int i = 0; i < 3; i++) hit(c, T + i * 0.007, 0.015f, BP, 2000, 0.14f * a[1], 0.002f);
     hit(c, T + 0.02, 0.09f, BP, 1700, 0.1f * a[1], 0.002f);
   } else if (IS("tamboril")) hit(c, T, 0.12f, BP, 2300, 0.26f * a[1], 0.002f), thump(c, T, 260, 220, 0.03f, 0.18f * a[1], 0.1f);
+  else if (IS("triangle")) ping(c, 4200, T, 0.5f, 0.03f * a[1], SINE);
+  else if (IS("scrape")) hit(c, T, 0.07f, BP, 3200, 0.12f * a[1], 0.03f);
   else if (IS("bigdrum")) thump(c, T, 85, 38, 0.25f, 0.8f * a[1], 0.9f), hit(c, T, 0.25f, LP, 300, 0.35f * a[1], 0.002f);
   // drums: (time, velocity)
   else if (IS("kick")) kick(c, T, a[1]);
@@ -643,7 +686,8 @@ static void push(Cmd c) {
 static const char *NOTES[] = {"keys", "bell", "kalimba", "flute", "felt", "vibes", "horn", "pad", "rhodes", "wurli",
                               "musicbox", "marimba", "guitar", "whistle", "pluck", "nylon", "upright", "bass", "sub",
                               "bowed", "reed", "sax", "pipes", "fife", "shaku", "drone", "plucked", "zither", "riff",
-                              "brass", "strings", "timpani"};
+                              "brass", "strings", "timpani", "accordion", "guitarra", "vox", "twang", "steel",
+                              "santur", "throat"};
 static int byTime(const void *a, const void *b) {
   double d = ((const Ev *)a)->t - ((const Ev *)b)->t;
   return d < 0 ? -1 : d > 0;

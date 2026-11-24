@@ -188,6 +188,26 @@ test("each place finds its style: a region's cities first, then the country", ()
   assert.strictEqual(LOFI.regionOf("DE", "berlin-de"), "techno");
   assert.strictEqual(LOFI.regionOf("JP", "kyoto-jp"), "japan");
   assert.strictEqual(LOFI.regionOf("ZZ", "nowhere-zz"), "");
+  // the owner's choices over the research table
+  for (const id of ["samsun-tr", "rize-tr", "izmir-tr", "denizli-tr", "istanbul-tr"])
+    assert.strictEqual(LOFI.regionOf("TR", id), "hijaz", id);
+  assert.strictEqual(LOFI.regionOf("ES", "murcia-es"), "flamenco");
+  for (const id of ["valencia-es", "alicante-es", "castellon-es"]) assert.strictEqual(LOFI.regionOf("ES", id), "", id);
+  assert.strictEqual(LOFI.regionOf("IR", "tehran-ir"), "persian");
+  assert.strictEqual(LOFI.regionOf("AZ", "baku-az"), "persian");
+  assert.strictEqual(LOFI.regionOf("KZ", "almaty-kz"), "steppe");
+  assert.strictEqual(LOFI.regionOf("MN", "ulaanbaatar-mn"), "steppe");
+  assert.strictEqual(LOFI.regionOf("PT", "lisbon-pt"), "fado");
+  assert.strictEqual(LOFI.regionOf("PT", "porto-pt"), "fado");
+  assert.strictEqual(LOFI.regionOf("BR", "rio-de-janeiro-br"), "bossa");
+  assert.strictEqual(LOFI.regionOf("BR", "sao-paulo-br"), "bossa");
+  assert.strictEqual(LOFI.regionOf("BR", "recife-br"), "forro");
+  for (const id of ["houston-us", "dallas-us", "fort-worth-us", "austin-us", "san-antonio-us", "nashville-us"])
+    assert.strictEqual(LOFI.regionOf("US", id), "country", id);
+  assert.strictEqual(LOFI.regionOf("US", "new-york-us"), "");
+  assert.strictEqual(LOFI.regionOf("AR", "buenos-aires-ar"), "tango");
+  assert.strictEqual(LOFI.regionOf("PE", "cusco-pe"), "andean");
+  assert.strictEqual(LOFI.regionOf("JM", "kingston-jm"), "reggae");
   for (const [where, [style]] of Object.entries({ ...LOFI.OWN_REGIONS, ...LOFI.REGIONS }))
     assert.ok(style === "" || LOFI.STYLES[style], `${where}: ${style}`);
 });
@@ -238,6 +258,39 @@ test("a flamenco song walks down the Andalusian cadence and strums it with rasgu
       "5 3 1 0",
     );
     assert.ok(s.strum[1].includes("r") && s.perc.palmas && s.perc.castanets);
+  }
+});
+
+test("fado is slow, its A minor and its B major on the same root, with arpeggios", () => {
+  for (const seed of SEEDS.slice(0, 30)) {
+    const s = LOFI.song(seed, { region: "fado" }),
+      third = (c) => (c.keys.map((n) => (n - s.key + 120) % 12).includes(3) ? "minor" : "major");
+    assert.ok(s.bpm >= 56 && s.bpm <= 68, `${s.bpm}`);
+    assert.strictEqual(third(s.chords[0]), "minor");
+    assert.strictEqual(third(s.chordsB[0]), "major");
+    assert.strictEqual(s.chords[0].root % 12, s.chordsB[0].root % 12);
+    assert.ok(["guitarra", "vox"].includes(s.voices.lead) && s.strum[1].includes("a"));
+  }
+});
+
+test("bossa nova is a nylon guitar on the bossa rhythm with ninth chords, 70 to 80 bpm", () => {
+  for (const seed of SEEDS.slice(0, 30)) {
+    const s = LOFI.song(seed, { region: "bossa" });
+    assert.ok(s.bpm >= 70 && s.bpm <= 80, `${s.bpm}`);
+    assert.strictEqual(s.colour, "ninth");
+    assert.strictEqual(s.voices.chords, "nylon");
+    assert.strictEqual(s.drums, "bossa");
+    assert.strictEqual(s.hits.join(" "), "0 3 6 10 13");
+  }
+});
+
+test("lo-fi country goes I IV V I and IV I ii V, with a steel or a fiddle and a twangy backbeat", () => {
+  for (const seed of SEEDS.slice(0, 30)) {
+    const s = LOFI.song(seed, { region: "country" }),
+      roots = (ch) => ch.map((c) => (c.root - s.key + 120) % 12).join(" ");
+    assert.strictEqual(roots(s.chords), "0 5 7 0");
+    assert.strictEqual(roots(s.chordsB), "5 0 2 7");
+    assert.ok(["steel", "bowed"].includes(s.voices.lead) && s.strum[0] === "twang" && s.loop === "train");
   }
 });
 

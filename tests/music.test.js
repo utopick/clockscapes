@@ -240,7 +240,7 @@ test("a Celtic song is modal, with a drone, cuts, a lilt and pipes or a whistle"
   for (const seed of SEEDS.slice(0, 60)) {
     const s = LOFI.song(seed, { region: "celtic" });
     modes.add(s.mode);
-    assert.ok(["pipes", "fife"].includes(s.voices.lead), s.voices.lead);
+    assert.ok(["gaita", "fife"].includes(s.voices.lead), s.voices.lead);
     assert.ok(s.grace && s.drone === "drone" && s.swing === 0.33 && s.perc.frame);
     const inMode = (n) => scales[s.mode].includes((n - s.key + 120) % 12);
     for (const n of [s.melA, s.melB, s.melA2, s.melB2].flat(2).map((note) => note[1]))
@@ -254,7 +254,7 @@ test("a Celtic song is modal, with a drone, cuts, a lilt and pipes or a whistle"
 test("Galicia is a gaita band playing a muiñeira in a real 6/8, with bombo and tamboril", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "galicia" });
-    assert.ok(["mixolydian", "major"].includes(s.mode) && s.voices.lead === "pipes", s.mode);
+    assert.ok(["mixolydian", "major"].includes(s.mode) && s.voices.lead === "gaita", s.mode);
     assert.ok(s.meter === "6/8" && s.swing === 0 && s.drone === "drone" && s.grace);
     const score = LOFI.score(s),
       at = (name) => score.filter(([n]) => n === name).map(([, t]) => t);
@@ -316,7 +316,7 @@ test("bossa nova is a nylon guitar on the bossa rhythm with ninth chords, 70 to 
     const s = LOFI.song(seed, { region: "bossa" });
     assert.ok(s.bpm >= 70 && s.bpm <= 80, `${s.bpm}`);
     assert.strictEqual(s.colour, "ninth");
-    assert.strictEqual(s.voices.chords, "nylon");
+    assert.strictEqual(s.voices.chords, "spanish");
     assert.strictEqual(s.drums, "bossa");
     assert.strictEqual(s.hits.join(" "), "0 3 6 10 13");
   }
@@ -385,4 +385,65 @@ test("the native engine plays every voice of the regional styles and the kaiju s
         assert.ok(args.every(Number.isFinite), `${name} ${args}`);
       }
     }
+});
+
+// The sampled instruments (script#lofi-samples): the page hands them to the native engine with each song
+// ("@smp" lines), and the engine plays the recorded note nearest each one at the right pitch.
+test("the native engine plays the page's recorded bagpipe and guitar in tune, with the synth as a fallback", () => {
+  const json = html.match(/<script id="lofi-samples"[^>]*>([\s\S]*?)<\/script>/)[1],
+    S = vm.runInNewContext(code + "\nLOFI", { document: { getElementById: () => ({ textContent: json }) } }),
+    bank = JSON.parse(json);
+  assert.deepStrictEqual(Object.keys(bank).sort(), ["gaita", "spanish"]);
+  for (const notes of Object.values(bank))
+    for (const [root, a, b, data] of notes)
+      assert.ok(root > 40 && root < 90 && a <= b && b <= (data.length / 4) * 3, `${root} ${a} ${b}`);
+  assert.strictEqual(S.sampleLines(new Set(["gaita", "keys"])).length, bank.gaita.length);
+  assert.strictEqual(LOFI.sampleLines(new Set(["gaita"])).length, 0, "no samples without the page");
+
+  const wasm = Buffer.from(html.match(/<script id="lofi-wasm"[^>]*>([\s\S]*?)<\/script>/)[1], "base64");
+  function render(text, secs) {
+    const c = new WebAssembly.Instance(new WebAssembly.Module(wasm), {
+      env: { emscripten_notify_memory_growth() {} },
+    }).exports;
+    c._initialize();
+    c.lofi_init(48000);
+    c.lofi_volume(1);
+    const bytes = Buffer.from(text + "\0", "latin1"),
+      p = c.malloc(bytes.length);
+    new Uint8Array(c.memory.buffer, p, bytes.length).set(bytes);
+    c.lofi_start(1, p, 0, 0.01);
+    const out = c.malloc(128 * 4),
+      pcm = new Float32Array(secs * 48000);
+    for (let i = 0; i < pcm.length; i += 128) {
+      c.lofi_render(out, 128);
+      pcm.set(new Float32Array(c.memory.buffer, out, 128), i);
+    }
+    return pcm;
+  }
+  // the strongest period between 150 and 1000 Hz, by autocorrelation
+  function pitch(x) {
+    let best = 0,
+      lag = 0;
+    for (let l = 48; l <= 320; l++) {
+      let s = 0;
+      for (let i = 0; i < 9600; i++) s += x[i] * x[i + l];
+      if (s > best) (best = s), (lag = l);
+    }
+    return 48000 / lag;
+  }
+  const head = "80 20000 1 0 3 0 0 0.5 0 0 0 0 0 0 3";
+  for (const [voice, n, hz] of [
+    ["gaita", 69, 440],
+    ["spanish", 57, 220],
+  ]) {
+    const call = `${voice} ${n} 0.1 2 0.1`,
+      sampled = render([head, ...S.sampleLines(new Set([voice])), call].join("\n"), 1.2),
+      synth = render([head, call].join("\n"), 1.2),
+      f = pitch(sampled.subarray(0.4 * 48000));
+    assert.ok(Math.abs(f / hz - 1) < 0.03, `${voice} ${n}: ${f} Hz`);
+    let diff = 0;
+    for (let i = 0; i < sampled.length; i++) diff += Math.abs(sampled[i] - synth[i]);
+    assert.ok(diff > 100, `${voice}: the recorded note was not used (${diff})`);
+    assert.ok(sampled.every((x) => Number.isFinite(x) && Math.abs(x) < 1));
+  }
 });

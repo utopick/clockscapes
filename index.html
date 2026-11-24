@@ -397,7 +397,8 @@
         border-color: #ffd27a;
       }
       /* the focus a TV remote or a keyboard moves around */
-      :is(button, a, summary):focus-visible {
+      :is(button, a, summary):focus-visible,
+      #cfg input:is([type="checkbox"], [type="range"]):focus-visible {
         outline: 3px solid #ffd27a;
         outline-offset: 2px;
       }
@@ -546,6 +547,56 @@
       #cfg .tabs button[aria-selected="true"] {
         border-color: #ffd27a;
         color: #ffd27a;
+      }
+      /* With a TV remote (html.remote, set by the arrow keys) the tabs stand in a column on the left and
+         every option takes a row of its own, label on the left and control on the right, so Up and Down
+         walk a single list, Right enters a tab and Left goes back to it. The long notes are left out. */
+      html.remote #cfg {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        grid-template-rows: auto 1fr auto auto;
+        column-gap: 16px;
+      }
+      html.remote #cfg h2 {
+        grid-column: 1 / -1;
+      }
+      html.remote #cfg .tabs {
+        grid-row: 2 / 5;
+        flex-direction: column;
+      }
+      html.remote #cfg .tabs button {
+        flex: 0 0 auto;
+        padding: 10px 12px;
+        font-size: 14px;
+        text-align: left;
+      }
+      html.remote #cfg > .hint,
+      html.remote #cfg [data-panel]:not([data-panel="license"]) .atlasHint {
+        display: none;
+      }
+      html.remote #cfg label {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0 0 6px;
+        font-size: 13px;
+      }
+      html.remote #cfg label > :is(select, input:not([type="checkbox"])) {
+        width: 260px;
+        box-sizing: border-box;
+      }
+      html.remote .zone,
+      html.remote .alarm,
+      html.remote .zone .custom[open] {
+        display: block;
+      }
+      html.remote #cfg fieldset > button {
+        display: block;
+        margin: 0 0 6px;
+      }
+      html.remote #cfg .zone .atlas select {
+        width: 260px;
       }
       .alarm {
         border: 2px dashed #2b3270;
@@ -23289,6 +23340,12 @@
         const b = ev.target.closest("[data-tab]");
         if (b) showTab(b.dataset.tab);
       });
+      // with a remote, moving onto a tab opens it; a touch or a mouse brings back the usual layout
+      form.querySelector(".tabs").addEventListener("focusin", (ev) => {
+        if (document.documentElement.classList.contains("remote") && ev.target.dataset.tab)
+          showTab(ev.target.dataset.tab);
+      });
+      addEventListener("pointerdown", () => document.documentElement.classList.remove("remote"));
       function alarmRow(a) {
         const d = document.createElement("div");
         d.className = "alarm";
@@ -23430,6 +23487,8 @@
         showTab("clocks");
         msg.textContent = "";
         modal.classList.remove("hidden");
+        // a remote starts on the first tab, at the top of the list
+        if (document.documentElement.classList.contains("remote")) form.querySelector("[data-tab]").focus();
       }
       function closeSettings() {
         modal.classList.add("hidden");
@@ -23814,7 +23873,28 @@
           return;
         ev.preventDefault();
         poke();
-        const next = inside ? nearest(el, dir) : focusables().find((b) => b.id === "gear") || focusables()[0];
+        document.documentElement.classList.add("remote");
+        let next = inside ? nearest(el, dir) : focusables().find((b) => b.id === "gear") || focusables()[0];
+        // In settings with a remote, Up and Down go through their column (the tabs, or the page and then its
+        // buttons) in page order, a row at a time, so a long page scrolls instead of jumping to SAVE.
+        // Right from a tab enters its page, and Left with nothing more on the row goes back to the tab.
+        const tabs = form.querySelector(".tabs"),
+          row = (a) => a.getBoundingClientRect().top;
+        if (inside && dir[1] && form.contains(el) && document.documentElement.classList.contains("remote")) {
+          const list = focusables().filter((f) => tabs.contains(f) === tabs.contains(el));
+          let j = list.indexOf(el) + dir[1];
+          while (list[j] && Math.abs(row(list[j]) - row(el)) <= 10) j += dir[1];
+          next = list[j];
+        } else if (inside && el.dataset.tab && dir[0] === 1)
+          next = focusables().find((f) => form.querySelector(".pane").contains(f)) || next;
+        else if (
+          inside &&
+          form.contains(el) &&
+          !tabs.contains(el) &&
+          dir[0] === -1 &&
+          (!next || tabs.contains(next) || Math.abs(row(next) - row(el)) > 10)
+        )
+          next = form.querySelector('[aria-selected="true"]');
         // A TV opens its keyboard as soon as a text box gets the focus, so the arrows reach it locked
         if (
           next &&

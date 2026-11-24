@@ -735,7 +735,7 @@
                 same variation number at the same hour plays the same songs again, and a new number gives you
                 new ones. The music button starts the variation of the time it's pressed, so at 15:32 you hear
                 variation 1532 (a random time when none of your clocks is in this device's time zone). With
-                Regional music on, the songs take the style of your first clock's place, such as flamenco in
+                Regional music on, each song takes the style of the place it is about, such as flamenco in
                 Seville or pipes over a drone in Galicia.
               </p>
               <label
@@ -755,7 +755,7 @@
                 </select></label
               >
               <label
-                title="Songs in the style of the first clock's place: flamenco in Seville, pipes and a drone in Galicia, Scotland or Ireland, jazzy soul in New Orleans, lo-fi techno in Berlin, a shakuhachi and a koto in Japan. Places with no style of their own play the usual lo-fi"
+                title="Each song in the style of its own place: flamenco in Seville, pipes and a drone in Galicia, Scotland or Ireland, jazzy soul in New Orleans, lo-fi techno in Berlin, a shakuhachi and a koto in Japan. Places with no style of their own play the usual lo-fi"
                 >Regional music <input type="checkbox" name="musicRegional"
               /></label>
               <label
@@ -1294,7 +1294,7 @@
           ["groove", "A", "B", "solo", "A2", "break", "B2", "A2", "B"],
           ["A", "B", "solo", "A2", "B2", "groove", "A2", "break", "B2"],
         ];
-        // Regional styles of lo-fi (the MUSIC tab's "Regional music"): the first clock's place picks one
+        // Regional styles of lo-fi (the MUSIC tab's "Regional music"): each song's place picks one
         // (REGIONS below), and song() bends the song towards it while keeping the seed's own melody and form.
         // Every field is optional:
         //   modes: the scales it may use (MODES, one picked by the seed), so a Celtic song is Dorian or Mixolydian
@@ -7419,7 +7419,7 @@
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
         // volume 0..100, variation 1..9999 (part of each song's seed), places: the sounds of the place,
-        // regional: songs in the style of the first clock's place
+        // regional: each song in the style of its own place
         music: { on: false, volume: 60, variation: 1, places: true, regional: true },
         zones: [
           { label: "Barcelona", tz: "Europe/Madrid", lat: 41.388, lon: 2.17, scene: "barcelona-es" },
@@ -18479,8 +18479,8 @@
           ),
           trains: !sea || Boolean(TRAIN_LINES[home?.country]),
           places: CONFIG.music.places !== false,
-          // Regional music: every song takes the style of the first clock's place (LOFI.regionOf), if it has one
-          region: CONFIG.music.regional === false ? "" : regionAt(CONFIG.zones[0]),
+          // Regional music: each song takes the style of the place it is about (LOFI.regionOf), if it has one
+          region: CONFIG.music.regional === false ? "" : regionAt(z),
         };
       }
       function regionAt(z) {

@@ -750,3 +750,8 @@ test("the four ideas play in both engines: lofi.c knows their calls, and all fou
     );
   }
 });
+
+test("the page's version (shown in LICENSE) matches the Android app's versionName", () => {
+  const gradle = fs.readFileSync(path.join(__dirname, "..", "android", "app", "build.gradle.kts"), "utf8");
+  assert.strictEqual(html.match(/const APP_VERSION = "([^"]+)"/)[1], gradle.match(/versionName = "([^"]+)"/)[1]);
+});

@@ -185,27 +185,26 @@
         z-index: 2;
         display: none;
       }
-      .fx-crt .col .screen,
-      .fx-lcd .col .screen {
+      .fx > .col .screen {
         display: block;
       }
       /* CRT: scanlines, a faint red-green-blue phosphor mask, darker rounded corners like a tube.
          Side by side, one tube covers every clock, so the street runs on unbroken from city to city. */
-      body.fx-crt:not(.rows) .col {
+      body:not(.rows) #cols.fx-crt > .col {
         border-right: 0;
       }
-      body.fx-crt:not(.rows) .col .screen {
+      body:not(.rows) #cols.fx-crt > .col .screen {
         display: none;
       }
-      body.fx-crt:not(.rows) #cols::after {
+      body:not(.rows) #cols.fx-crt::after {
         content: "";
         position: fixed;
         inset: 0;
         pointer-events: none;
         z-index: 3;
       }
-      .fx-crt .col .screen,
-      body.fx-crt:not(.rows) #cols::after {
+      .fx-crt > .col .screen,
+      body:not(.rows) #cols.fx-crt::after {
         background:
           repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.26) 0 1px, transparent 1px 3px),
           repeating-linear-gradient(
@@ -220,22 +219,99 @@
           0 0 0 30px #05060f,
           inset 0 0 30px rgba(0, 0, 0, 0.55);
       }
-      .fx-crt .col canvas {
+      .fx-crt > .col canvas {
         filter: saturate(1.25) contrast(1.08) brightness(1.1) blur(0.35px);
       }
-      .fx-crt .clock,
-      .fx-crt .scene-text {
+      .fx-crt > .col .clock,
+      .fx-crt > .col .scene-text {
         filter: blur(0.3px) drop-shadow(0 0 5px rgba(255, 240, 210, 0.45));
       }
       /* LCD: a thin dark gap around every art pixel (--px is the pixel size), slightly washed-out colours */
-      .fx-lcd .col .screen {
+      .fx-lcd > .col .screen,
+      .fx-dmg > .col .screen {
         background:
           repeating-linear-gradient(to right, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px var(--px)),
           repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px var(--px)),
           linear-gradient(rgba(200, 230, 200, 0.05), rgba(200, 230, 200, 0.05));
       }
-      .fx-lcd .col canvas {
+      .fx-lcd > .col canvas {
         filter: saturate(0.85) contrast(0.95) brightness(1.04);
+      }
+      /* The palette filters run the whole clock (art and text) through an SVG filter in #fxDefs:
+         Game Boy's four greens, CGA's black, magenta, cyan and white, EGA's 64 colours, amber and red
+         screens. The others are plain CSS filters, and the overlays add scanlines, a grid or a VHS band. */
+      .fx-dmg > .col {
+        filter: url(#fx-dmg);
+      }
+      .fx-cga > .col {
+        filter: url(#fx-cga);
+      }
+      .fx-ega > .col {
+        filter: url(#fx-ega);
+      }
+      .fx-amber > .col {
+        filter: url(#fx-amber);
+      }
+      .fx-night > .col {
+        filter: url(#fx-night);
+      }
+      .fx-vhs > .col {
+        filter: url(#fx-vhs) saturate(1.3) blur(0.4px);
+      }
+      .fx-mono > .col {
+        filter: grayscale(1) contrast(1.1);
+      }
+      .fx-sepia > .col {
+        filter: sepia(0.85) contrast(1.05);
+      }
+      .fx-sepia > .col .screen {
+        background: radial-gradient(ellipse at center, transparent 55%, rgba(60, 30, 0, 0.45) 100%);
+      }
+      .fx-amber > .col .screen {
+        background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 3px);
+      }
+      .fx-vhs > .col .screen {
+        background:
+          linear-gradient(transparent 0 46%, rgba(255, 255, 255, 0.07) 48% 50%, transparent 52%) 0 0 / 100%
+            300%,
+          repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 4px);
+        animation: vhsRoll 9s linear infinite;
+      }
+      @keyframes vhsRoll {
+        to {
+          background-position:
+            0 -300%,
+            0 0;
+        }
+      }
+      /* the filter picker (SCREEN tab): a small clock under each filter, tap one to pick it */
+      .fxPicks {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 8px;
+        margin: 0 0 10px;
+      }
+      #cfg .fxPicks button {
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 11px;
+      }
+      #cfg .fxPicks button[aria-pressed="true"] {
+        border-color: #ffd27a;
+        color: #ffd27a;
+      }
+      .fxPicks .col {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        flex: none;
+        border: 0;
+        pointer-events: none;
+      }
+      .fxPicks canvas {
+        width: 100%;
+        height: 100%;
       }
       .col canvas {
         display: block;
@@ -660,6 +736,64 @@
   </head>
   <body>
     <div id="cols"></div>
+    <!-- the palette screen filters (SCREEN tab), used by CSS as filter: url(#fx-...) -->
+    <svg id="fxDefs" width="0" height="0" style="position: absolute" aria-hidden="true">
+      <filter id="fx-dmg" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          type="matrix"
+          values="0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0 0 0 1 0"
+        />
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0.06 0.19 0.55 0.61" />
+          <feFuncG type="discrete" tableValues="0.22 0.38 0.67 0.74" />
+          <feFuncB type="discrete" tableValues="0.06 0.19 0.06 0.06" />
+        </feComponentTransfer>
+      </filter>
+      <filter id="fx-cga" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          type="matrix"
+          values="0.27 0.53 0.1 0 0  0.27 0.53 0.1 0 0  0.27 0.53 0.1 0 0  0 0 0 1 0"
+        />
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0 1 0 1" />
+          <feFuncG type="discrete" tableValues="0 0 1 1" />
+          <feFuncB type="discrete" tableValues="0 1 1 1" />
+        </feComponentTransfer>
+      </filter>
+      <filter id="fx-ega" color-interpolation-filters="sRGB">
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0 0.33 0.67 1" />
+          <feFuncG type="discrete" tableValues="0 0.33 0.67 1" />
+          <feFuncB type="discrete" tableValues="0 0.33 0.67 1" />
+        </feComponentTransfer>
+      </filter>
+      <filter id="fx-amber" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          type="matrix"
+          values="0.36 0.71 0.13 0 0  0.25 0.5 0.09 0 0  0.04 0.07 0.01 0 0  0 0 0 1 0"
+        />
+      </filter>
+      <filter id="fx-night" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.25 0.5 0.1 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="fx-vhs" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"
+          result="r"
+        />
+        <feOffset in="r" dx="3" result="r2" />
+        <feColorMatrix
+          in="SourceGraphic"
+          type="matrix"
+          values="0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"
+          result="gb"
+        />
+        <feOffset in="gb" dx="-1" result="gb2" />
+        <feBlend in="r2" in2="gb2" mode="screen" />
+      </filter>
+    </svg>
     <div class="sweep"></div>
     <div id="controls">
       <div id="credit">
@@ -716,6 +850,7 @@
           <div data-panel="license" hidden>
             <fieldset>
               <legend>Keys and storage</legend>
+              <p class="hint atlasHint">This is Clockscapes <b id="appVersion"></b>.</p>
               <p class="hint atlasHint">
                 1–4 zones. “Find” looks up coordinates and time zone for the label using Open-Meteo. Weather
                 refreshes every 10 minutes; everything is stored only in this browser (IndexedDB).<br />
@@ -819,14 +954,8 @@
             <fieldset>
               <legend>Screen</legend>
               <p class="hint atlasHint">An old-screen filter over the clocks, shown after you save.</p>
-              <label
-                >Filter
-                <select name="filter">
-                  <option value="off">Off</option>
-                  <option value="crt">CRT television</option>
-                  <option value="lcd">LCD screen</option>
-                </select></label
-              >
+              <input type="hidden" name="filter" />
+              <div class="fxPicks" id="fxPicks"></div>
             </fieldset>
             <fieldset>
               <legend>Power and screen care</legend>
@@ -8081,6 +8210,8 @@
         ],
       };
       let CONFIG = structuredClone(DEFAULT_CONFIG);
+      // the version shown in LICENSE; android/app/build.gradle.kts has the same versionName (a test checks it)
+      const APP_VERSION = "1.4.0";
       const PARAMS = new URLSearchParams(location.search); // debug parameters, see the comment at the top of the script
 
       // ==== Time helpers ====
@@ -23263,10 +23394,62 @@
         const rows = mode === "rows" || (mode === "auto" && innerWidth < 700);
         document.body.classList.toggle("rows", rows);
       }
-      const FILTERS = ["off", "crt", "lcd"];
+      // the screen filters, in the order the SCREEN tab shows them: [id, name]
+      const FILTER_NAMES = [
+        ["off", "Clean"],
+        ["crt", "CRT"],
+        ["lcd", "LCD"],
+        ["dmg", "Game Boy"],
+        ["cga", "CGA"],
+        ["ega", "EGA"],
+        ["mono", "Monochrome"],
+        ["sepia", "Sepia"],
+        ["amber", "Amber terminal"],
+        ["night", "Night red"],
+        ["vhs", "VHS"],
+      ];
+      const FILTERS = FILTER_NAMES.map(([f]) => f);
+      // el (the clocks, or a picker sample) gets "fx fx-<name>"; the CSS rules start from there
+      function setFilter(el, fx) {
+        for (const f of FILTERS) el.classList.toggle("fx-" + f, f === fx);
+        el.classList.toggle("fx", FILTERS.includes(fx) && fx !== "off");
+      }
       function applyFilter() {
-        const fx = PARAMS.get("fx") || CONFIG.filter;
-        for (const f of FILTERS) document.body.classList.toggle("fx-" + f, f === fx);
+        setFilter($("#cols"), PARAMS.get("fx") || CONFIG.filter);
+      }
+      // The picker: one button per filter showing the first clock's picture through that filter.
+      $("#appVersion").textContent = APP_VERSION;
+      function paintFilterPicks() {
+        const box = $("#fxPicks"),
+          src = COLS[0]?.cv;
+        if (!box.children.length)
+          for (const [f, name] of FILTER_NAMES) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.dataset.fx = f;
+            b.title = name + " screen filter";
+            b.innerHTML = `<div><div class="col"><canvas width="96" height="72"></canvas><div class="screen"></div></div></div>${name}`;
+            setFilter(b.firstChild, f);
+            b.onclick = () => {
+              form.filter.value = f;
+              markFilterPick();
+            };
+            box.appendChild(b);
+          }
+        markFilterPick();
+        if (!src?.width) return;
+        // the middle of the picture's lower part, where the streets and landmarks are
+        const h = Math.min(src.height * 0.6, (src.width * 3) / 4),
+          w = (h * 4) / 3;
+        for (const c of box.querySelectorAll("canvas")) {
+          const g = c.getContext("2d");
+          g.imageSmoothingEnabled = false;
+          g.drawImage(src, (src.width - w) / 2, src.height - h, w, h, 0, 0, 96, 72);
+        }
+      }
+      function markFilterPick() {
+        for (const b of $("#fxPicks").children)
+          b.setAttribute("aria-pressed", String(b.dataset.fx === form.filter.value));
       }
       function buildColumns() {
         applyLayout();
@@ -23307,7 +23490,11 @@
       function poke() {
         document.body.classList.remove("idle");
         clearTimeout(idleT);
-        idleT = setTimeout(() => document.body.classList.add("idle"), 3000);
+        idleT = setTimeout(() => {
+          document.body.classList.add("idle");
+          // a button the remote left focused fades too, so Back leaves the app instead of seeming stuck
+          if ($("#controls").contains(document.activeElement)) document.activeElement.blur();
+        }, 3000);
       }
       addEventListener("mousemove", poke);
       addEventListener("mousedown", poke);
@@ -23513,6 +23700,7 @@
         form.weather.value = CONFIG.weather === false ? "0" : "1";
         form.layout.value = CONFIG.layout || "auto";
         form.filter.value = FILTERS.includes(CONFIG.filter) ? CONFIG.filter : "off";
+        paintFilterPicks();
         form.power.value = CONFIG.power === "saver" ? "saver" : "smooth";
         form.awake.value = CONFIG.awake === false ? "0" : "1";
         form.care.value = CONFIG.care === false ? "0" : "1";
@@ -23538,6 +23726,7 @@
       function closeSettings() {
         modal.classList.add("hidden");
         setMusicVolume(CONFIG.music.volume); // undo a volume tried out and cancelled
+        poke(); // the buttons show, then fade with nothing focused
       }
       form.musicVol.addEventListener("input", () => setMusicVolume(+form.musicVol.value));
       $("#newVariation").onclick = () => {
@@ -23959,7 +24148,7 @@
       // Back on the remote: true when the page used it (closed settings or hid the buttons)
       window.tvBack = () => {
         if (!modal.classList.contains("hidden")) return (closeSettings(), true);
-        if (!document.body.classList.contains("idle")) {
+        if (!document.body.classList.contains("idle") || $("#controls").contains(document.activeElement)) {
           document.activeElement?.blur();
           document.body.classList.add("idle");
           return true;

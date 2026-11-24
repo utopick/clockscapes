@@ -23412,7 +23412,7 @@
         d.innerHTML = `<span class="n">${i + 1}</span>
     <label class="atlas">Country <select data-country>${countryOptions(city?.country)}</select></label>
     <label class="atlas">City <select data-atlas>${cityOptions(city?.country, city?.id)}</select></label>
-    <details class="custom"${city ? "" : " open"}><summary>Other place (typed by hand)</summary>
+    <details class="custom"><summary>Other place (typed by hand)</summary>
     <label>Label <input data-k="label" value="${esc(z.label)}" maxlength="48"></label>
     <label>Time zone (IANA) <input data-k="tz" data-suggest="tzlist" autocomplete="off" class="wide" value="${esc(z.tz)}"></label>
     <label>Lat <input data-k="lat" class="short" value="${esc(z.lat)}"></label>

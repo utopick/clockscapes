@@ -13957,19 +13957,58 @@
               }
             }
             break;
-          case "canal":
-            // o.pal: a list of colours for the house fronts in turn (Willemstad's painted Handelskade)
-            for (let p = -24; p < 24; p += 9) {
-              box(p, 16, 8, 16, o.pal ? o.pal[((p + 24) / 9) % o.pal.length] : (p + 24) % 2);
-              box(p + 1, 19, 6, 3, 1);
-              box(p + 2, 21, 4, 2);
-              box(p + 3, 23, 2, 2, 3);
-              for (let h = 4; h < 16; h += 4) {
-                box(p + 2, h, 1, 2, 3);
-                box(p + 5, h, 1, 2, 3);
+          case "canal": {
+            // A row of tall narrow canal houses. o.pal: a list of colours for the house fronts in turn
+            // (Willemstad's painted Handelskade). Each gable takes its turn as a step, bell or neck gable,
+            // with a hoisting beam at the top, sash windows in white frames, a door, and the quay at the foot.
+            const tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              frame = css(e.sh([239, 233, 220]));
+            for (let p = -24, j = 0; p < 24; p += 9, j++) {
+              const col = o.pal ? o.pal[j % o.pal.length] : j % 2,
+                gable = j % 3;
+              box(p, 16, 8, 16, col);
+              if (gable === 0) {
+                // a step gable
+                box(p + 1, 19, 6, 3, col);
+                box(p + 2, 21, 4, 2, col);
+                box(p + 3, 23, 2, 2, col);
+                for (const [a, b] of [
+                  [p, 17],
+                  [p + 7, 17],
+                  [p + 1, 20],
+                  [p + 6, 20],
+                ])
+                  box(a, b, 1, 1, tone(col, 0.3));
+              } else if (gable === 1) {
+                // a bell gable with scrolls
+                box(p + 1, 20, 6, 4, col);
+                box(p + 2, 22, 4, 2, col);
+                box(p + 3, 23, 2, 1, col);
+                box(p + 1, 20, 1, 1, frame);
+                box(p + 6, 20, 1, 1, frame);
+                box(p + 3, 24, 2, 1, frame);
+              } else {
+                // a neck gable
+                box(p + 2, 22, 4, 6, col);
+                box(p + 1, 17, 6, 1, frame);
+                box(p + 2, 23, 4, 1, frame);
               }
+              box(p + 3, 20, 2, 2, 2); // the attic hatch and its hoisting beam
+              box(p + 3, 21, 2, 1, frame);
+              for (let h = 7; h < 16; h += 4)
+                for (const q of [1, 5]) {
+                  box(p + q, h + 2, 2, 4, frame); // a sash window
+                  box(p + q, h + 1, 1, 2, 2);
+                  box(p + q + 1, h + 1, 1, 2, 11);
+                }
+              box(p + 1, 5, 3, 5, frame); // the door under its fanlight
+              box(p + 2, 4, 1, 4, 2);
+              box(p + 5, 4, 2, 2, 2);
+              box(p + 7, 16, 1, 16, "rgba(24, 20, 48, 0.25)");
             }
+            box(-24, 1, 48, 1, css(e.sh([86, 132, 178]))); // the canal
             break;
+          }
           case "colosseum":
           case "gate":
           case "parliament":
@@ -14059,9 +14098,11 @@
             break;
           }
           case "lattice": {
-            // Steel lattice tower; o.waist makes the hourglass of a twisted tower.
+            // Steel lattice tower; o.waist makes the hourglass of a twisted tower. Panels of X-bracing between
+            // the two legs, decks with a row of windows, and an antenna with its aircraft-warning bands.
             const h = o.h ?? 44,
-              w = o.w ?? 10;
+              w = o.w ?? 10,
+              shade = "rgba(24, 20, 48, 0.3)";
             const side = (i) => {
               const f = i / (h + 1);
               const k = o.waist
@@ -14069,57 +14110,113 @@
                 : w * Math.pow(1 - f, 1.7);
               return Math.max(1, Math.round(k));
             };
+            const col = (i) => (o.band && i % o.band >= o.band / 2 ? t : c),
+              ph = 4;
             for (let i = 1; i <= h; i++) {
-              const k = side(i),
-                col = o.band && i % o.band >= o.band / 2 ? t : c;
-              box(-k, i, 2, 1, col);
-              box(k - 1, i, 2, 1, col);
-              if (i % 4 === 0) box(-k, i, 2 * k, 1, col);
-              else if (i % 4 === 2 && k > 3) {
-                box(-Math.round(k / 2), i, 1, 1, col);
-                box(Math.round(k / 2) - 1, i, 1, 1, col);
-              }
+              const k = side(i);
+              box(-k, i, 2, 1, col(i));
+              box(k - 1, i, 2, 1, col(i));
+              box(k, i, 1, 1, shade);
+              if (i % ph === 0) box(-k, i, 2 * k, 1, col(i));
             }
-            for (const d of o.decks ?? [Math.round(h * 0.45)])
-              box(-side(d) - 1, d + 1, 2 * side(d) + 2, 2, t);
-            box(0, h + (o.ant ?? 8), 1, o.ant ?? 8, 3);
+            for (let i = 0; i + ph <= h; i += ph) {
+              const a = side(Math.max(1, i)),
+                b = side(i + ph);
+              if (a < 3) continue;
+              stroke(-a + 1, Math.max(1, i), b - 2, i + ph, col(i + 1)); // the X of the panel
+              stroke(a - 2, Math.max(1, i), -b + 1, i + ph, col(i + 1));
+            }
+            for (const d of o.decks ?? [Math.round(h * 0.45)]) {
+              const k = side(d) + 1;
+              box(-k, d + 1, 2 * k + 1, 2, t);
+              for (let p = -k + 1; p < k; p += 2) box(p, d, 1, 1, 2); // the windows
+              box(-k, d - 1, 2 * k + 1, 1, shade);
+            }
+            const ant = o.ant ?? 8;
+            box(0, h + ant, 1, ant, 3);
+            for (let j = 2; j < ant; j += 4) box(0, h + j + 1, 1, 2, 10);
             break;
           }
           case "sky": {
-            // Skyscraper (or o.n towers side by side) with window bands and a top style.
+            // Skyscraper (or o.n towers side by side) with window bands and a top style. Glass (c 11 or 4) gets a
+            // curtain wall of floor bands and mullions, other colours a grid of punched windows; the right side
+            // of each tower is in shade, the foot has a dark lobby and the roof a lit parapet.
+            // o.win: the window colour (default t)
             const n = o.n ?? 1,
               w = o.w ?? 9,
               gap = o.gap ?? 3,
               hs = [].concat(o.h ?? 40),
               top = o.top || "flat",
               half = Math.floor(w / 2),
-              left0 = -Math.floor((n * w + (n - 1) * gap) / 2);
+              left0 = -Math.floor((n * w + (n - 1) * gap) / 2),
+              glass = c === 11 || c === 4,
+              win = o.win ?? (t === c ? 2 : t),
+              tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              mull = tone(c, 0.3, [255, 248, 225]),
+              shade = "rgba(24, 20, 48, 0.26)";
+            // One storey band of a tower half-width hw at height i.
+            const floor = (cx, i, hw) => {
+              box(cx - hw, i, 2 * hw + 1, 1, c);
+              if (hw < 1) return;
+              if (glass) {
+                if (i % 3 === 0) box(cx - hw + 1, i, 2 * hw - 1, 1, win);
+                else for (let p = -hw + 2; p < hw; p += 3) box(cx + p, i, 1, 1, mull);
+              } else if (i % 2 === 0 && i > 2 && hw > 1)
+                for (let p = -hw + 1; p < hw; p += 2) box(cx + p, i, 1, 1, win);
+              const s = Math.max(1, Math.round((2 * hw + 1) / 3));
+              box(cx + hw - s + 1, i, s, 1, shade);
+            };
             if (o.link) box(left0 + half, o.link, (n - 1) * (w + gap), 2, t);
             for (let k = 0; k < n; k++) {
               const h = hs[k % hs.length],
                 cx = left0 + k * (w + gap) + half,
                 ht = Math.round(half * (1 - (o.taper ?? 0))),
                 sp = o.sp ?? Math.round(h / 4);
-              for (let i = 1; i <= h; i++) {
-                const hw = Math.round(half * (1 - ((o.taper ?? 0) * i) / h));
-                box(cx - hw, i, 2 * hw + 1, 1, c);
-                if (i % 3 === 0 && hw > 1) box(cx - hw + 1, i, 2 * hw - 1, 1, o.win ?? t);
+              for (let i = 1; i <= h; i++) floor(cx, i, Math.round(half * (1 - ((o.taper ?? 0) * i) / h)));
+              // o.xb: that many storeys of X-bracing up the faces (Hancock, Bank of China)
+              if (o.xb)
+                for (let b = 2; b + o.xb <= h; b += o.xb) {
+                  const hw0 = Math.round(half * (1 - ((o.taper ?? 0) * b) / h)),
+                    hw1 = Math.round(half * (1 - ((o.taper ?? 0) * (b + o.xb)) / h));
+                  stroke(cx - hw0, b, cx + hw1, b + o.xb, t);
+                  stroke(cx + hw0, b, cx - hw1, b + o.xb, t);
+                }
+              if (half > 1) {
+                box(cx - half + 1, 2, 2 * half - 1, 2, 2); // the lobby
+                for (let p = -half + 2; p < half; p += 2) box(cx + p, 2, 1, 2, c);
               }
-              if (top === "spire") box(cx, h + sp, 1, sp, t);
-              else if (top === "steps") {
+              if (ht > 1 && top !== "slant")
+                box(cx - ht, h, 2 * ht + 1, 1, glass ? mull : tone(c, 0.3, [255, 248, 225]));
+              if (top === "flat" && ht > 2) {
+                box(cx - Math.round(ht / 2), h + 1, Math.round(ht / 2) * 2 + 1, 1, tone(c, 0.3)); // roof plant
+                box(cx + Math.round(ht / 2) - 1, h + 2, 1, 1, 8); // a mast
+              }
+              if (top === "spire") {
+                box(cx - 1, h + 2, 3, 2, tone(c, 0.3, [255, 248, 225]));
+                box(cx, h + sp, 1, sp, t);
+              } else if (top === "steps") {
                 for (let s = 1; s <= 3; s++) {
                   const hw = Math.max(0, ht - s * Math.ceil(ht / 4));
-                  box(cx - hw, h + 3 * s, 2 * hw + 1, 3, c);
+                  for (let r = 0; r < 3; r++) floor(cx, h + 3 * (s - 1) + r + 1, hw);
+                  box(cx - hw, h + 3 * s, 2 * hw + 1, 1, tone(c, 0.3, [255, 248, 225]));
                 }
                 box(cx, h + 9 + sp, 1, sp, t);
+                box(cx, h + 9 + Math.round(sp / 3), 1, 1, 3);
               } else if (top === "pyramid" || top === "point") {
                 const ph = o.ph ?? (top === "point" ? 2 * ht + 2 : ht + 2);
                 cone(cx, h, ht, ph, o.rc ?? c);
+                for (let j = 0; j < ph; j++) {
+                  const k = Math.round(ht * (1 - j / ph));
+                  if (k > 0) box(cx + 1, h + j + 1, k, 1, shade);
+                }
                 if (o.sp) box(cx, h + ph + sp, 1, sp, t);
               } else if (top === "slant") {
                 for (let i = 0; i <= 2 * ht; i++) {
                   const up = Math.round((2 * ht - i) * (o.sl ?? 0.7));
-                  if (up) box(cx - ht + i, h + up, 1, up, c);
+                  if (!up) continue;
+                  for (let r = 1; r <= up; r++) floor(cx - ht + i, h + r, 0);
+                  box(cx - ht + i, h + up, 1, 1, glass ? mull : tone(c, 0.3, [255, 248, 225]));
+                  if (i > ht * 1.3) box(cx - ht + i, h + up, 1, up, shade);
                 }
               } else if (top === "crown") {
                 for (let s = 0; s < 4; s++)
@@ -14127,10 +14224,12 @@
                 box(cx, h + 12 + sp, 1, sp, 8);
               } else if (top === "dome") {
                 dome(cx, h, ht, o.rc ?? t);
+                box(cx + 1, h + Math.round(ht * 0.7), Math.max(1, ht - 1), Math.round(ht * 0.7), shade);
                 box(cx, h + ht + 3, 1, 3, 3);
               } else if (top === "ball") {
                 const r = o.r ?? ht;
                 orb(cx, h + r + 1, r, o.rc ?? t);
+                box(cx - Math.max(0, r - 2), h + r + 1, 1, 1, 3); // a glint
                 box(cx, h + 2 * r + 4, 1, 3, 3);
               }
             }
@@ -15203,6 +15302,11 @@
               box(Math.min(inner, outer) + 1, h + 2, tw, 2, c); // cornice
               box(Math.min(inner, outer) + 2, h - 2, tw - 2, 1, o.t ?? 2);
               for (let i = 4; i < h - 4; i += 4) box(s * (g2 + Math.round(tw / 2)), i + 2, 1, 2, 2); // flagpole slots
+              const fx = s * (g2 + Math.round(tw / 4)); // a carved pharaoh smiting his enemies, in sunk relief
+              box(fx, Math.round(h * 0.6), 1, Math.round(h * 0.3), "rgba(24, 20, 48, 0.3)");
+              box(fx - s, Math.round(h * 0.55), 1, 1, "rgba(24, 20, 48, 0.3)");
+              box(fx + s, Math.round(h * 0.45), 1, 1, "rgba(24, 20, 48, 0.3)");
+              if (s > 0) box(outer - 3, h, 3, h, "rgba(24, 20, 48, 0.2)"); // the shaded end
             }
             box(-g2, gh, gw, gh, c);
             box(-g2 - 1, gh + 1, gw + 2, 1, c);
@@ -15218,65 +15322,145 @@
           case "rock": {
             // A rock outcrop or cliff (o.w wide, o.h tall) in colour c, with o.niches tall carved niches (Bamyan,
             // rock tombs), or o.chimneys fairy chimneys instead of one rock (Cappadocia); o.top "pagoda" (a gilt
-            // pagoda on the summit), "temple" (a small temple) or nothing.
+            // pagoda on the summit), "temple" (a small temple) or nothing. Lit from the left: wavy strata, a
+            // shaded right flank, scrub on the ledges; green (c 9) is a wooded hill with bare rock showing.
             const w = o.w ?? 30,
               h = o.h ?? 24,
-              hw = Math.floor(w / 2);
+              hw = Math.floor(w / 2),
+              tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              sh = tone(c, 0.3),
+              deep = tone(c, 0.5),
+              lit = tone(c, 0.28, [255, 248, 225]),
+              wooded = c === 9,
+              scrub = css(e.sh(wooded ? [58, 104, 66] : [96, 138, 84])),
+              bare = css(e.sh([150, 140, 122]));
             if (o.chimneys) {
               const n = o.chimneys;
               for (let j = 0; j < n; j++) {
                 const cx = Math.round(-hw + 2 + (j * (w - 4)) / Math.max(1, n - 1)),
                   ch = Math.round(h * (0.55 + 0.45 * Math.abs(Math.sin(j * 2.3 + 1))));
                 cone(cx, 0, 3, ch, c);
+                for (let i = 1; i <= ch; i++) {
+                  const k = Math.round(3 * (1 - (i - 1) / ch));
+                  if (k > 0) box(cx + 1, i, k, 1, sh); // the shaded side
+                  if (i % 4 === 0 && k > 1) box(cx - k, i, 2 * k + 1, 1, deep); // the bands of tuff
+                }
                 box(cx - 2, ch + 2, 5, 2, o.t ?? 2); // the dark capstone
+                box(cx + 1, ch + 1, 2, 1, tone(o.t ?? 2, 0.3));
                 if (j % 2 === 0) box(cx, Math.round(ch / 2), 1, 2, 2); // a cave dwelling
               }
               break;
             }
             let top = 0;
+            const ups = [];
             for (let i = -hw; i <= hw; i++) {
-              const a = Math.abs(i) / hw,
-                up = Math.max(
-                  1,
-                  Math.round(h * (1 - a ** 2.6) + Math.sin(i * 1.7) * 1.2 + Math.sin(i * 0.6)),
-                );
-              box(i, up, 1, up, c);
-              if (i % 4 === 0 && up > 4) box(i, Math.round(up * 0.6), 1, 1, 2); // cracks and ledges
+              const a = Math.abs(i) / hw;
+              ups.push(
+                Math.max(1, Math.round(h * (1 - a ** 2.6) + Math.sin(i * 1.7) * 1.2 + Math.sin(i * 0.6))),
+              );
+            }
+            for (let i = -hw; i <= hw; i++) {
+              const up = ups[i + hw],
+                prev = ups[i + hw - 1] ?? 0,
+                next = ups[i + hw + 1] ?? 0,
+                right = i > 0;
+              box(i, up, 1, up, right ? sh : c);
+              if (wooded) {
+                // trees over the slopes, rock showing on the steep upper parts
+                for (let r = up - 2; r > 1; r -= 3)
+                  if ((i + Math.floor(r / 3)) % 2 === 0) box(i, r, 1, 1, scrub);
+                if (up > prev && !right) box(i, up, 1, 1, lit);
+                if (up > h * 0.75 && i % 3 === 0) box(i, up - 1, 1, 2, bare); // rock near the summit
+              } else {
+                // strata: wavy courses every few rows, darker on the shaded flank
+                for (let r = 3 + ((i >> 2) & 1); r < up - 1; r += 4) box(i, r, 1, 1, right ? deep : sh);
+                if (up > prev && !right) box(i, up, 1, 1, lit); // the lit rim
+                if (i % 4 === 0 && up > 4) box(i, Math.round(up * 0.6), 1, 2, deep); // a crack
+                if (up >= prev && up >= next && up < h - 2 && i & 1) box(i, up + 1, 1, 1, scrub); // a tuft
+              }
               if (i === 0) top = up;
             }
+            box(-hw, 1, 2, 1, sh); // scree at the foot
+            box(hw - 1, 1, 2, 1, deep);
             const n = o.niches ?? 0;
             for (let j = 0; j < n; j++) {
               const nx = n === 1 ? 0 : Math.round(-hw * 0.5 + (j * hw) / (n - 1)),
                 nh = Math.round(h * (j % 2 ? 0.4 : 0.6));
+              box(nx - 2, nh + 2, 5, nh, lit); // the cut face round the niche
               box(nx - 1, nh + 1, 3, nh - 1, 2);
-              box(nx, nh + 2, 1, 1, 2);
+              dome(nx + 0.5, nh + 1, 1.5, 2);
+              if (nh > 7) {
+                // a seated figure carved inside
+                box(nx, nh - 2, 1, 2, tone(c, 0.15, [255, 248, 225]));
+                box(
+                  nx - 1,
+                  Math.round(nh * 0.6),
+                  3,
+                  Math.round(nh * 0.6) - 2,
+                  tone(c, 0.15, [255, 248, 225]),
+                );
+              }
             }
             if (o.top === "pagoda") {
-              cone(0, top, 3, 8, o.t ?? 12);
-              box(0, top + 10, 1, 2, 3);
+              // a tiered pagoda: storeys narrowing upwards, each under its eave
+              const pc = o.t ?? 12;
+              for (let s = 0; s < 4; s++) {
+                const k = 3 - Math.floor(s / 1.5),
+                  b = top + 2 * s;
+                box(-k + 1, b + 1, 2 * k - 1, 1, pc);
+                box(-k, b + 2, 2 * k + 1, 1, tone(pc, 0.35));
+              }
+              cone(0, top + 8, 1, 2, pc);
+              box(0, top + 10, 1, 1, 3);
             } else if (o.top === "temple") {
-              box(-3, top + 4, 7, 4, 6);
-              cone(0, top + 4, 4, 3, o.t ?? 10);
+              // a hall on a terrace under a wide roof with upturned eaves
+              const rc = o.t ?? 10;
+              box(-4, top + 1, 9, 1, 13);
+              box(-3, top + 4, 7, 3, 6);
+              for (const p of [-3, -1, 1, 3]) box(p, top + 4, 1, 3, rc);
+              box(0, top + 3, 1, 2, 2);
+              box(-5, top + 5, 11, 1, rc);
+              box(-4, top + 6, 9, 1, rc);
+              box(-2, top + 7, 5, 1, rc);
+              for (const s of [-5, 5]) box(s, top + 6, 1, 1, rc); // the eave tips
+              box(0, top + 7, 1, 1, 12);
             }
             break;
           }
           case "dam": {
             // A dam wall o.w wide and o.h tall, with o.gates spillway gates pouring water and towers on the crest.
+            // The concrete shows its lift joints and a shaded right end; each gate sits between piers under a
+            // gantry, and its water runs down a chute into the foaming pool at the foot.
             const w = o.w ?? 44,
               h = o.h ?? 18,
               hw = Math.floor(w / 2),
-              n = o.gates ?? 8;
+              n = o.gates ?? 8,
+              tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              joint = tone(c, 0.12),
+              shade = "rgba(24, 20, 48, 0.22)",
+              water = css(e.sh([128, 174, 212])),
+              spray = css(e.sh([226, 238, 246]));
             for (let i = 1; i <= h; i++) {
               const k = hw - Math.round(((h - i) / h) * 2);
-              box(-k, i, 2 * k + 1, 1, c);
+              box(-k, i, 2 * k + 1, 1, i % 3 === 0 ? joint : c);
+              box(k - 3, i, 4, 1, shade);
             }
-            box(-hw - 1, h + 1, w + 2, 1, c);
-            for (let j = 0; j < n; j++) {
-              const gx = Math.round(-hw + 3 + (j * (w - 7)) / Math.max(1, n - 1));
+            box(-hw - 1, h + 1, w + 2, 1, c); // the crest road
+            box(-hw - 1, h + 1, w + 2, 1, tone(c, 0.3, [255, 248, 225]));
+            box(-hw, h, w, 1, shade);
+            box(-hw + 1, 1, w - 2, 1, water); // the pool at the foot
+            const gxs = [];
+            for (let j = 0; j < n; j++) gxs.push(Math.round(-hw + 3 + (j * (w - 7)) / Math.max(1, n - 1)));
+            for (const gx of gxs) {
               box(gx, h - 1, 2, 3, 2); // the gate
-              box(gx, h - 4, 2, h - 6, 6); // white water down the face
-              box(gx, h + 3, 2, 2, c); // gate towers on the crest
+              box(gx, h - 4, 2, h - 5, water); // the water down the chute
+              box(gx, h - 4, 1, h - 5, spray);
+              box(gx - 1, 3, 4, 2, spray); // the spray at the foot
+              box(gx - 1, h + 3, 1, 3, c); // the piers either side of the gate
+              box(gx + 2, h + 3, 1, 3, c);
+              box(gx + 2, h + 3, 1, 3, shade);
             }
+            if (n > 1) box(gxs[0] - 1, h + 4, gxs[n - 1] - gxs[0] + 4, 1, 8); // the gantry rail
             break;
           }
           case "bust": {
@@ -15310,8 +15494,13 @@
               take = Math.round(h * 0.3);
             box(tx - 2, h, 5, h, c);
             box(tx - 3, h + 4, 7, 4, o.t ?? 11); // the starting cabin
-            for (let s = 0; s <= Math.abs(tx); s++)
+            box(tx - 3, h + 1, 7, 1, "rgba(24, 20, 48, 0.3)");
+            box(tx - 2, h + 3, 5, 1, 2); // its windows
+            box(tx + (d > 0 ? 2 : -2), h, 1, h, "rgba(24, 20, 48, 0.25)");
+            for (let s = 0; s <= Math.abs(tx); s++) {
               box(d * s, Math.round(take + ((h - take) * s) / Math.abs(tx)), 1, 3, c); // the in-run
+              box(d * s, Math.round(take + ((h - take) * s) / Math.abs(tx)) + 1, 1, 1, 6); // its icy track
+            }
             for (let s = 4; s < Math.abs(tx) - 2; s += 4) {
               const px = d * s;
               stroke(px, 0, px, Math.round(take + ((h - take) * s) / Math.abs(tx)) - 1, 8);
@@ -15324,21 +15513,52 @@
             break;
           }
           case "crane": {
-            // Gantry cranes over a dock (Belfast's Samson and Goliath): o.n of them, o.w apart legs, o.h tall.
+            // Cranes over a dock: o.n of them, o.w apart legs, o.h tall. Wide ones (o.w over 14) are gantry cranes
+            // like Belfast's Samson and Goliath: tapering legs under a box girder with the trolley and cabin.
+            // Narrower ones are ship-to-shore container cranes: a portal on four legs, the boom reaching out over
+            // the water, the A-frame above it with its stays, and the trolley and cabin under the boom.
             const n = o.n ?? 2,
               w = o.w ?? 18,
               h = o.h ?? 34,
               hw = Math.floor(w / 2),
-              gap = w + 8;
+              gap = w + 8,
+              tc = o.t ?? 2,
+              shade = "rgba(24, 20, 48, 0.3)";
             for (let j = 0; j < n; j++) {
               const cx = Math.round((j - (n - 1) / 2) * gap);
-              for (const s of [-hw, hw - 1]) box(cx + s, h, 2, h, c);
-              for (let i = 6; i < h - 4; i += 8) {
-                stroke(cx - hw + 1, i, cx - hw + 1 + 0, i + 6, c);
-                stroke(cx + hw - 1, i, cx + hw - 1, i + 6, c);
+              if (w > 14) {
+                for (const s of [-hw, hw - 1])
+                  for (let i = 1; i <= h; i++) {
+                    const k = i < h * 0.4 ? 2 : 3; // the legs widen under the girder
+                    box(cx + s - (s < 0 ? 0 : k - 2), i, k, 1, c);
+                    box(cx + s + (s < 0 ? k - 1 : 1), i, 1, 1, shade);
+                  }
+                box(cx - hw - 4, h + 3, w + 8, 4, c); // the girder
+                box(cx - hw - 4, h, w + 8, 1, shade);
+                box(cx - hw - 4, h + 3, w + 8, 1, css(e.sh(mixc(colors[c], [255, 248, 225], 0.3))));
+                box(cx - 2, h - 1, 4, 3, tc); // the trolley and cabin
+              } else {
+                const bh = Math.round(h * 0.72),
+                  sill = Math.round(h * 0.3),
+                  apex = h + 3,
+                  ax = cx + hw - 2;
+                for (const s of [-hw, hw - 1]) {
+                  box(cx + s, bh, 2, bh, c);
+                  box(cx + s + 1, bh, 1, bh, shade);
+                }
+                box(cx - hw, sill, w, 2, c); // the portal beam
+                box(cx - hw, bh - 4, w, 1, c);
+                box(cx - hw - 4, bh + 2, w + 8, 2, c); // the boom
+                box(cx - hw - 4, bh + 1, w + 8, 1, shade);
+                for (let p = cx - hw - 3; p < cx + hw + 3; p += 3) stroke(p, bh + 1, p + 2, bh + 2, 8);
+                stroke(cx - hw + 1, bh + 2, ax, apex, c); // the A-frame
+                stroke(cx + hw, bh + 2, ax, apex, c);
+                box(ax - 1, apex, 3, 1, c);
+                stroke(ax, apex, cx - hw - 4, bh + 3, 8); // the forestay
+                stroke(ax, apex, cx + hw + 3, bh + 3, 8); // and backstay
+                box(cx - hw - 1, bh, 3, 2, tc); // the trolley and cabin
+                box(cx - hw + 3, bh - 1, 2, 2, tc); // the machinery house
               }
-              box(cx - hw - 4, h + 3, w + 8, 4, c); // the girder
-              box(cx - 2, h - 1, 4, 3, o.t ?? 2); // the trolley and cabin
             }
             break;
           }
@@ -15352,10 +15572,17 @@
             box(-hw, h, w, h, c);
             box(-hw, h, 2, h, o.t ?? 1); // the curve of the drum, darker at the ends
             box(hw - 1, h, 2, h, o.t ?? 1);
-            for (let i = -hw + 3; i < hw - 2; i += 3) box(i, h - 2, 1, 1, 2);
+            box(Math.round(hw * 0.4), h, hw - Math.round(hw * 0.4) - 1, h, "rgba(24, 20, 48, 0.16)");
+            for (let r = h - 2; r > h / 2; r -= 3)
+              // windows only on the upper floors, as in the real ones
+              for (let i = -hw + 3 + (r % 2); i < hw - 2; i += 3) box(i, r, 1, 1, 2);
+            box(-hw, 3, w, 1, "rgba(24, 20, 48, 0.2)"); // the stone footing
+            box(-2, 5, 5, 5, 13); // the gate in its stone frame
             box(-1, 4, 3, 4, 2);
             box(-hw - 2, h + 2, w + 4, 2, rc);
             box(-hw, h + 3, w, 1, rc);
+            for (let i = -hw - 1; i < hw + 2; i += 2) box(i, h + 1, 1, 1, "rgba(24, 20, 48, 0.35)"); // tile ends
+            for (const s of [-hw - 2, hw + 1]) box(s, h + 3, 1, 1, rc); // upturned eaves
             break;
           }
           case "arcade": {
@@ -16217,91 +16444,212 @@
             }
             dome(0, b, k - 1, o.t ?? 1);
             box(0, b + k + 3, 1, 4, 2);
+            for (let up = 1, kk = 10; up < b; up += 3, kk -= 1)
+              box(Math.round(kk * 0.4), up + 2, kk - Math.round(kk * 0.4) + 1, 3, "rgba(24, 20, 48, 0.2)");
             break;
           }
           case "span": {
             // Bridge, o.w cells each side of the centre: "suspension", "stone" (masonry towers), "cable", "arch", "bascule",
             // "truss", "lift" (a span raised between two towers) or "girder" (a flat deck on tall piers, o.n of them).
             // o.roof: a covered deck (wooden bridges), in colour o.rc.
-            // An "arch" can sit under the road (o.over) or stand alone (o.bare, from the ground with dh 0).
+            // An "arch" can sit under the road (o.over) or stand alone (o.bare, from the ground with dh 0). An arch
+            // under the road in stone or brick colours gets solid spandrels; in steel or concrete, open columns.
             const w = o.w ?? 22,
               h = o.h ?? 26,
               dh = o.dh ?? 8,
               type = o.type ?? "suspension",
               over = type === "arch" && o.over, // masonry arch under the road instead of a steel arch over it
-              deck = over ? h + 2 : dh;
+              deck = over ? h + 2 : dh,
+              pc = o.pc ?? 13,
+              dc = o.dc ?? c,
+              tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              sh = tone(c, 0.35),
+              lit = tone(c, 0.35, [255, 248, 225]),
+              pierSh = tone(pc, 0.3),
+              water = css(e.sh([86, 132, 178])),
+              foam = css(e.sh([170, 204, 228]));
+            // A pier (half-width k, standing up to `top`) with a cap and its right side in shade.
+            const pier = (s, top, k = 1) => {
+              if (top < 1) return;
+              box(s - k, top, 2 * k + 1, top, pc);
+              box(s + k, top, 1, top, pierSh);
+              if (top > 3) box(s - k - 1, top, 2 * k + 3, 1, pc);
+            };
+            // A line of cells from column i at height a to the next column at height b, with no gaps.
+            const run = (i, a, b, col) => box(i, Math.max(a, b), 1, Math.abs(a - b) + 1, col);
+            if (!o.bare) {
+              box(-w - 1, 1, 2 * w + 3, 1, water); // the river under it
+              for (let p = -w + 1; p < w; p += 5) box(p, 1, 2, 1, foam);
+            }
             const towers =
               type === "cable" ? (o.n === 2 ? [-Math.round(w / 2), Math.round(w / 2)] : [0]) : [];
+            let piers = [-w, w];
             if (type === "suspension" || type === "stone") {
-              const p = Math.round(w * 0.55);
+              const p = Math.round(w * 0.55),
+                stone = type === "stone",
+                top = stone ? h - 1 : h,
+                cab = (i) => {
+                  const a = Math.abs(i);
+                  return a <= p
+                    ? dh + 2 + Math.round((top - dh - 3) * Math.pow(a / p, 2))
+                    : Math.round(top - 1 - ((top - dh - 3) * (a - p)) / (w + 2 - p));
+                };
               towers.push(-p, p);
               for (let i = -w - 2; i <= w + 2; i++) {
-                const a = Math.abs(i),
-                  up =
-                    a <= p
-                      ? dh + 2 + Math.round((h - dh - 4) * Math.pow(a / p, 2))
-                      : Math.round(h - 2 - ((h - dh - 4) * (a - p)) / (w + 2 - p));
-                box(i, up, 1, 1, c);
-                if (i % 3 === 0 && up > dh + 2) stroke(i, dh + 1, i, up, c);
+                const up = cab(i);
+                run(i, up, i < w + 2 ? cab(i + 1) : up, c); // the main cable (a chain: two cells thick)
+                if (stone) box(i, up - 1, 1, 1, sh);
+                if (i % 3 === 0 && up > dh + 3 && Math.abs(Math.abs(i) - p) > 1)
+                  stroke(i, dh + 1, i, up - 1, c); // a hanger
               }
+              for (const s of [-w - 2, w + 1]) box(s, dh + 2, 2, 3, pc); // the anchorages
               for (const s of [-p, p])
-                if (type === "stone") {
-                  box(s - 3, h + 2, 7, h + 2, o.tc ?? 13);
-                  for (const q of [-2, 1]) box(s + q, h - 3, 2, 8, 2);
+                if (stone) {
+                  // Masonry towers like a triumphal arch, the road passing through a tall arched opening.
+                  const tc = o.tc ?? 13,
+                    op = dh + Math.max(3, Math.round((h - dh) * 0.5));
+                  box(s - 3, h + 2, 7, h + 2, tc);
+                  box(s + 2, h + 2, 1, h + 2, tone(tc, 0.3));
+                  box(s - 4, h + 2, 9, 1, tc); // the cornice
+                  box(s - 3, h, 7, 1, tone(tc, 0.3));
+                  box(s - 1, op, 3, op - dh, 2); // the opening
+                  dome(s + 0.5, op, 1.5, 2);
+                  for (const q of [-2, 2]) box(s + q, h - 2, 1, 3, 2); // little windows above
                 } else {
-                  box(s - 1, h + 1, 3, h + 1, c);
-                  for (let j = dh + 6; j < h; j += 6) box(s - 2, j, 5, 1, c);
+                  // Steel or concrete towers: two legs tied by portal beams.
+                  box(s - 1, h + 1, 1, h + 1, c);
+                  box(s + 1, h + 1, 1, h + 1, sh);
+                  box(s - 2, h + 1, 5, 2, c);
+                  for (let j = h - 6; j > dh + 3; j -= 6) box(s - 1, j, 3, 1, c);
+                  box(s - 1, dh - 2, 3, 1, sh);
+                  box(s, h + 2, 1, 1, 3); // the aircraft light
                 }
             } else if (type === "cable")
               for (const s of towers) {
-                if (o.apy)
+                if (o.apy) {
                   // o.apy: A-shaped pylons, legs that far apart at the foot (Vladivostok's bridges)
                   for (let j = 1; j <= h; j++) {
                     const k = Math.round(o.apy * (1 - j / h));
                     box(s - k - 1, j, 2, 1, c);
-                    box(s + k, j, 2, 1, c);
+                    box(s + k, j, 1, 1, c);
+                    box(s + k + 1, j, 1, 1, sh);
                   }
-                else box(s - 1, h, 2, h, c);
+                  box(s - o.apy - 1, dh - 1, 2 * o.apy + 3, 1, sh); // the beam under the deck
+                } else {
+                  box(s - 1, h, 1, h, c);
+                  box(s, h, 1, h, sh);
+                  box(s - 2, dh - 1, 5, 1, sh);
+                }
+                box(s - 1, h - 1, 2, 5, lit); // the anchor block where the stays meet
+                box(s, h + 1, 1, 1, 3);
                 for (let d = 3, j = 0; d <= Math.round(w / towers.length) + 1; d += 3, j++)
                   for (const q of [-1, 1]) stroke(s, h - 2 - j * 2, s + q * d, dh + 1, o.t ?? c);
               }
             else if (type === "arch") {
-              const base = over ? 1 : dh;
-              const arc = (i) => base + Math.round((h - base) * (1 - (i / w) ** 2));
-              for (let i = -w; i <= w; i++) {
-                const up = arc(i);
-                // A free-standing arch fills its steep legs down to the next column's height.
-                box(
-                  i,
-                  up,
-                  1,
-                  o.bare ? Math.max(3, up - Math.max(base, arc(i + Math.sign(i || 1))) + 2) : 2,
-                  c,
-                );
-                if (i % 3 === 0 && !o.bare) stroke(i, over ? up : dh, i, over ? deck : up, c);
+              const masonry = (over && ![2, 6, 8, 11].includes(c)) || (over && c === 8 && w <= 12),
+                base = over ? 1 : o.pylon ? Math.max(1, Math.round(dh * 0.4)) : dh,
+                arc = (i, d = 0) => base + Math.round((h - d - base) * (1 - (i / w) ** 2));
+              if (o.bare) {
+                for (let i = -w; i <= w; i++) {
+                  const up = arc(i);
+                  // A free-standing arch fills its steep legs down to the next column's height.
+                  box(
+                    i,
+                    up,
+                    1,
+                    Math.max(3, up - Math.max(base, arc(i + Math.sign(i || 1))) + 2),
+                    i > 0 ? sh : c,
+                  );
+                  box(i, up, 1, 1, i < 0 ? lit : c);
+                }
+                break; // a free-standing arch (monuments): no road, no piers
               }
-              if (o.bare) break; // a free-standing arch (monuments): no road, no piers
-              if (o.pylon) for (const s of [-w - 3, w + 3]) box(s - 2, dh + 9, 5, dh + 9, 13);
+              if (masonry) {
+                // Stone: the spandrels filled up to the road, a ring of voussoirs round the opening, and on
+                // long arches small relieving arches in the haunches (Zhaozhou).
+                for (let i = -w; i <= w; i++) {
+                  const up = arc(i);
+                  box(i, deck, 1, deck - up + 1, c);
+                  box(i, up, 1, 1, sh); // the voussoirs
+                  if (i % 2 && up > 2) box(i, up + 1, 1, 1, sh);
+                }
+                if (w >= 10)
+                  for (const q of [-1, 1])
+                    for (const f of w >= 14 ? [0.6, 0.84] : [0.7]) {
+                      const cx = q * Math.round(w * f),
+                        top = deck - 2,
+                        bot = Math.max(arc(cx - 1) + 2, arc(cx + 1) + 2, top - 2);
+                      if (top - bot < 1) continue;
+                      box(cx - 1, top, 3, top - bot + 1, 2);
+                      dome(cx + 0.5, top, 1.5, 2);
+                    }
+                piers = [];
+                for (const s of [-w - 1, w + 1]) box(s - 1, deck, 3, deck, pc); // the abutments
+              } else {
+                // Steel: a two-chord arch braced in between; concrete under the road: a thick rib on columns.
+                const d = over ? 1 : Math.min(3, Math.max(2, Math.round((h - dh) / 5)));
+                for (let i = -w; i <= w; i++) {
+                  const up = arc(i),
+                    lo = arc(i, d),
+                    nx = Math.sign(i || 1);
+                  run(i, up, arc(i + nx), c);
+                  run(i, lo, arc(i + nx, d), over ? c : sh);
+                  if (!over && i % 2 === 0 && i < w) stroke(i, up, i + 1, arc(i + 1, d), sh); // the bracing
+                  if (i % 3 === 0) stroke(i, over ? up : dh, i, over ? deck : lo, c);
+                }
+                if (o.pylon)
+                  for (const s of [-w - 3, w + 3]) {
+                    // the granite pylons at the ends (Sydney)
+                    box(s - 2, dh + 9, 5, dh + 9, 13);
+                    box(s + 2, dh + 9, 1, dh + 9, tone(13, 0.3));
+                    box(s - 1, dh + 10, 3, 1, 13);
+                    box(s - 1, dh + 6, 3, 2, 2);
+                    box(s - 2, dh + 2, 5, 1, tone(13, 0.3));
+                  }
+              }
             } else if (type === "bascule") {
               for (const s of [-w, w]) stroke(s, dh + 1, Math.sign(s) * 11, h - 6, c);
               box(-8, h - 3, 17, 2, o.t ?? 7);
+              box(-8, h - 4, 17, 1, tone(o.t ?? 7, 0.35));
               for (const s of [-8, 8]) {
                 box(s - 3, h, 7, h, o.tc ?? 13);
-                box(s - 1, h - 4, 3, 5, 2);
+                box(s + 2, h, 1, h, tone(o.tc ?? 13, 0.3));
+                for (const j of [dh + 5, h - 5]) box(s - 1, j, 3, 3, 2); // the windows
+                box(s - 4, h, 9, 1, o.tc ?? 13);
                 cap(s, h, 3, "gothic", 8, 6);
               }
-            } else if (type === "truss")
-              for (let i = -w; i < w; i += 4) {
-                stroke(i, dh, i + 2, h, c);
-                stroke(i + 2, h, i + 4, dh, c);
-                box(i, h, 4, 1, c);
+              piers.push(-8, 8);
+            } else if (type === "truss") {
+              // Warren trusses; with a tall rise (o.h well above o.dh) a cantilever truss, high over the two
+              // main piers and dipping to the middle and the ends (Brisbane's Story Bridge).
+              const rise = h - dh,
+                pk = Math.round(w * 0.45),
+                tf = (i) => {
+                  const a = Math.abs(i);
+                  if (rise < 8) return h;
+                  const f = a <= pk ? 0.45 + 0.55 * (a / pk) ** 2 : 1 - (0.75 * (a - pk)) / (w - pk);
+                  return dh + 1 + Math.round((rise - 1) * f);
+                };
+              for (let i = -w; i <= w; i++) {
+                run(i, tf(i), i < w ? tf(i + 1) : tf(i), c);
+                if ((i + w) % 4 === 0) {
+                  stroke(i, dh + 1, i, tf(i), sh);
+                  if (i < w) {
+                    stroke(i, dh + 1, i + 2, tf(i + 2), c);
+                    stroke(i + 2, tf(i + 2), i + 4, dh + 1, c);
+                  }
+                }
               }
-            else if (type === "lift") {
+              piers = rise < 8 ? [-w, -Math.round(w / 3), Math.round(w / 3), w] : [-w, -pk, pk, w];
+            } else if (type === "lift") {
               const p = Math.round(w * 0.5),
                 lift = o.lift ?? h - 6; // where the moving span hangs, up in the towers
               for (const s of [-p, p]) {
                 box(s - 2, h, 5, h, o.tc ?? c);
+                box(s + 2, h, 1, h, tone(o.tc ?? c, 0.35));
+                for (let j = dh + 4; j < lift - 4; j += 4) box(s - 1, j, 1, 2, 2); // the windows
                 box(s - 1, h - 2, 3, 3, 2);
+                box(s - 3, h, 7, 1, o.tc ?? c);
                 cap(s, h, 2, o.top ?? "pyr", t);
               }
               for (let i = -p + 3; i < p - 2; i += 3) {
@@ -16310,17 +16658,21 @@
               }
               box(-p + 3, lift, 2 * p - 5, 1, c);
               box(-p + 3, lift - 3, 2 * p - 5, 1, c);
-            } else if (type === "girder")
-              for (let j = 0; j < (o.n ?? 5); j++) {
-                const s = Math.round(-w + ((2 * w) / ((o.n ?? 5) - 1 || 1)) * j);
-                box(s - 1, dh - 2, 3, dh - 2, o.pc ?? 13);
-              }
-            box(-w - 2, deck, 2 * w + 5, 2, o.dc ?? c);
-            if (type !== "girder")
-              for (const s of [...towers, -w, w]) box(s - 1, deck - 2, 3, deck - 2, o.pc ?? 13);
+              piers.push(-p, p);
+            } else if (type === "girder") {
+              piers = [];
+              for (let j = 0; j < (o.n ?? 5); j++)
+                piers.push(Math.round(-w + ((2 * w) / ((o.n ?? 5) - 1 || 1)) * j));
+            }
+            box(-w - 2, deck, 2 * w + 5, 2, dc); // the deck: a lit railing on top, the girder in shade below
+            box(-w - 2, deck, 2 * w + 5, 1, tone(dc, 0.3, [255, 248, 225]));
+            if (deck > 3) box(-w - 2, deck - 2, 2 * w + 5, 1, tone(dc, 0.35));
+            for (const s of type === "girder" || over ? piers : [...towers, ...piers])
+              pier(s, deck - (deck > 3 ? 3 : 2));
             if (o.roof) {
               for (let i = -w - 1; i <= w + 1; i += 3) box(i, deck + 3, 1, 3, o.rc ?? 1); // posts
               for (let r = 0; r < 3; r++) box(-w - 3 + r, deck + 4 + r, 2 * w + 7 - 2 * r, 1, o.rc ?? 1);
+              box(-w - 3, deck + 4, 2 * w + 7, 1, tone(o.rc ?? 1, 0.35));
             }
             break;
           }
@@ -16570,7 +16922,12 @@
             // Ferris wheel on an A-frame, capsules every 22.5 degrees.
             const r = o.r ?? 16,
               hub = r + (o.leg ?? 3);
-            for (const p of [-1, 1]) stroke(p * Math.round(r * 0.5), 0, 0, hub, o.t ?? 8);
+            for (const p of [-1, 1]) {
+              stroke(p * Math.round(r * 0.5), 0, 0, hub, o.t ?? 8);
+              stroke(p * Math.round(r * 0.5) + p, 0, 0, hub - 1, o.t ?? 8);
+            }
+            box(-Math.round(r * 0.35), 2, 2 * Math.round(r * 0.35) + 1, 2, 2); // the boarding station
+            box(-Math.round(r * 0.35) - 1, 3, 2 * Math.round(r * 0.35) + 3, 1, o.t ?? 8);
             g.fillStyle = ink[c];
             ring(g, X(0), Y(hub), R(r));
             orb(0, hub, 1, t);
@@ -16589,41 +16946,83 @@
           }
           case "stadium": {
             // Bowl widening upwards with tiers, a roof rim, o.mesh lattice skin, o.lights masts, o.arch over it.
+            // The outer wall has piers between ramp openings, a row of entrance arches at the foot, the roof
+            // canopy casts a shadow band, and the far side of the bowl turns into shade.
             const w = o.w ?? 33,
               h = o.h ?? 11,
-              hw = Math.floor(w / 2);
+              hw = Math.floor(w / 2),
+              rc = o.rc ?? 6,
+              shade = "rgba(24, 20, 48, 0.24)",
+              tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              pier = tone(c, 0.2);
             for (let i = 1; i <= h; i++) {
               const k = Math.round(hw * (0.82 + (0.18 * i) / h));
               box(-k, i, 2 * k + 1, 1, i % 3 === 0 ? t : c);
+              if (i % 3 !== 0 && i > 2 && !o.mesh)
+                for (let p = -k + 2; p < k - 1; p += 3) box(p, i, 1, 1, pier); // the piers
+              box(Math.round(k * 0.45), i, k - Math.round(k * 0.45) + 1, 1, shade);
+            }
+            const foot = Math.round(hw * 0.82);
+            for (let p = -foot + 2; p < foot - 1; p += 4) {
+              box(p, 2, 2, 2, 2); // the entrance arches
             }
             if (o.mesh)
               for (let p = -hw + 1; p < hw - 3; p += 3) {
                 stroke(p, 1, p + 3, h, o.mesh);
                 stroke(p + 3, 1, p, h, o.mesh);
               }
-            box(-hw - 1, h + 1, w + 2, 1, o.rc ?? 6);
+            box(-hw - 1, h + 1, w + 2, 1, rc); // the roof canopy
+            box(-hw, h, w, 1, "rgba(24, 20, 48, 0.4)");
+            box(-hw - 1, h + 1, 2, 1, tone(rc, 0.3, [255, 248, 225]));
             if (o.arch)
-              for (let i = -hw; i <= hw; i++)
-                box(i, h + 1 + Math.round(o.arch * (1 - (i / hw) ** 2)), 1, 1, o.rc ?? 6);
+              for (let i = -hw; i <= hw; i++) {
+                const up = h + 1 + Math.round(o.arch * (1 - (i / hw) ** 2)),
+                  nx = h + 1 + Math.round(o.arch * (1 - ((i + 1) / hw) ** 2));
+                box(i, Math.max(up, i < hw ? nx : up), 1, Math.abs(up - nx) + 1, rc);
+                if (i % 3 === 0 && up > h + 2) stroke(i, up - 1, i, h + 2, 8); // the cables to the roof
+              }
             if (o.lights)
               for (const p of [-hw - 2, hw + 2]) {
                 box(p, h + 7, 1, h + 7, 8);
+                for (let j = 3; j < h + 5; j += 3) box(p + (j % 2 ? -1 : 1), j, 1, 1, 8); // the lattice
                 box(p - 1, h + 8, 3, 2, 3);
+                box(p - 1, h + 8, 3, 1, 6);
               }
             break;
           }
           case "pyramid": {
             // Pyramid, lit face left and shaded right (o.s); o.steps makes a stepped one, o.glass a grid.
+            // Smooth ones show faint courses of stone and a bright ridge; stepped ones a lit tread on every
+            // terrace and a stairway up the middle; glass ones diagonal mullions down both faces.
             const w = o.w ?? 16,
-              h = o.h ?? Math.round(w * 0.8);
+              h = o.h ?? Math.round(w * 0.8),
+              s = o.s ?? 1,
+              tone = (col, k, to = [41, 40, 54]) => css(e.sh(mixc(colors[col], to, k))),
+              course = tone(c, 0.12),
+              courseS = tone(s, 0.15),
+              tread = tone(c, 0.3, [255, 248, 225]),
+              stair = o.steps && w >= 13; // a stairway up the front of the big terraced ones
             for (let i = 0; i < h; i++) {
               const f = o.steps ? Math.floor(i / o.steps) * o.steps : i,
                 k = Math.round(w * (1 - f / h)),
-                grid = o.glass && i % 3 === 2;
-              box(-k, i + 1, k + 1, 1, grid ? t : c);
-              box(1, i + 1, k, 1, grid ? t : (o.s ?? 1));
+                grid = o.glass && i % 3 === 2,
+                edge = o.steps && (i + 1) % o.steps === 0;
+              box(-k, i + 1, k + 1, 1, grid ? t : edge ? tread : !o.glass && !o.steps && i % 2 ? course : c);
+              box(1, i + 1, k, 1, grid ? t : !o.glass && !o.steps && i % 2 ? courseS : s);
+              if (o.steps && i % o.steps === 0 && k > 1) box(k, i + 1, 1, 1, tone(s, 0.3)); // the riser's shadow
             }
-            if (o.glass) for (let p = -w + 3; p < w - 2; p += 4) stroke(p, 1, 0, h, t);
+            if (stair) {
+              const sw = w >= 14 ? 2 : 1;
+              box(-sw, h, 2 * sw + 1, h, tone(c, 0.2));
+              for (let i = 2; i < h; i += 2) box(-sw + 1, i, 2 * sw - 1, 1, tread);
+              for (const q of [-sw - 1, sw + 1]) box(q, h - 1, 1, h - 1, tone(c, 0.45)); // the balustrades
+            } else if (!o.glass) box(0, h, 1, h, tone(c, 0.3, [255, 248, 225])); // the lit ridge
+            if (o.glass)
+              for (let p = -w + 3; p < w - 2; p += 4) {
+                stroke(p, 1, 0, h, t);
+                if (p < 0) stroke(-p, 1, 0, h, t);
+              }
+            if (!o.glass) box(0, h + 1, 1, 1, o.steps ? s : 3); // the capstone
             break;
           }
           case "torii": {
@@ -16631,12 +17030,21 @@
               h = o.h ?? 18,
               hw = Math.floor(w / 2),
               p = Math.round(hw * 0.65);
-            for (const s of [-p, p]) box(s - 1, h - 2, 2, h - 2, c);
+            // the two posts on black footings, the nuki tie beam through them, the shimaki and the black kasagi
+            // on top curving up at the ends, with the plaque (gakuzuka) between
+            for (const s of [-p, p]) {
+              box(s - 1, h - 2, 2, h - 2, c);
+              box(s, h - 2, 1, h - 2, "rgba(24, 20, 48, 0.25)");
+              box(s - 1, 2, 2, 2, 2);
+            }
             box(-hw + 1, h - 5, w - 2, 1, c);
+            box(-hw + 1, h - 6, w - 2, 1, "rgba(24, 20, 48, 0.3)");
             box(-hw, h - 1, w, 2, c);
             box(-hw - 1, h + 1, w + 2, 1, 2);
             for (const s of [-hw - 2, hw + 2]) box(s, h + 2, 1, 1, 2);
-            box(0, h - 2, 1, 3, c);
+            for (const s of [-hw - 1, hw + 1]) box(s, h + 2, 1, 1, 2);
+            box(-1, h - 2, 3, 3, c);
+            box(0, h - 2, 1, 1, 3);
             break;
           }
           case "sphere": {
@@ -16665,6 +17073,14 @@
               break;
             }
             orb(0, r - 1, r, c);
+            for (let i = -r + 1; i < r; i++) {
+              // the shaded lower right of the ball
+              const k = Math.round(Math.sqrt(r * r - i * i)),
+                f = Math.round(k * (0.3 - (0.5 * i) / r));
+              if (k - f > 0 && f > -k)
+                box(Math.max(-k, f), r - 1 - i, k - Math.max(-k, f), 1, "rgba(24, 20, 48, 0.22)");
+            }
+            if (!o.geo && c !== 8) box(-Math.round(r * 0.45), r - 1 + Math.round(r * 0.45), 1, 1, 6); // a glint
             if (o.geo) {
               for (let i = -r + 2; i < r - 1; i += 3) {
                 const k = Math.round(Math.sqrt(r * r - i * i));
@@ -16683,8 +17099,10 @@
                 w * Math.pow(1 - i / h, 0.6) * (0.75 + 0.25 * Math.sin((Math.PI * i) / h)),
               );
               box(2 - k, i, k + 1, 1, i % 4 ? c : t);
+              if (k > 3) box(2 - k, i, Math.round(k / 3), 1, "rgba(24, 20, 48, 0.18)"); // the fabric curving away
             }
             box(2, h + 6, 2, h + 6, 6);
+            for (let i = 4; i < h; i += 6) stroke(2, i, 3, i + 3, 8); // the bracing of the mast
             stroke(2 - w, 1, 3, h, 6);
             box(4, Math.round(h * 0.82), 5, 1, 6);
             break;

@@ -14,6 +14,8 @@ Open **https://utopick.github.io/clockscapes/** in any browser. You can also dow
 
 From the live page you can install it as an app (Add to Home screen on a phone, or the install button in the address bar on a computer). It then opens full screen and works offline, apart from the weather.
 
+Clockscapes collects nothing about you, and its [privacy policy](https://utopick.github.io/clockscapes/privacy.html) says what is sent to the weather service.
+
 On a phone held upright the clocks stack in rows, with each clock beside its city name.
 
 <img src="img/phone.png" alt="Phone view: Tokyo, Mexico City and Rio de Janeiro stacked in rows" width="245">

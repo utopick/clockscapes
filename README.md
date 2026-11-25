@@ -35,13 +35,36 @@ Cities also have their own events at their real times, such as Austin's bats at 
 
 The music is made live from your clocks, so each city and hour gives a different song, often in the style of the place. Listen to [Seville](https://utopick.github.io/clockscapes/audio/seville.mp3), [Lisbon](https://utopick.github.io/clockscapes/audio/lisbon.mp3), [Rio](https://utopick.github.io/clockscapes/audio/rio-de-janeiro.mp3), [Tokyo](https://utopick.github.io/clockscapes/audio/tokyo.mp3), [New Orleans](https://utopick.github.io/clockscapes/audio/new-orleans.mp3) or [Edinburgh](https://utopick.github.io/clockscapes/audio/edinburgh.mp3).
 
-Alarms carry your message across the clocks instead of ringing, and screen filters make it look like an old TV, a Game Boy or a terminal.
+Alarms carry your message across the clocks instead of ringing, and twelve screen filters make it look like an old TV, a Game Boy or a terminal. Here is Mexico City at noon through each of them, and three of them at night:
 
 <table>
 <tr>
-<td width="33%"><img src="img/screen-crt.png" alt="Mexico City through the CRT filter" width="100%"></td>
-<td width="33%"><img src="img/screen-dmg.png" alt="Mexico City through the Game Boy filter" width="100%"></td>
-<td width="33%"><img src="img/screen-green-night.png" alt="Mexico City at night through the green terminal filter" width="100%"></td>
+<td width="33%"><img src="img/screen-off.png" alt="Mexico City by day with no filter" width="100%"><br>Clean</td>
+<td width="33%"><img src="img/screen-crt.png" alt="The CRT filter, with scanlines and rounded tube corners" width="100%"><br>CRT television</td>
+<td width="33%"><img src="img/screen-lcd.png" alt="The LCD filter, with a fine grid between the pixels" width="100%"><br>LCD screen</td>
+</tr>
+<tr>
+<td><img src="img/screen-dmg.png" alt="The Game Boy filter, in four greens" width="100%"><br>Game Boy</td>
+<td><img src="img/screen-cga.png" alt="The CGA filter, in black, magenta, cyan and white" width="100%"><br>CGA</td>
+<td><img src="img/screen-ega.png" alt="The EGA filter, in its 64 colours" width="100%"><br>EGA</td>
+</tr>
+<tr>
+<td><img src="img/screen-mono.png" alt="The monochrome filter" width="100%"><br>Monochrome</td>
+<td><img src="img/screen-sepia.png" alt="The sepia filter" width="100%"><br>Sepia</td>
+<td><img src="img/screen-vhs.png" alt="The VHS filter, with split colours" width="100%"><br>VHS</td>
+</tr>
+<tr>
+<td><img src="img/screen-amber.png" alt="The amber terminal filter" width="100%"><br>Amber terminal</td>
+<td><img src="img/screen-green.png" alt="The green terminal filter" width="100%"><br>Green terminal</td>
+<td><img src="img/screen-night.png" alt="The night red filter" width="100%"><br>Night red</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="33%"><img src="img/screen-dmg-night.png" alt="Mexico City at night through the Game Boy filter" width="100%"><br>Game Boy at night</td>
+<td width="33%"><img src="img/screen-cga-night.png" alt="Mexico City at night through the CGA filter" width="100%"><br>CGA at night</td>
+<td width="33%"><img src="img/screen-green-night.png" alt="Mexico City at night through the green terminal filter" width="100%"><br>Green terminal at night</td>
 </tr>
 </table>
 

@@ -11414,7 +11414,7 @@
   "novi-sad-rs": [["Name of Mary Church","church",{w:21,nh:13,h:42,tw:7,top:"spire",c:13,t:9}],["Petrovaradin Clock Tower","belfry",{w:7,h:20,clock:1,lan:4,top:"pyr",c:6,t:2}]],
   "novo-mesto-si": [["Chapter Church of St. Nicholas","church",{w:19,nh:12,h:34,tw:5,tx:-5,top:"bulb",c:13,t:8}],["Kandija Bridge","span",{type:"arch",w:18,h:12,dh:6,c:8}]],
   "novosibirsk-ru": [["Novosibirsk Opera and Ballet Theatre","novosibirskOpera",{}],["Alexander Nevsky Cathedral","onion",{w:17,nh:13,r:5,n:0,dd:7,mc:[12],c:1}]],
-  "nowrangapur-in": [["Nabarangpur Jagannath Temple","shikhara",{w:15,h:28,c:6,t:13,top:"chakra",flag:10}]],
+  "nowrangapur-in": [["Nabarangpur Jagannath Temple","kalingaDeula",{h:30,w:11,tiers:5,c:0,t:5,flag:10}]],
   "nueva-gerona-cu": [["Presidio Modelo","tulou",{w:28,h:14,rc:6,c:12}]],
   "nueva-loja-ec": [["Iglesia de Nueva Loja","church",{w:19,nh:10,h:24,tw:5,top:"pyr",c:6,t:10}]],
   "nuku-alofa-to": [["Royal Palace","palace",{w:25,nh:9,top:"tower",th:16,tw:5,cap:"pyr",c:6,t:10,rc:10}],["Centenary Church","church",{w:19,nh:10,h:18,tw:5,top:"pyr",c:6,t:10}]],
@@ -11703,7 +11703,7 @@
   "ramnicu-valcea-ro": [["St Nicholas Episcopal Cathedral","church",{w:19,nh:11,h:26,tw:5,top:"bulb",c:6,t:8,rc:8}]],
   "ramotswa-bw": [["Ramotswa church","church",{w:17,nh:9,h:20,tw:5,top:"pyr",c:6,t:1}]],
   "rancagua-cl": [["Rancagua Cathedral","church",{w:19,nh:11,h:28,tw:5,top:"spire",c:13,t:8}]],
-  "ranchi-in": [["Ranchi Jagannath Temple","shikhara",{w:15,h:28,c:6,t:13,top:"chakra",flag:10}],["Pahari Mandir","rock",{w:29,h:22,top:"temple",c:9,t:6}]],
+  "ranchi-in": [["Ranchi Jagannath Temple","kalingaDeula",{h:32,w:9,tiers:3,plinth:2,c:6,t:13,flag:10}],["Pahari Mandir","rock",{w:29,h:22,top:"temple",c:9,t:6}]],
   "rangpur-bd": [["Tajhat Palace","palace",{w:29,nh:11,r:4,dd:3,dc:6,cols:4,c:6,t:6}]],
   "ranong-th": [["Rattanarangsan Palace","rattanarangsan",{}]],
   "raqqa-sy": [["Bab Baghdad","arch",{w:21,h:16,top:"attic",c:1}]],
@@ -44418,6 +44418,75 @@
             }
             drum(0, 18, 3, 10);
             onion(0, 28, 4);
+            break;
+          }
+          case "kalingaDeula": {
+            // An Odisha (Kalinga) temple, as built for Jagannath (Ranchi, Nabarangpur): the rekha deula over the
+            // sanctum, a ribbed tower with straight sides that curve in near the top, crowned by the wide
+            // fluted amalaka, the kalasha pot, the Nila chakra and a flag; in front, the jagamohana hall under a
+            // stepped pyramid roof (o.tiers pidhas) with its bell top. o.h height, o.w tower width, o.c walls,
+            // o.t the bands (rib shadows and tier edges), o.plinth a stepped platform (Ranchi's hilltop),
+            // o.hall a lower second pyramid hall (the bhoga mandapa) further left, o.flag its colour.
+            const h = o.h ?? 30,
+              w = o.w ?? 9,
+              hw = Math.floor(w / 2),
+              ph = o.plinth ?? 0,
+              tiers = o.tiers ?? 4,
+              dx = Math.ceil(hw / 2) + 2,
+              W = chLit(c, 0.15),
+              Sh = chShade(c, 0.3),
+              band = chShade(t, 0.1);
+            const jx = dx - hw - 5,
+              left = jx - (o.hall ? 15 : 6) - ph;
+            for (let k = 0; k < ph; k++)
+              box(left + k, k + 1, dx + hw + 2 + ph - left - 2 * k, 1, k % 2 ? 13 : Sh);
+            // the deula
+            const b0 = ph,
+              bada = Math.round(h * 0.32),
+              G = h - bada - 7,
+              gTop = b0 + bada + G;
+            box(dx - hw, b0 + bada, w, bada, c);
+            box(dx + hw, b0 + bada, 1, bada, Sh);
+            box(dx - hw, b0 + bada, w, 1, band);
+            box(dx - hw, b0 + Math.round(bada / 2), w, 1, band);
+            box(dx - 1, b0 + bada - 2, 3, bada - 4, Sh); // the niche of the side deity
+            for (let j = 0; j < G; j++) {
+              const k = Math.round(hw * (1 - 0.42 * (j / G) ** 2.2)),
+                y = b0 + bada + 1 + j;
+              box(dx - k, y, 2 * k + 1, 1, j % 4 === 3 ? band : c);
+              if (k >= 2) box(dx + k - 1, y, 2, 1, Sh);
+              if (k >= 3) box(dx - Math.round(k / 2), y, 1, 1, W);
+              box(dx, y, 1, 1, j % 4 === 3 ? c : band); // the central rib
+            }
+            const ak = Math.max(2, hw - 1);
+            box(dx - 1, gTop + 1, 3, 1, Sh); // the neck
+            box(dx - ak, gTop + 3, 2 * ak + 1, 2, c); // the amalaka
+            for (let p = -ak; p <= ak; p += 2) box(dx + p, gTop + 2, 1, 1, Sh);
+            box(dx - ak, gTop + 3, 2 * ak + 1, 1, W);
+            box(dx - 1, gTop + 5, 3, 2, 12); // the kalasha
+            box(dx, gTop + 6, 1, 1, 3);
+            box(dx, gTop + 9, 1, 3, 8); // the chakra and the flag
+            box(dx - 1, gTop + 9, 3, 1, 8);
+            box(dx, gTop + 13, 1, 4, 8);
+            box(dx + 1, gTop + 13, 3, 2, o.flag ?? 5);
+            // the jagamohana and the bhoga mandapa
+            const hall = (cx, hhw, wallH, n) => {
+              box(cx - hhw, b0 + wallH, 2 * hhw + 1, wallH, c);
+              box(cx + hhw, b0 + wallH, 1, wallH, Sh);
+              box(cx - 1, b0 + Math.min(wallH - 1, 5), 3, Math.min(wallH - 1, 5), 2);
+              let y = b0 + wallH;
+              for (let i = 0; i < n; i++) {
+                const k = hhw + 1 - i;
+                box(cx - k, y + 1, 2 * k + 1, 1, band);
+                box(cx - k + 1, y + 2, 2 * k - 1, 1, c);
+                box(cx + k - 1, y + 2, 1, 1, Sh);
+                y += 2;
+              }
+              dome(cx, y, Math.max(1, hhw - n), c);
+              box(cx, y + Math.max(1, hhw - n) + 2, 1, 2, 12);
+            };
+            if (o.hall) hall(jx - 10, 4, Math.round(bada * 0.7), Math.max(2, tiers - 1));
+            hall(jx, 5, bada, tiers);
             break;
           }
           // ---- end dup ----

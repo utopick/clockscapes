@@ -193,10 +193,10 @@ The time is this device's own time, whatever cities your clocks show. The page h
 
 When the alarm goes off, the message crosses your clocks for a full minute, one word per vehicle or sign, and repeats until the minute is over. Tap any clock to stop it. How it looks depends on the time of day in each city:
 
-| At night | By day | By day, sometimes |
-|---|---|---|
+| At night                                                                                  | By day                                                                    | By day, sometimes                                                      |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | ![Neon trucks at night, each one carrying a word of the message](../img/alarm-trucks.png) | ![A march of people holding signs, one word each](../img/alarm-march.png) | ![Small planes towing banners, one word each](../img/alarm-planes.png) |
-| Neon trucks drive along the road | People march holding signs | Planes tow banners across the sky |
+| Neon trucks drive along the road                                                          | People march holding signs                                                | Planes tow banners across the sky                                      |
 
 With the clocks side by side, the message drives from one clock into the next along the same road, turning from trucks into a march where the city crosses from night to day, as in the animation at the top. When the clocks are stacked in rows, as on a phone, every clock shows the whole message.
 
@@ -247,17 +247,17 @@ The same SCREEN tab has three settings for leaving the clocks up for hours. **Ba
 
 ## Keys
 
-| Key | What it does |
-|---|---|
-| **S** | Opens settings (cities, alarms, music, screen filter) |
-| **F** | Full screen |
-| **M** | Music on or off |
-| **N** | Next song |
-| **R** three times | The next kind of weather in every city, then the real weather again (on a touch screen, swipe up, down, up and down) |
+| Key               | What it does                                                                                                                                  |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S**             | Opens settings (cities, alarms, music, screen filter)                                                                                         |
+| **F**             | Full screen                                                                                                                                   |
+| **M**             | Music on or off                                                                                                                               |
+| **N**             | Next song                                                                                                                                     |
+| **R** three times | The next kind of weather in every city, then the real weather again (on a touch screen, swipe up, down, up and down)                          |
 | **E** three times | The next city event of the cities on screen, then the events at their real times again (on a touch screen, swipe left, right, left and right) |
-| **G** | Plays the next event that comes round every hour or so in the cities on screen, such as Big Ben striking the hour, with its sound |
-| **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again) |
-| **Esc** | Closes settings |
+| **G**             | Plays the next event that comes round every hour or so in the cities on screen, such as Big Ben striking the hour, with its sound             |
+| **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again)                                                   |
+| **Esc**           | Closes settings                                                                                                                               |
 
 On a touch screen, tap to show the buttons. With a TV remote, the arrows move between the buttons and the settings, OK presses, Back closes settings, and the remote's play and next keys control the music. Left, Right, Left, Right on the clocks is the event test. A text box only opens the TV's keyboard once you press OK on it, so moving through settings doesn't keep popping it up.
 

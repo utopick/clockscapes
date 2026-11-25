@@ -13488,6 +13488,59 @@
             }
           }
         };
+        // ---- Church parts, shared by the church, cathedral, belfry and onion archetypes ----
+        // A colour darkened for shaded sides, or lightened for lit cornices and mouldings.
+        const chShade = (col, k = 0.3) => css(e.sh(mixc(colors[col], [41, 40, 54], k))),
+          chLit = (col, k = 0.3) => css(e.sh(mixc(colors[col], [255, 248, 225], k)));
+        // A square tower w cells wide on cx, its top row h: a shaded side, small windows between string
+        // courses, a projecting cornice (lip) and an arched belfry opening with its bell; with clock, a clock
+        // face under the belfry (in its place on short towers). stripe bands it every other row (Siena).
+        const chTower = (cx, w, h, col, { clock, stripe, lip = 1 } = {}) => {
+          const hw = Math.floor(w / 2),
+            l = cx - hw,
+            ow = w >= 7 ? w - 4 : Math.max(1, w - 2),
+            r = Math.max(1, hw - 1);
+          box(l, h, w, h, col);
+          if (stripe != null) for (let i = 2; i < h; i += 2) box(l, i, w, 1, stripe);
+          if (w > 3) box(cx + hw, h - 1, 1, h - 1, chShade(col));
+          let top = h - 1;
+          if (!clock && h < 14) box(cx - Math.floor(ow / 2), h - 2, ow, Math.min(3, h - 3), 2);
+          else if (!clock || h >= 2 * r + 18) {
+            const ol = cx - Math.floor(ow / 2);
+            box(ol, h - 3, ow, 4, 2);
+            if (ow >= 3) box(ol + 1, h - 2, ow - 2, 1, 2);
+            if (ow >= 3) box(cx, h - 3, 1, 2, 12);
+            box(l, h - 7, w, 1, chLit(col, 0.25));
+            top = h - 8;
+          }
+          if (clock) {
+            const cy = top - r - 1;
+            orb(cx, cy, r, 2);
+            orb(cx, cy, r > 1 ? r - 1 : 0.6, 6);
+            box(cx, cy + 1, 1, r > 1 ? 2 : 1, 2);
+            top = cy - r - 2;
+          }
+          for (let i = 8; stripe == null && i + 3 < top; i += 7) {
+            box(cx, i + 2, 1, 2, 2);
+            if (i + 6 < top) box(l, i + 5, w, 1, chLit(col, 0.2));
+          }
+          box(l - lip, h, w + 2 * lip, 1, chLit(col, 0.35));
+        };
+        // Little corner pinnacles beside a spire or needle roof.
+        const chPinnacles = (cx, hw, h, style, col) => {
+          if (hw < 2 || (style !== "spire" && style !== "needle")) return;
+          for (const p of [-hw, hw]) {
+            box(cx + p, h + 2, 1, 2, col);
+            box(cx + p, h + 3, 1, 1, 3);
+          }
+        };
+        // An arched doorway on cx, w cells wide and h high, framed by a lit archivolt.
+        const chDoor = (cx, w, h, col) => {
+          const k = Math.floor(w / 2);
+          box(cx - k - 1, h + 1, w + 2, h + 1, chLit(col, 0.3));
+          box(cx - k, h - 1, w, h - 1, 2);
+          if (w >= 3) box(cx - k + 1, h, w - 2, 1, 2);
+        };
         switch (kind) {
           case "tokyo-tower": {
             // Orange-and-white steel lattice, two observation levels, and antenna.
@@ -14060,66 +14113,111 @@
             break;
           }
           case "church": {
-            // Nave with a gabled roof and a tower (centred, or o.tx cells to the side); o.stripe bands the
-            // tower in that colour every other row (Siena's black-and-white marble).
+            // Nave with buttresses, arched windows, an arched doorway and a tiled gabled roof (o.rc), and a
+            // tower (centred, or o.tx cells to the side) with a belfry, o.clock a clock face; o.stripe bands
+            // the tower in that colour every other row (Siena's black-and-white marble).
             const w = o.w ?? 17,
               nh = o.nh ?? 11,
               tw = o.tw ?? 5,
               h = o.h ?? 28,
               hw = Math.floor(w / 2),
               th = Math.floor(tw / 2),
-              tx = o.tx ?? 0;
+              tx = o.tx ?? 0,
+              rc = o.rc ?? 1,
+              gh = Math.round(hw * 0.55),
+              top = o.top ?? "spire";
             box(-hw, nh, w, nh, c);
-            cone(0, nh, hw, Math.round(hw * 0.55), o.rc ?? 1);
-            for (let p = -hw + 2; p < hw - 1; p += 4) box(p, nh - 3, 1, 4, 2);
-            box(tx - th, h, tw, h, c);
-            if (o.stripe != null) for (let i = 2; i < h; i += 2) box(tx - th, i, tw, 1, o.stripe);
-            if (o.clock) {
-              orb(tx, h - th - 2, Math.max(1, th - 1), 6);
-              box(tx, h - th - 2, 1, 1, 2);
-            } else box(tx - th + 1, h - 2, tw - 2, 3, 2);
-            box(tx - 1, 5, 3, 5, 2);
-            cap(tx, h, th, o.top ?? "spire", t, o.sp);
+            box(hw, nh - 1, 1, nh - 1, chShade(c));
+            box(-hw, 1, w, 1, chShade(c, 0.2));
+            for (let j = 0; j < gh; j++) {
+              const k = Math.round(hw * (1 - j / gh));
+              box(-k, nh + j + 1, 2 * k + 1, 1, j % 2 ? chShade(rc, 0.25) : rc);
+            }
+            box(-hw, nh, w, 1, chLit(c, 0.35));
+            for (let p = -hw + 2 + (hw % 2); p <= hw - 2; p += 4) {
+              if (p) {
+                box(p, nh - 3, 1, Math.min(4, nh - 3), 2);
+                box(p, nh - 2, 1, 1, chLit(c, 0.35));
+              }
+              if (p + 2 < hw - 1) box(p + 2, nh - 2, 1, nh - 3, chShade(c, 0.15));
+            }
+            if (Math.abs(tx) > th + 1) {
+              orb(0, nh - 3, 1, 2);
+              box(0, nh - 3, 1, 1, 11);
+            }
+            chTower(tx, tw, h, c, { clock: o.clock, stripe: o.stripe });
+            cap(tx, h, th, top, t, o.sp);
+            chPinnacles(tx, th, h, top, c);
+            chDoor(0, 3, 5, c);
             break;
           }
           case "cathedral": {
-            // Twin-tower facade; o.r adds a dome on a drum behind it; o.h2 makes the right tower a different
+            // Twin-tower facade with three arched portals, a pediment and a window (o.rose a rose window);
+            // o.r adds a ribbed dome on a windowed drum behind it; o.h2 makes the right tower a different
             // height (Chartres' two unmatched spires).
             const w = o.w ?? 25,
               nh = o.nh ?? 15,
               tw = o.tw ?? 5,
               h = o.h ?? 28,
               hw = Math.floor(w / 2),
-              th = Math.floor(tw / 2);
+              th = Math.floor(tw / 2),
+              top = o.top ?? "spire";
             if (o.r) {
-              const dh = o.dh ?? nh + 6;
-              box(-o.r + 1, dh, 2 * o.r - 1, dh - nh, c);
-              dome(0, dh, o.r, o.dc ?? t);
-              box(-1, dh + o.r + 3, 3, 3, c);
-              box(0, dh + o.r + 5, 1, 2, 3);
+              const dh = o.dh ?? nh + 6,
+                r = o.r,
+                dc = o.dc ?? t;
+              box(-r + 1, dh, 2 * r - 1, dh - nh, c);
+              box(r - 1, dh - 1, 1, dh - nh - 1, chShade(c));
+              for (let p = -r + 2 + (r % 2); p < r - 1; p += 2)
+                box(p, dh - 2, 1, Math.max(1, dh - nh - 4), 2);
+              dome(0, dh, r, dc);
+              if (r >= 4)
+                for (const s of [-1, 1]) {
+                  const p = s * Math.ceil(r / 2),
+                    rh = Math.floor(Math.sqrt(r * r - p * p)) - 1;
+                  box(p, dh + rh, 1, rh, chShade(dc, 0.3));
+                }
+              box(-r, dh, 2 * r + 1, 1, chLit(c, 0.35));
+              box(-1, dh + r + 3, 3, 3, c);
+              box(0, dh + r + 2, 1, 1, 2);
+              box(0, dh + r + 5, 1, 2, 3);
             }
+            const gk = hw - tw,
+              gt = Math.round(gk * 0.5);
             box(-hw, nh, w, nh, c);
-            cone(0, nh, hw - tw, Math.round((hw - tw) * 0.5), c);
+            box(-hw, 1, w, 1, chShade(c, 0.2));
+            cone(0, nh, gk, gt, chLit(c, 0.35));
+            cone(0, nh, gk - 2, gt - 1, c);
+            box(-hw, nh, w, 1, chLit(c, 0.35));
+            if (gk > 3) for (const s of [-1, 1]) box(s * (gk - 1), nh - 1, 1, nh - 2, chLit(c, 0.2));
             if (o.mid) {
               // o.mid: a third, central tower that tall (St. Louis Cathedral, the Salt Lake Temple)
-              box(-th, o.mid, tw, o.mid, c);
-              box(-th + 1, o.mid - 2, tw - 2, 3, 2);
-              cap(0, o.mid, th, o.top ?? "spire", t, o.sp);
+              chTower(0, tw, o.mid, c);
+              cap(0, o.mid, th, top, t, o.sp);
+              chPinnacles(0, th, o.mid, top, c);
+            } else if (o.rose) {
+              orb(0, nh - 4, 2, 2);
+              orb(0, nh - 4, 1, 11);
+              box(0, nh - 4, 1, 1, 3);
+            } else {
+              const wh = nh >= 14 ? 3 : 2;
+              box(-2, nh - 1, 5, wh + 3, chLit(c, 0.3));
+              box(-1, nh - 3, 3, wh, 2);
+              box(0, nh - 2, 1, 1, 2);
             }
-            if (o.rose) orb(0, nh - 4, 2, 2);
             for (const p of [-hw + th, hw - th]) {
               const ph = p > 0 ? (o.h2 ?? h) : h;
-              box(p - th, ph, tw, ph, c);
-              box(p - th + 1, ph - 2, tw - 2, 3, 2);
-              box(p, nh - 3, 1, 3, 2);
-              cap(p, ph, th, o.top ?? "spire", t, o.sp);
+              chTower(p, tw, ph, c);
+              cap(p, ph, th, top, t, o.sp);
+              chPinnacles(p, th, ph, top, c);
+              if (tw >= 5) chDoor(p, 1, 4, c);
             }
-            box(-1, 6, 3, 6, 2);
-            dome(0, 6, 1, 2);
+            chDoor(0, 3, 6, c);
             break;
           }
           case "onion": {
-            // Orthodox church: kokoshnik arches, drums and onion domes (o.mc colours, o.tent a tent spire).
+            // Orthodox church: kokoshnik arches, windowed drums and ribbed onion domes with crosses (o.mc
+            // colours; with three or more, the domes swirl in two of them like St Basil's), o.tent a tent spire.
             const w = o.w ?? 17,
               nh = o.nh ?? 12,
               r = o.r ?? 4,
@@ -14129,23 +14227,67 @@
             const side =
               { 2: [-hw + 2, hw - 2], 4: [-hw + 2, -Math.round(hw / 2), Math.round(hw / 2), hw - 2] }[o.n] ??
               [];
+            const onion = (cx, base, k, i) => {
+              const col = mc[i % mc.length],
+                tall = Math.round(k * 1.7) + 1,
+                tip = base + k + tall + 3;
+              orb(cx, base + k, k, col);
+              cone(cx, base + k, k, tall, col);
+              if (mc.length >= 3)
+                for (let y = 0; y <= k + tall; y++) {
+                  const dy = y - k,
+                    kk = Math.max(
+                      y <= 2 * k ? Math.floor(Math.sqrt(k * k - dy * dy)) : -1,
+                      y > k ? Math.round(k * (1 - (y - k - 1) / tall)) : -1,
+                    );
+                  for (let p = -kk; p <= kk; p++)
+                    if ((((p + y) % 3) + 3) % 3 === 0) box(cx + p, base + y, 1, 1, mc[(i + 2) % mc.length]);
+                }
+              if (k >= 2) {
+                const g = Math.ceil(k / 2);
+                box(cx - g, base + k + Math.round(k * 0.6), 1, Math.round(k * 0.9), chLit(col, 0.5));
+                box(cx + g, base + k + Math.round(k * 0.4), 1, Math.round(k * 0.9), chShade(col, 0.3));
+              }
+              box(cx, tip, 1, 4, 3);
+              box(cx - 1, tip - 1, 3, 1, 3);
+            };
             box(-hw, nh, w, nh, c);
-            for (let p = -hw + 2; p <= hw - 2; p += 4) dome(p, nh, 2, c);
-            for (let p = -hw + 2; p <= hw - 2; p += 4) box(p, nh - 3, 1, 4, 2);
-            box(-1, 5, 3, 5, 2);
+            box(hw, nh - 1, 1, nh - 1, chShade(c));
+            box(-hw, 1, w, 1, chShade(c, 0.2));
+            box(-hw, nh, w, 1, chLit(c, 0.35));
+            for (let p = -hw + 2 + (hw % 2); p <= hw - 2; p += 4) {
+              dome(p, nh, 2, chLit(c, 0.35));
+              dome(p, nh, 1, c);
+              if (p) {
+                box(p, nh - 3, 1, 4, 2);
+                box(p, nh - 2, 1, 1, chLit(c, 0.35));
+              }
+            }
             side.forEach((p, i) => {
               const k = Math.max(1, Math.round(r * 0.55));
               box(p - k + 1, nh + dd - 1, 2 * k - 1, dd - 1, c);
-              bulb(p, nh + dd - 1, k, mc[(i + 1) % mc.length]);
+              if (k >= 2 && dd >= 4) box(p, nh + dd - 2, 1, dd - 3, 2);
+              box(p - k + 1, nh + dd - 1, 2 * k - 1, 1, chLit(c, 0.35));
+              onion(p, nh + dd - 1, k, i + 1);
             });
             if (o.tent) {
               box(-2, nh + dd, 5, dd, c);
-              cone(0, nh + dd, 3, o.tent, c);
-              bulb(0, nh + dd + o.tent, 1, mc[0]);
+              for (let j = 0; j < o.tent; j++) {
+                const k = Math.round(3 * (1 - j / o.tent));
+                box(-k, nh + dd + j + 1, 2 * k + 1, 1, j % 4 === 3 ? chLit(c, 0.35) : c);
+                if (k) box(1, nh + dd + j + 1, k, 1, j % 4 === 3 ? c : chShade(c, 0.25));
+              }
+              box(0, nh + dd - 1, 1, dd - 2, 2);
+              onion(0, nh + dd + o.tent, 1, 0);
             } else {
               box(-r + 1, nh + dd, 2 * r - 1, dd, c);
-              bulb(0, nh + dd, r, mc[0]);
+              box(r - 1, nh + dd - 1, 1, dd - 1, chShade(c));
+              if (dd >= 4)
+                for (let p = -r + 2 + (r % 2); p < r - 1; p += 2) box(p, nh + dd - 1, 1, dd - 2, 2);
+              box(-r + 1, nh + dd, 2 * r - 1, 1, chLit(c, 0.35));
+              onion(0, nh + dd, r, 0);
             }
+            chDoor(0, 3, 5, c);
             break;
           }
           case "mosque": {
@@ -14209,31 +14351,51 @@
             break;
           }
           case "belfry": {
-            // Square tower: bell, clock and city-hall towers, campaniles, Maghreb minarets; o.grove crowns it
-            // with trees instead of a roof (Lucca's Guinigi Tower).
+            // Square tower: bell, clock and city-hall towers, campaniles, Maghreb minarets. A plinth, string
+            // courses, a louvred belfry with its bell (o.clock adds a clock face), an arched lantern of o.lan
+            // rows, o.sebka lattice panels; o.grove crowns it with trees instead of a roof (Lucca's Guinigi Tower).
             const w = o.w ?? 7,
               h = o.h ?? 34,
-              hw = Math.floor(w / 2);
-            box(-hw, h, w, h, c);
-            for (let i = 8; i < h - 8; i += 7) box(0, i + 2, 1, 2, 2);
-            if (o.clock) {
-              orb(0, h - hw - 2, Math.max(1, hw - 1), 6);
-              box(0, h - hw - 2, 1, 1, 2);
-            } else box(-hw + 1, h - 2, w - 2, 4, 2);
+              hw = Math.floor(w / 2),
+              top = o.top ?? "pyr";
+            chTower(0, w, h, c, { clock: o.clock });
+            // o.sebka: the lattice panels of Almohad minarets beside the windows (the Giralda, the Koutoubia)
+            if (o.sebka)
+              for (let y = Math.round(h * 0.4); y < h - 8; y++)
+                for (let p = 1; p < hw; p++)
+                  if ((p + y) % 2 === 0) for (const s of [-p, p]) box(s, y, 1, 1, chShade(c, 0.3));
+            box(-hw - 1, 2, w + 2, 2, c);
+            box(-hw - 1, 2, w + 2, 1, chLit(c, 0.25));
+            box(hw + 1, 2, 1, 2, chShade(c));
             box(-hw - 1, h + 1, w + 2, 1, c);
+            let roof = h + 1,
+              rw = hw;
             if (o.lan) {
-              const k = Math.max(1, hw - 1);
-              box(-k, h + 1 + o.lan, 2 * k + 1, o.lan, c);
-              box(-k + 1, h + o.lan, Math.max(1, 2 * k - 1), Math.max(1, o.lan - 2), 2);
-              cap(0, h + 1 + o.lan, k, o.top ?? "pyr", t, o.sp);
-            } else if (o.grove)
+              const k = Math.max(1, hw - 1),
+                ow = Math.max(1, 2 * k - 1),
+                lt = h + 1 + o.lan;
+              box(-k, lt, 2 * k + 1, o.lan, c);
+              box(k, lt - 1, 1, o.lan - 1, chShade(c));
+              box(-k + 1, lt - 1, ow, Math.max(1, o.lan - 2), 2);
+              if (ow >= 3) {
+                box(-k + 1, lt - 1, 1, 1, c);
+                box(k - 1, lt - 1, 1, 1, c);
+              }
+              if (ow >= 5) box(0, lt - 1, 1, o.lan - 2, c);
+              else if (ow >= 3 && o.lan >= 4) box(0, lt - 2, 1, 1, 12);
+              if (o.lan >= 4) box(-k - 1, lt, 2 * k + 3, 1, chLit(c, 0.35));
+              roof = lt;
+              rw = k;
+            }
+            if (o.grove)
               for (const [dx, dy, r] of [
                 [-hw + 1, 3, 2],
                 [hw - 1, 3, 2],
                 [0, 5, 3],
               ])
                 orb(dx, h + 1 + dy, r, 9);
-            else cap(0, h + 1, hw, o.top ?? "pyr", t, o.sp);
+            else if (top === "flat") for (let p = -rw - 1; p <= rw + 1; p += 2) box(p, roof + 1, 1, 1, c);
+            else cap(0, roof, rw, top, t, o.sp);
             break;
           }
           case "jars": {

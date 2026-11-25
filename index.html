@@ -11289,7 +11289,7 @@
   "mtwara-tz": [["Mtwara Port Cranes","crane",{n:2,w:8,h:24,c:8}]],
   "muan-kr": [["Jeollanam-do Provincial Office","sky",{w:11,h:32,c:6,t:11}]],
   "muang-xay-la": [["Phou That stupa","stupa",{w:17,h:30,c:12}]],
-  "mugla-tr": [["Muğla Clock Tower","hamidClock",{w:5,h:22,n:2,top:"pyr",c:13,t:8}],["Kurşunlu Mosque","sinanMosque",{w:17,nh:10,r:6,mh:24,c:13}]],
+  "mugla-tr": [["Muğla Clock Tower","hamidClock",{w:5,h:22,n:2,top:"pyr",c:13,t:8}],["Kurşunlu Mosque","kursunluMugla",{}]],
   "mukalla-ye": [["Al-Ghuwayzi Fort","castle",{w:11,wh:4,n:1,th:20,tw:9,top:"crenel",c:6}]],
   "mukdahan-th": [["Mukdahan Tower","mukdahanTower",{h:44}],["Second Thai–Lao Friendship Bridge","span",{type:"girder",n:4,w:22,h:12,dh:9,c:13}]],
   "multan-pk": [["Tomb of Shah Rukn-e-Alam","mosque",{w:19,nh:14,r:7,dd:6,dc:6,m:0,c:1}]],
@@ -44630,6 +44630,56 @@
               box(-1, nh, 3, nh - 2, D);
               box(-1, Math.round(nh * 0.6), 3, Math.round(nh * 0.6) - 2, 2);
             }
+            break;
+          }
+          case "kursunluMugla": {
+            // Muğla's Kurşunlu Camii (15th century, "the leaded one"): a low cream hall under a broad lead dome
+            // on a short drum, a glazed later porch along the front with tall arched windows between pilasters
+            // under a lead roof, and a slim stone minaret behind on the right with one balcony and a lead cone.
+            const wl = [226, 214, 172],
+              ld = [168, 176, 184],
+              B = css(e.sh(wl)),
+              S = css(e.sh(mixc(wl, [41, 40, 54], 0.28))),
+              Lt = css(e.sh(mixc(wl, [255, 248, 225], 0.45))),
+              st = [176, 160, 128],
+              M = css(e.sh(st)),
+              MS = css(e.sh(mixc(st, [41, 40, 54], 0.3))),
+              L = css(e.sh(ld)),
+              LS = css(e.sh(mixc(ld, [41, 40, 54], 0.3))),
+              LL = css(e.sh(mixc(ld, [255, 248, 225], 0.4)));
+            // the minaret
+            box(5, 22, 3, 14, M);
+            box(7, 22, 1, 14, MS);
+            box(4, 22, 5, 1, LL); // the balcony
+            box(4, 21, 5, 1, MS);
+            box(5, 26, 3, 4, Lt);
+            box(7, 26, 1, 4, S);
+            box(6, 24, 1, 1, 2);
+            cone(6, 26, 1, 6, L);
+            box(6, 34, 1, 2, 8);
+            // the dome on its drum
+            box(-8, 13, 15, 2, Lt);
+            box(-7, 15, 13, 2, B);
+            box(5, 15, 1, 2, S);
+            dome(-1, 15, 7, LS);
+            dome(-2, 15, 6, L);
+            box(-5, 19, 1, 1, LL);
+            box(-1, 23, 1, 2, 12);
+            box(-1, 25, 1, 2, 8);
+            // the hall behind and the glazed porch
+            box(-10, 12, 22, 8, B);
+            box(11, 12, 1, 8, S);
+            box(-11, 13, 24, 1, LL);
+            box(-11, 12, 24, 1, LS); // the porch's lead roof
+            box(-11, 11, 24, 10, B);
+            box(-11, 11, 24, 1, Lt);
+            for (const p of [-11, -6, -1, 4, 9, 12]) box(p, 10, 1, 9, Lt); // pilasters
+            for (const p of [-9, -4, 1, 6]) {
+              box(p, 9, 3, 6, 2);
+              box(p + 1, 9, 1, 6, LS); // the glazing bars
+              box(p, 9, 3, 1, Lt);
+            }
+            box(-12, 2, 26, 2, S);
             break;
           }
           // ---- end dup ----

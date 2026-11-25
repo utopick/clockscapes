@@ -22890,7 +22890,7 @@
             Object.assign(el.style, {
               top: y * P + "px",
               fontSize: size + "px",
-              left: (compact ? this.x0 * P : 4) + "px",
+              left: (compact && !this.car ? this.x0 * P : 4) + "px",
               right: "4px",
               textAlign: compact ? (this.car ? "right" : "left") : "center",
             });
@@ -23605,9 +23605,23 @@
             if (this.compact) {
               const cw = this.clockEl.getBoundingClientRect().width;
               const tx = Math.ceil(this.x0 * this.P + cw + 5 * this.P);
-              if (this.car)
+              if (this.car) {
+                // the digits span the text block: from the top of the city's capitals to the weather line's
+                // baseline, both measured, so it holds at every screen size
+                const city = inkMetrics(this.cityText, "N"),
+                  wx = inkMetrics(this.weatherText, "N"),
+                  clock = inkMetrics(this.clockEl, "0");
+                const top = this.cityText.offsetTop + city.base - city.cap,
+                  base = this.weatherText.offsetTop + wx.base,
+                  fs = ((base - top) / clock.cap) * clock.fs;
+                if (fs > 0) {
+                  this.clockEl.style.fontSize = fs + "px";
+                  this.clockEl.style.top = base - (clock.base / clock.fs) * fs + "px";
+                }
+                const wide = this.clockEl.getBoundingClientRect().width;
                 for (const el of [this.cityText, this.dateText, this.weatherText])
-                  el.style.right = Math.ceil(this.xr + cw + 5 * this.P) + "px";
+                  el.style.right = Math.ceil(this.xr + wide + 5 * this.P) + "px";
+              }
               else this.cityText.style.left = this.dateText.style.left = tx + "px";
             }
           }
@@ -23645,6 +23659,21 @@
         } catch (e) {
           return null;
         }
+      }
+      // Where a text element's first line has its baseline (pixels under the element's top), how tall
+      // the letter ch is above it, and the font size, read from the font itself
+      function inkMetrics(el, ch) {
+        const cs = getComputedStyle(el),
+          g = (inkMetrics.g ||= document.createElement("canvas").getContext("2d"));
+        g.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const m = g.measureText(ch),
+          fs = parseFloat(cs.fontSize),
+          line = parseFloat(cs.lineHeight) || fs * 1.2;
+        return {
+          base: (line - m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2 + m.fontBoundingBoxAscent,
+          cap: m.actualBoundingBoxAscent,
+          fs,
+        };
       }
       function isLocalZone(tz) {
         const here = canonicalZone(Intl.DateTimeFormat().resolvedOptions().timeZone);

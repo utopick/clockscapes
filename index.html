@@ -11869,7 +11869,7 @@
   "santa-fe-ar": [["Puente Colgante","span",{type:"suspension",w:20,h:24,dh:6,c:1}]],
   "santa-fe-us": [["Cathedral Basilica of St. Francis of Assisi","cathedral",{w:21,nh:12,h:20,top:"flat",rose:1,c:0,t:0}]],
   "santa-marta-co": [["Santa Marta Cathedral","church",{w:21,nh:11,h:26,tw:5,tx:7,top:"dome",c:6,t:6}],["Quinta de San Pedro Alejandrino","palace",{w:27,nh:9,top:"flat",c:6,rc:10}]],
-  "santa-rosa-ar": [["Santa Rosa Cathedral","church",{w:19,nh:11,h:28,tw:5,top:"pyr",c:6,t:8}]],
+  "santa-rosa-ar": [["Santa Rosa Cathedral","santaRosaCathedral"]],
   "santa-rosa-de-copan-hn": [["Catedral de Santa Rosa de Lima","church",{w:21,nh:12,h:30,tw:7,tx:-6,top:"dome",c:6,t:6}]],
   "santander-es": [["Magdalena Palace","palace",{w:31,nh:12,top:"tower",cap:"crenel",wings:"pyr",c:13,rc:8}]],
   "santarem-pt": [["Sé de Santarém","cathedral",{w:23,nh:14,h:22,top:"pyr",c:6,t:13}],["Torre das Cabaças","belfry",{w:7,h:26,top:"pyr",c:13,t:8}]],
@@ -14408,6 +14408,49 @@
             box(1, 20, 2, 1, 11);
             box(1, 19, 2, 1, 6);
             box(1, 18, 2, 1, 11);
+            break;
+          }
+          case "santaRosaCathedral": {
+            // Santa Rosa de Lima, La Pampa (1950s): a brown concrete block behind a lattice of diamond frames,
+            // a yellow open belfry with its bells on top, and a tall diamond carrying the cross
+            const wall = css(e.sh([150, 118, 104])),
+              wallDark = css(e.sh([118, 92, 84])),
+              yellow = css(e.sh([232, 188, 62]));
+            box(-9, 18, 18, 18, wall);
+            box(5, 18, 4, 18, wallDark);
+            box(-9, 3, 18, 3, 2); // the dark entrance band
+            box(-6, 23, 12, 5, yellow);
+            for (let p = -5; p <= 4; p += 2) {
+              box(p, 22, 1, 3, 2);
+              box(p, 20, 1, 1, 12);
+            }
+            box(-7, 24, 14, 1, yellow);
+            box(-4, 25, 8, 1, yellow);
+            box(-2, 26, 4, 1, yellow);
+            const diamond = (cx, cy, hw, hh) => {
+              // cell by cell, so the frames keep their thickness at every size
+              for (let dy = -hh; dy <= hh; dy++) {
+                const off = Math.round(hw * (1 - Math.abs(dy) / hh));
+                box(cx - off, cy + dy, 1, 1, 13);
+                box(cx + off, cy + dy, 1, 1, 13);
+              }
+            };
+            for (const [cx, cy] of [
+              [-6, 5],
+              [0, 5],
+              [6, 5],
+              [-3, 11],
+              [3, 11],
+              [-6, 17],
+              [0, 17],
+              [6, 17],
+            ])
+              diamond(cx, cy, 3, 4);
+            diamond(-4, 25, 2, 4);
+            box(-4, 31, 1, 2, 12); // the little crown on the left diamond
+            diamond(3, 28, 3, 6);
+            box(3, 38, 1, 9, 13);
+            box(1, 35, 5, 1, 13);
             break;
           }
           // ---- end argentina-famous ----

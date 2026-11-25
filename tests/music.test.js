@@ -314,12 +314,16 @@ test("regional songs stay lo-fi: relaxed tempos, high leads an octave down, a da
     }
 });
 
-test("a flamenco song walks down the Andalusian cadence and strums it with rasgueados", () => {
+test("a flamenco song walks one of its Andalusian cadences down to E and strums it with rasgueados", () => {
+  const seen = new Set();
   for (const seed of SEEDS.slice(0, 30)) {
-    const s = LOFI.song(seed, { region: "flamenco" });
-    assert.deepStrictEqual(s.chords.map((c) => (c.root - s.key + 120) % 12).join(" "), "5 3 1 0");
+    const s = LOFI.song(seed, { region: "flamenco" }),
+      roots = s.chords.map((c) => (c.root - s.key + 120) % 12).join(" ");
+    assert.ok(["5 3 1 0", "1 0 5 0", "5 10 1 0", "8 3 1 0"].includes(roots), roots);
+    seen.add(roots);
     assert.ok(s.strum[1].includes("r") && s.perc.palmas && s.perc.castanets);
   }
+  assert.strictEqual(seen.size, 4, "a new variation can change the cadence");
 });
 
 test("fado is slow, its A minor and its B major on the same root, with arpeggios", () => {
@@ -345,12 +349,11 @@ test("bossa nova is a nylon guitar on the bossa rhythm with ninth chords, 64 to 
   }
 });
 
-test("lo-fi country goes I IV V I and IV I ii V, a pedal steel over an acoustic strum and brushes", () => {
+test("lo-fi country goes I IV V I, I V vi IV, I vi IV V or I IV I V, a pedal steel over a strum and brushes", () => {
   for (const seed of SEEDS.slice(0, 30)) {
     const s = LOFI.song(seed, { region: "country" }),
       roots = (ch) => ch.map((c) => (c.root - s.key + 120) % 12).join(" ");
-    assert.strictEqual(roots(s.chords), "0 5 7 0");
-    assert.strictEqual(roots(s.chordsB), "5 0 2 7");
+    assert.ok(["0 5 7 0", "0 7 9 5", "0 9 5 7", "0 5 0 7"].includes(roots(s.chords)), roots(s.chords));
     assert.ok(s.voices.lead === "steel" && s.strum[0] === "spanish" && s.loop === "lazy");
   }
 });
@@ -612,10 +615,10 @@ test("with the four ideas off, every song plays the pinned music's exact score",
     assert.deepStrictEqual(off, L.score(s), "nf none is not the same as no nf");
     all.push(off);
   }
-  // the fingerprint of these scores at the tag pin-lofi-2026-11-24: change it only when the plain music is
-  // meant to change, and then move the pin too
+  // the fingerprint of these scores: change it only when the plain music is meant to change (last on
+  // 2026-11-25, when flamenco, hijaz, fado, tango and country got four progressions each instead of one)
   const hash = require("crypto").createHash("sha256").update(JSON.stringify(all)).digest("hex").slice(0, 16);
-  assert.strictEqual(hash, "688f34485b30031a", "with nf none the score is no longer the pin's");
+  assert.strictEqual(hash, "571dc916cccd9b2a", "with nf none the score is no longer the pin's");
 });
 
 test("drift: each part's low-pass and the tape's move slowly and stay in range", () => {

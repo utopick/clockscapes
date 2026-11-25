@@ -1148,7 +1148,7 @@
        *   calls schedule(until) often, fadeOut(at, seconds) to leave, and dispose() once it is silent.
        * nf switches on four ideas, each on its own ({drift, breathe, swell, phaser}, see drift(), breathe(),
        *   swellAt and PH_HZ): they change how a sheet is played, never the sheet, and without them (nf left out
-       *   or all false) a song plays exactly as it did at the tag pin-lofi-2026-11-24.
+       *   or all false) a song plays its plain score, which a test pins with a fingerprint.
        * The first drum loop, its bass rhythm and the chord hits are TUNE.Pocket's JAM "Lo-fi" loop (lazy beat).
        * Each song picks a band from BANDS, which says which Player voice plays the chords, the lead (one of
        *   its leads, another one plays the solo section) and the bass, which drum kit plays the loop (KITS maps
@@ -1557,8 +1557,9 @@
         // (REGIONS below), and song() bends the song towards it while keeping the seed's own melody and form.
         // Every field is optional:
         //   modes: the scales it may use (MODES, one picked by the seed), so a Celtic song is Dorian or Mixolydian
-        //   prog: four fixed chords as semitones over the key, instead of the gene's (flamenco's cadence), and
-        //     progB the B section's (otherwise B starts on prog's second chord)
+        //   progs: the style's own progressions, [[A, B?], ...], one picked by the seed: A is four chords as
+        //     semitones over the key, instead of the gene's (flamenco's cadences), and B the B section's
+        //     (otherwise B starts on A's second chord)
         //   bpm: [slowest, fastest]; colour: a COLOURS name or its own degrees; swing: the lilt (0.33 is a triplet, jig-like feel)
         //   band: voices that replace the band's (chords, leads, bass, drums, loops, hits, echo, level)
         //   leads: the melody voices (one picked by the seed; the band's lead then takes the solo)
@@ -1636,13 +1637,60 @@
           },
           // the Andalusian cadence (Am G F E over E) strummed on a guitar, with palmas and castanets
           flamenco: {
-            modes: ["phrygianDom"],
-            prog: [
-              [5, 8, 12],
-              [3, 7, 10],
-              [1, 5, 8],
-              [0, 4, 7],
+            // Andalusian cadences over E (phrygian dominant): Am G F E, F E Am E, Am Dm F E and C G F E (one picked by the seed, so a new variation changes the chords too)
+            progs: [
+              [
+                [
+                  [5, 8, 12],
+                  [3, 7, 10],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [1, 5, 8],
+                  [0, 4, 7],
+                  [5, 8, 12],
+                  [0, 4, 7],
+                ],
+                [
+                  [5, 8, 12],
+                  [3, 7, 10],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [5, 8, 12],
+                  [10, 13, 17],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+                [
+                  [1, 5, 8],
+                  [0, 4, 7],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [8, 12, 15],
+                  [3, 7, 10],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+                [
+                  [5, 8, 12],
+                  [3, 7, 10],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+              ],
             ],
+            modes: ["phrygianDom"],
             strum: ["spanish", "r.....x.x.....x."],
             perc: { palmas: "....x.......x...", castanets: "x.........x....." },
           },
@@ -1709,13 +1757,60 @@
           },
           china: { leads: ["bowed"], strum: ["zither", "x...x...x...x..."] }, // the erhu and the guzheng
           hijaz: {
-            modes: ["phrygianDom"],
-            prog: [
-              [0, 4, 7],
-              [1, 5, 8],
-              [10, 13, 17],
-              [0, 4, 7],
+            // over D hijaz: D Eb Cm D, D Gm Eb D, D Gm Cm D and Gm Cm Eb D (one picked by the seed, so a new variation changes the chords too)
+            progs: [
+              [
+                [
+                  [0, 4, 7],
+                  [1, 5, 8],
+                  [10, 13, 17],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [0, 4, 7],
+                  [5, 8, 12],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+                [
+                  [10, 13, 17],
+                  [1, 5, 8],
+                  [10, 13, 17],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [0, 4, 7],
+                  [5, 8, 12],
+                  [10, 13, 17],
+                  [0, 4, 7],
+                ],
+                [
+                  [1, 5, 8],
+                  [0, 4, 7],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [5, 8, 12],
+                  [10, 13, 17],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                ],
+                [
+                  [0, 4, 7],
+                  [1, 5, 8],
+                  [0, 4, 7],
+                  [0, 4, 7],
+                ],
+              ],
             ],
+            modes: ["phrygianDom"],
             leads: ["reed", "shaku"], // the zurna or mizmar, and the ney
             strum: ["plucked", "x..x..x...x....."], // the oud or the saz
             perc: { goblet: "x.....x.x......." }, // the darbuka
@@ -1752,19 +1847,66 @@
           // fado: slow, a minor A and a major B on the same root, a classical guitar's arpeggios, and the
           // Portuguese guitar's tremolo or a wordless voice on the tune
           fado: {
+            // Am Dm E Am with an A major B section, Am Dm Am E, Am G F E and Am C Dm E (one picked by the seed, so a new variation changes the chords too)
+            progs: [
+              [
+                [
+                  [0, 3, 7],
+                  [5, 8, 12],
+                  [7, 11, 14],
+                  [0, 3, 7],
+                ],
+                [
+                  [0, 4, 7],
+                  [5, 9, 12],
+                  [7, 11, 14],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [0, 3, 7],
+                  [5, 8, 12],
+                  [0, 3, 7],
+                  [7, 11, 14],
+                ],
+                [
+                  [0, 4, 7],
+                  [5, 9, 12],
+                  [0, 4, 7],
+                  [7, 11, 14],
+                ],
+              ],
+              [
+                [
+                  [0, 3, 7],
+                  [10, 14, 17],
+                  [8, 12, 15],
+                  [7, 11, 14],
+                ],
+                [
+                  [0, 4, 7],
+                  [9, 13, 16],
+                  [2, 6, 9],
+                  [7, 11, 14],
+                ],
+              ],
+              [
+                [
+                  [0, 3, 7],
+                  [3, 7, 10],
+                  [5, 8, 12],
+                  [7, 11, 14],
+                ],
+                [
+                  [0, 4, 7],
+                  [5, 9, 12],
+                  [2, 5, 9],
+                  [7, 11, 14],
+                ],
+              ],
+            ],
             modes: ["fado"],
-            prog: [
-              [0, 3, 7],
-              [5, 8, 12],
-              [7, 11, 14],
-              [0, 3, 7],
-            ],
-            progB: [
-              [0, 4, 7],
-              [5, 9, 12],
-              [7, 11, 14],
-              [0, 4, 7],
-            ],
             bpm: [56, 62],
             swing: 0.1,
             leads: ["guitarra", "vox"],
@@ -1783,19 +1925,66 @@
           // lo-fi country (Texas, Nashville): I, IV and V with the odd ii, a pedal steel or a fiddle, a twangy
           // guitar on the backbeat, the train beat on brushes
           country: {
+            // I IV V I, I V vi IV, I vi IV V and I IV I V (one picked by the seed, so a new variation changes the chords too)
+            progs: [
+              [
+                [
+                  [0, 4, 7],
+                  [5, 9, 12],
+                  [7, 11, 14],
+                  [0, 4, 7],
+                ],
+                [
+                  [5, 9, 12],
+                  [0, 4, 7],
+                  [2, 5, 9],
+                  [7, 11, 14],
+                ],
+              ],
+              [
+                [
+                  [0, 4, 7],
+                  [7, 11, 14],
+                  [9, 12, 16],
+                  [5, 9, 12],
+                ],
+                [
+                  [5, 9, 12],
+                  [0, 4, 7],
+                  [5, 9, 12],
+                  [7, 11, 14],
+                ],
+              ],
+              [
+                [
+                  [0, 4, 7],
+                  [9, 12, 16],
+                  [5, 9, 12],
+                  [7, 11, 14],
+                ],
+                [
+                  [5, 9, 12],
+                  [7, 11, 14],
+                  [0, 4, 7],
+                  [0, 4, 7],
+                ],
+              ],
+              [
+                [
+                  [0, 4, 7],
+                  [5, 9, 12],
+                  [0, 4, 7],
+                  [7, 11, 14],
+                ],
+                [
+                  [9, 12, 16],
+                  [5, 9, 12],
+                  [2, 5, 9],
+                  [7, 11, 14],
+                ],
+              ],
+            ],
             modes: ["major"],
-            prog: [
-              [0, 4, 7],
-              [5, 9, 12],
-              [7, 11, 14],
-              [0, 4, 7],
-            ],
-            progB: [
-              [5, 9, 12],
-              [0, 4, 7],
-              [2, 5, 9],
-              [7, 11, 14],
-            ],
             // after the Eagles' "Lyin' Eyes" (the feel, not the song): an easy country-rock ballad, a steady
             // acoustic strum, a soft piano under it, a clean pedal steel on the tune, brushes on two and four
             bpm: [62, 72],
@@ -1835,19 +2024,66 @@
           },
           // tango: a bandoneón (or a violin on the solo) over marcato chords and the habanera bass
           tango: {
+            // i iv V i with a VI B section, i VII VI V, i iv i V and iv i V i (one picked by the seed, so a new variation changes the chords too)
+            progs: [
+              [
+                [
+                  [0, 3, 7],
+                  [5, 8, 12],
+                  [7, 11, 14],
+                  [0, 3, 7],
+                ],
+                [
+                  [8, 12, 15],
+                  [5, 8, 12],
+                  [7, 11, 14],
+                  [0, 3, 7],
+                ],
+              ],
+              [
+                [
+                  [0, 3, 7],
+                  [10, 14, 17],
+                  [8, 12, 15],
+                  [7, 11, 14],
+                ],
+                [
+                  [5, 8, 12],
+                  [0, 3, 7],
+                  [7, 11, 14],
+                  [0, 3, 7],
+                ],
+              ],
+              [
+                [
+                  [0, 3, 7],
+                  [5, 8, 12],
+                  [0, 3, 7],
+                  [7, 11, 14],
+                ],
+                [
+                  [8, 12, 15],
+                  [10, 14, 17],
+                  [7, 11, 14],
+                  [7, 11, 14],
+                ],
+              ],
+              [
+                [
+                  [5, 8, 12],
+                  [0, 3, 7],
+                  [7, 11, 14],
+                  [0, 3, 7],
+                ],
+                [
+                  [8, 12, 15],
+                  [5, 8, 12],
+                  [0, 3, 7],
+                  [7, 11, 14],
+                ],
+              ],
+            ],
             modes: ["harmonic"],
-            prog: [
-              [0, 3, 7],
-              [5, 8, 12],
-              [7, 11, 14],
-              [0, 3, 7],
-            ],
-            progB: [
-              [8, 12, 15],
-              [5, 8, 12],
-              [7, 11, 14],
-              [0, 3, 7],
-            ],
             bpm: [56, 66],
             swing: 0,
             band: {
@@ -2378,8 +2614,11 @@
           const start = pick(STARTS);
           let chords = unfold(start),
             chordsB = unfold(start + motif[0]); // B starts where A's second chord is
-          if (style?.prog) {
-            chords = style.prog.map((c) =>
+          // a style with its own progressions (style.progs: [[A, B?], ...]) takes one by the seed's bits, so the
+          // dice below are thrown the same either way
+          const [prog, progB] = style?.progs?.[(seed >>> 4) % style.progs.length] ?? [];
+          if (prog) {
+            chords = prog.map((c) =>
               voiced(
                 c.map((x) => 48 + key + x),
                 (key + c[0]) % 12,
@@ -2387,8 +2626,8 @@
             );
             chordsB = chords.slice(1).concat(chords[0]);
           }
-          if (style?.progB)
-            chordsB = style.progB.map((c) =>
+          if (progB)
+            chordsB = progB.map((c) =>
               voiced(
                 c.map((x) => 48 + key + x),
                 (key + c[0]) % 12,

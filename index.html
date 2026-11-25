@@ -238,7 +238,7 @@
         filter: saturate(0.85) contrast(0.95) brightness(1.04);
       }
       /* The palette filters run the whole clock (art and text) through an SVG filter in #fxDefs:
-         Game Boy's four greens, CGA's black, magenta, cyan and white, EGA's 64 colours, amber and red
+         Game Boy's four greens, CGA's black, magenta, cyan and white, EGA's 64 colours, amber, green and red
          screens. The others are plain CSS filters, and the overlays add scanlines, a grid or a VHS band. */
       .fx-dmg > .col {
         filter: url(#fx-dmg);
@@ -251,6 +251,17 @@
       }
       .fx-amber > .col {
         filter: url(#fx-amber);
+      }
+      .fx-green > .col {
+        filter: url(#fx-green);
+      }
+      /* at night the scene is dark, so Game Boy and CGA lift the darks before picking a shade
+         (otherwise sky, buildings and windows all fall into the darkest one) */
+      .fx-dmg > .col.dark {
+        filter: url(#fx-dmg-night);
+      }
+      .fx-cga > .col.dark {
+        filter: url(#fx-cga-night);
       }
       .fx-night > .col {
         filter: url(#fx-night);
@@ -267,7 +278,8 @@
       .fx-sepia > .col .screen {
         background: radial-gradient(ellipse at center, transparent 55%, rgba(60, 30, 0, 0.45) 100%);
       }
-      .fx-amber > .col .screen {
+      .fx-amber > .col .screen,
+      .fx-green > .col .screen {
         background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0 1px, transparent 1px 3px);
       }
       .fx-vhs > .col .screen {
@@ -768,11 +780,48 @@
           <feFuncB type="discrete" tableValues="0.06 0.19 0.06 0.06" />
         </feComponentTransfer>
       </filter>
+      <filter id="fx-dmg-night" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          type="matrix"
+          values="0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0.3 0.59 0.11 0 0  0 0 0 1 0"
+        />
+        <feComponentTransfer>
+          <feFuncR type="gamma" exponent="0.58" />
+          <feFuncG type="gamma" exponent="0.58" />
+          <feFuncB type="gamma" exponent="0.58" />
+        </feComponentTransfer>
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0.06 0.19 0.55 0.61" />
+          <feFuncG type="discrete" tableValues="0.22 0.38 0.67 0.74" />
+          <feFuncB type="discrete" tableValues="0.06 0.19 0.06 0.06" />
+        </feComponentTransfer>
+      </filter>
       <filter id="fx-cga" color-interpolation-filters="sRGB">
         <feColorMatrix
           type="matrix"
           values="0.27 0.53 0.1 0 0  0.27 0.53 0.1 0 0  0.27 0.53 0.1 0 0  0 0 0 1 0"
         />
+        <feComponentTransfer>
+          <feFuncR type="linear" slope="1.6" intercept="-0.3" />
+          <feFuncG type="linear" slope="1.6" intercept="-0.3" />
+          <feFuncB type="linear" slope="1.6" intercept="-0.3" />
+        </feComponentTransfer>
+        <feComponentTransfer>
+          <feFuncR type="discrete" tableValues="0 1 0 1" />
+          <feFuncG type="discrete" tableValues="0 0 1 1" />
+          <feFuncB type="discrete" tableValues="0 1 1 1" />
+        </feComponentTransfer>
+      </filter>
+      <filter id="fx-cga-night" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          type="matrix"
+          values="0.27 0.53 0.1 0 0  0.27 0.53 0.1 0 0  0.27 0.53 0.1 0 0  0 0 0 1 0"
+        />
+        <feComponentTransfer>
+          <feFuncR type="gamma" exponent="0.45" />
+          <feFuncG type="gamma" exponent="0.45" />
+          <feFuncB type="gamma" exponent="0.45" />
+        </feComponentTransfer>
         <feComponentTransfer>
           <feFuncR type="discrete" tableValues="0 1 0 1" />
           <feFuncG type="discrete" tableValues="0 0 1 1" />
@@ -790,6 +839,12 @@
         <feColorMatrix
           type="matrix"
           values="0.36 0.71 0.13 0 0  0.25 0.5 0.09 0 0  0.04 0.07 0.01 0 0  0 0 0 1 0"
+        />
+      </filter>
+      <filter id="fx-green" color-interpolation-filters="sRGB">
+        <feColorMatrix
+          type="matrix"
+          values="0.07 0.14 0.03 0 0  0.36 0.71 0.13 0 0  0.1 0.2 0.04 0 0  0 0 0 1 0"
         />
       </filter>
       <filter id="fx-night" color-interpolation-filters="sRGB">
@@ -23000,6 +23055,7 @@
           const top = mixc(pal.top, grey, ov * 0.85),
             bot = mixc(pal.bot, grey, ov * 0.8);
           const k = pal.k * (1 - 0.35 * ov);
+          this.el.classList.toggle("dark", k < 0.45);
           pal.lit = Math.min(0.75, pal.lit + ov * 0.12 * (pal.k < 0.9 ? 1 : 0));
           const shade = (c) => mulc(mixc(c, pal.tint, pal.ta), k);
           const e = {
@@ -23734,6 +23790,7 @@
         ["mono", "Monochrome"],
         ["sepia", "Sepia"],
         ["amber", "Amber terminal"],
+        ["green", "Green terminal"],
         ["night", "Night red"],
         ["vhs", "VHS"],
       ];

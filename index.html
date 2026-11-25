@@ -861,7 +861,7 @@
                 1–4 zones. “Find” looks up coordinates and time zone for the label using Open-Meteo. Weather
                 refreshes every 10 minutes; everything is stored only in this browser (IndexedDB).<br />
                 Keys: <b>S</b> settings · <b>F</b> fullscreen · <b>M</b> music · <b>N</b> next song ·
-                <b>Esc</b> close.<br />
+                <b>G</b> the next hourly event, such as Big Ben · <b>Esc</b> close.<br />
                 Made by
                 <a href="https://github.com/utopick" target="_blank" rel="noopener">utopick on GitHub</a>,
                 where the
@@ -24180,6 +24180,8 @@
           testKey(cycleWeatherTest, "r");
         if ((ev.key === "e" || ev.key === "E") && !ev.repeat && modal.classList.contains("hidden"))
           testKey(cycleEventTest, "e");
+        if ((ev.key === "g" || ev.key === "G") && !ev.repeat && modal.classList.contains("hidden"))
+          cycleEventTest(true);
         if ((ev.key === "n" || ev.key === "N") && !ev.repeat && musicOn()) nextSong(3);
         if (ev.key === "f" || ev.key === "F") {
           ev.preventDefault();
@@ -24258,9 +24260,12 @@
         if (musicOn()) nextSong(3); // the next song brings the rain (or its end) to the music
       }
       // Each event of the cities on screen in turn (see City events), then the events at their real times.
-      function cycleEventTest() {
-        const shown = [...new Set(COLS.flatMap((c) => c.events))],
+      // periodic (the G key): only the events that come round every hour or so (ev.every), such as Big Ben
+      function cycleEventTest(periodic = false) {
+        const shown = [...new Set(COLS.flatMap((c) => c.events))].filter((n) => !periodic || EVENTS[n].every),
           name = shown[shown.indexOf(eventTest?.name) + 1];
+        if (periodic && !shown.length && !eventTest)
+          return toast("None of these cities has an event that comes round every hour");
         eventTest = name ? { name, start: Date.now() } : null;
         const where = COLS.filter((c) => c.events.includes(name)).map((c) => c.zone.label);
         toast(

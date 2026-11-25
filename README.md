@@ -108,6 +108,7 @@ The same SCREEN tab has three settings for leaving the clocks up for hours. **Ba
 | **N** | Next song |
 | **R** three times | The next kind of weather in every city (rain, drizzle, freezing rain, storm, hail, snow, snow grains, fog, haze, dust, smoke, rainbow, aurora), then the real weather again (on a touch screen, swipe up, down, up and down) |
 | **E** three times | The next city event of the cities on screen, then the events at their real times again (on a touch screen, swipe left, right, left and right) |
+| **G** | Plays the next event that comes round every hour or so in the cities on screen, such as Big Ben striking the hour or the Kremlin chimes, with its sound, and after the last one the events at their real times again |
 | **A** three times | Plays the test alarm from the ALARMS tab (on a touch screen, swipe down, up and down again) |
 | **Esc** | Closes settings |
 

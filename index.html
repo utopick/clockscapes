@@ -16192,7 +16192,9 @@
         const hilly = ["ridge", "desert", "lush", "island"].includes(city.style);
         const arid = city.style === "desert" || ["dry", "datePalm", "sonoran"].includes(e.flora);
         const old = city.style === "old" || city.style === "island";
-        const available = Math.max(12, G - Math.min(T, G * 0.52)); // height the buildings may use
+        // height the buildings (and the city's mountains) may use, at most the column's width, so a tall narrow
+        // column gets sky above a city of the same shape as on a square one instead of stretched towers
+        const available = Math.max(12, Math.min(G - Math.min(T, G * 0.52), W));
         // pixels per landmark grid cell: 1 to 5, bigger on big screens
         const unit = Math.max(1, Math.min(5, Math.floor(Math.min(W / 62, available / 56))));
         const set = (color, haze = 0) => {
@@ -22621,9 +22623,10 @@
             });
           }
           this.clockStr = "";
-          // street depth: 39% of the height, kept between 18 and 35 pixels (and at least 17% of the height)
+          // street depth: 39% of the height, kept between 18 and 35 pixels (and at least 17% of the height,
+          // counting no more height than 1.2 widths, so a tall narrow column doesn't get a deep bare band)
           const ground = Math.min(35, Math.max(18, Math.round(H * 0.39)));
-          this.G = H - Math.max(ground, Math.round(H * 0.17));
+          this.G = H - Math.max(ground, Math.round(Math.min(H, W * 1.2) * 0.17));
           // Height budget for landmarks: never taller than ~0.6× the column width, so tall desktop
           // columns keep the same proportions as phone bands (the extra height becomes sky).
           this.A = Math.max(24, Math.min(this.G - this.T, Math.round(W * 0.6)));

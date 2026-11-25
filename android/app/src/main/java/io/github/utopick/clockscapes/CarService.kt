@@ -50,19 +50,21 @@ class CarService : CarAppService() {
 }
 
 class ClockScreen(car: CarContext) : Screen(car) {
-    private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true, query = "?layout=rows")
+    private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true, query = "?layout=rows&car")
     private var playing = false
     // the car screen's dpi, and where the area the host leaves free starts, in CSS pixels (sent to the page).
     // The host reports the same area however small the card is, and on which side depends on the car.
     private var dpi = 160
     private var cardRight = 0f
+    private var width = 0
+    private var freeRight = 0f
     private val audio = car.getSystemService(AudioManager::class.java)
     // each clock as [city, time, weather], read from the page every half minute
     private var clocks = listOf<List<String>>()
     private val tick = Handler(Looper.getMainLooper())
     private val read: Runnable = object : Runnable {
         override fun run() {
-            page.js("window.setCarCard && setCarCard($cardRight)") // the page may have loaded since
+            page.js("window.setCarCard && setCarCard($cardRight, $freeRight)") // the page may have loaded since
             page.js(CLOCKS_JS) { json ->
                 val rows = runCatching {
                     val a = JSONArray(JSONArray("[$json]").getString(0))
@@ -90,6 +92,7 @@ class ClockScreen(car: CarContext) : Screen(car) {
             override fun onSurfaceAvailable(container: SurfaceContainer) {
                 val surface = container.surface ?: return
                 dpi = container.dpi
+                width = container.width
                 page.attach(surface, container.width, container.height, container.dpi)
             }
 
@@ -97,7 +100,8 @@ class ClockScreen(car: CarContext) : Screen(car) {
             // free area starts. Its top is ignored: it only moves down while the action strip is showing.
             override fun onVisibleAreaChanged(visibleArea: Rect) {
                 cardRight = visibleArea.left / (dpi / 160f)
-                page.js("window.setCarCard && setCarCard($cardRight)")
+                freeRight = maxOf(0, width - visibleArea.right) / (dpi / 160f)
+                page.js("window.setCarCard && setCarCard($cardRight, $freeRight)")
             }
 
             override fun onSurfaceDestroyed(container: SurfaceContainer) = page.detach()

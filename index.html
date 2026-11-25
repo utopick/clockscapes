@@ -22826,6 +22826,10 @@
             this.ls = H >= 110 ? 2 : 1;
             // on a car screen the host's card may cover the left of the screen: start the clock right of it
             this.x0 = window.carCard > r.left ? Math.ceil((window.carCard - r.left) / P) + 4 : 4;
+            // the car screen (?car) puts the time at the right edge of the area the host leaves free, and
+            // the city, date and weather lines just left of it
+            this.car = PARAMS.has("car");
+            this.xr = (window.carRight || 0) + 4 * P;
             this.y0 = Math.max(3, Math.round(H * 0.05));
             capV = 7 * this.ls + 4 + 7;
             this.yLabel = this.y0;
@@ -22835,9 +22839,9 @@
             const fs = (capV * P) / 0.705;
             Object.assign(this.clockEl.style, {
               fontSize: fs + "px",
-              left: this.x0 * P + "px",
-              right: "auto",
-              textAlign: "left",
+              left: this.car ? "auto" : this.x0 * P + "px",
+              right: this.car ? this.xr + "px" : "auto",
+              textAlign: this.car ? "right" : "left",
               top: Math.round(this.y0 * P + capV * P - fs * 0.86) + "px",
             });
           } else {
@@ -22888,7 +22892,7 @@
               fontSize: size + "px",
               left: (compact ? this.x0 * P : 4) + "px",
               right: "4px",
-              textAlign: compact ? "left" : "center",
+              textAlign: compact ? (this.car ? "right" : "left") : "center",
             });
           }
           this.weatherText.style.webkitLineClamp = compact ? "1" : "2";
@@ -22898,6 +22902,10 @@
             const extra = Math.ceil(citySize * 0.62 * 1.16);
             this.dateText.style.top = this.yInfo * P + extra + "px";
             if (!compact) this.weatherText.style.top = this.yWx * P + extra + "px";
+          }
+          // on the car screen the weather sits under the date instead of under the clock
+          if (compact && this.car) {
+            this.weatherText.style.top = parseFloat(this.dateText.style.top) + Math.ceil(infoSize * 1.25) + "px";
           }
         }
         // Repaints one window on the finished scene and remembers it, so a rebuild keeps the same lights.
@@ -23597,7 +23605,10 @@
             if (this.compact) {
               const cw = this.clockEl.getBoundingClientRect().width;
               const tx = Math.ceil(this.x0 * this.P + cw + 5 * this.P);
-              this.cityText.style.left = this.dateText.style.left = tx + "px";
+              if (this.car)
+                for (const el of [this.cityText, this.dateText, this.weatherText])
+                  el.style.right = Math.ceil(this.xr + cw + 5 * this.P) + "px";
+              else this.cityText.style.left = this.dateText.style.left = tx + "px";
             }
           }
           const off = (tp.timeZoneName || "").replace("GMT", "UTC") || "UTC";
@@ -23615,7 +23626,7 @@
             `${tp.weekday} ${tp.day} ${tp.month} · ${off}` + (this.festival ? "\n" + this.festival : "");
           if (this.dateText.textContent !== info) {
             this.dateText.textContent = info;
-            this.weatherText.style.marginTop = this.festival && !this.compact ? "1.16em" : "";
+            this.weatherText.style.marginTop = this.festival && (!this.compact || this.car) ? "1.16em" : "";
           }
           if (this.weatherText.textContent !== wtxt) this.weatherText.textContent = wtxt;
         }
@@ -23992,10 +24003,12 @@
       // Android app only: the wallpaper button, the alarm note, and room for the phone's navigation bar,
       // whose size (in CSS pixels) the app sends now and whenever it changes
       // Android Auto only: where the area the car screen leaves free starts (in CSS pixels from the left),
-      // which is the right edge of the host's card, or a small margin when the card is on the right
-      window.setCarCard = (right) => {
-        if (window.carCard === right) return;
+      // which is the right edge of the host's card, or a small margin when the card is on the right, and
+      // how far that area ends from the right edge of the screen
+      window.setCarCard = (right, fromRight = 0) => {
+        if (window.carCard === right && window.carRight === fromRight) return;
         window.carCard = right;
+        window.carRight = fromRight;
         COLS.forEach((c) => c.resize());
       };
       window.setSafeInsets = (right, bottom) => {

@@ -39562,7 +39562,7 @@
               lit = css(e.sh([118, 166, 96]));
             const hgt = (x) =>
               Math.round(
-                21 * Math.cos(((x + 1) / (x < -1 ? 23 : 22)) * 1.56) ** 0.8 + (x > 6 && x < 14 ? 1 : 0),
+                21 * Math.max(0, Math.cos(((x + 1) / (x < -1 ? 23 : 22)) * 1.56)) ** 0.8 + (x > 6 && x < 14 ? 1 : 0),
               );
             for (let x = -W; x <= W; x++) {
               const h = Math.max(1, hgt(x));

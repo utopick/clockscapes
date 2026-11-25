@@ -20,8 +20,6 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
-import androidx.car.app.model.Action
-import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.validation.HostValidator
@@ -32,8 +30,8 @@ import org.json.JSONArray
 /**
  * Android Auto. Clockscapes registers as a weather app, and weather apps may draw their own picture with
  * MapWithContentTemplate only. That template always has a content card, so the card is one short line (the
- * first clock's temperature) and the music buttons sit in the action strip, which Android Auto hides ten
- * seconds after the last touch. The scene fills the car screen behind both.
+ * first clock's temperature) and the music buttons are the page's own, at the lower left, shown for
+ * ten seconds after a tap. The scene fills the car screen behind both.
  */
 class CarService : CarAppService() {
     // a debug build lets any host connect (the Desktop Head Unit, sideloaded tests); a release only
@@ -104,6 +102,19 @@ class ClockScreen(car: CarContext) : Screen(car) {
                 page.js("window.setCarCard && setCarCard($cardRight, $freeRight)")
             }
 
+            // Android Auto puts its own buttons where it likes (top right), so the lower left ones are the
+            // page's: a tap on the scene shows them, and a tap on one comes back here as its name.
+            // They can't be reached without a touch screen.
+            override fun onClick(x: Float, y: Float) {
+                val k = dpi / 160f
+                page.js("carTap(${x / k}, ${y / k}, $playing)") { key ->
+                    when (key) {
+                        "\"music\"" -> setMusic(!playing)
+                        "\"next\"" -> page.js("if (musicOn()) nextSong(3)")
+                    }
+                }
+            }
+
             override fun onSurfaceDestroyed(container: SurfaceContainer) = page.detach()
         })
         lifecycle.addObserver(object : DefaultLifecycleObserver {
@@ -120,16 +131,18 @@ class ClockScreen(car: CarContext) : Screen(car) {
         })
     }
 
+    private fun setMusic(on: Boolean) {
+        playing = on
+        // the car plays the phone's media sound once the app holds audio focus
+        if (playing) audio.requestAudioFocus(focus) else audio.abandonAudioFocusRequest(focus)
+        page.js("musicPlay($playing)")
+        invalidate()
+    }
+
     override fun onGetTemplate(): Template {
         val music = Row.Builder()
             .setTitle(if (playing) "Stop music" else "Play music")
-            .setOnClickListener {
-                playing = !playing
-                // the car plays the phone's media sound once the app holds audio focus
-                if (playing) audio.requestAudioFocus(focus) else audio.abandonAudioFocusRequest(focus)
-                page.js("musicPlay($playing)")
-                invalidate()
-            }
+            .setOnClickListener { setMusic(!playing) }
             .build()
         val next = Row.Builder()
             .setTitle("Next song")
@@ -148,21 +161,10 @@ class ClockScreen(car: CarContext) : Screen(car) {
             .build()
         // older car screens (below API level 7, navtest build only) can't show the scene, only the card
         if (carContext.carAppApiLevel < 7) return card
-        val toggle = Action.Builder()
-            .setTitle(if (playing) "Stop music" else "Play music")
-            .setOnClickListener {
-                playing = !playing
-                if (playing) audio.requestAudioFocus(focus) else audio.abandonAudioFocusRequest(focus)
-                page.js("musicPlay($playing)")
-                invalidate()
-            }
-            .build()
-        val skip = Action.Builder().setTitle("Next song").setOnClickListener { page.js("if (musicOn()) nextSong(3)") }.build()
         // the scene shows every clock, so the card is as small as Android Auto allows: one short line
         val temperature = clocks.firstOrNull()?.get(2)?.substringBefore(' ').orEmpty()
         return MapWithContentTemplate.Builder()
             .setContentTemplate(MessageTemplate.Builder(temperature.ifEmpty { "Clockscapes" }).build())
-            .setActionStrip(ActionStrip.Builder().addAction(toggle).addAction(skip).build())
             .build()
     }
 }

@@ -394,6 +394,25 @@
       #toast.show {
         opacity: 1;
       }
+      /* Android Auto only: the music buttons at the lower left, shown for ten seconds after a tap */
+      #carKeys {
+        position: fixed;
+        left: 12px;
+        bottom: 12px;
+        z-index: 6;
+        display: none;
+        gap: 12px;
+      }
+      #carKeys.show {
+        display: flex;
+      }
+      #carKeys span {
+        background: #0b0e22ee;
+        color: #ffd27a;
+        border: 2px solid #ffd27a;
+        font: 560 22px/1 var(--soft-type);
+        padding: 25px 24px; /* 76 px tall, the size Android Auto asks of a touch target */
+      }
       @media (max-width: 520px) {
         #toast {
           bottom: calc(96px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); /* above the buttons */
@@ -813,6 +832,7 @@
       </div>
     </div>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div id="carKeys"><span data-key="music"></span><span data-key="next">Next song</span></div>
 
     <div id="modal" class="hidden">
       <form id="cfg" autocomplete="off">
@@ -24042,6 +24062,18 @@
         window.carCard = right;
         window.carRight = fromRight;
         COLS.forEach((c) => c.resize());
+      };
+      // Android Auto only: a tap on the car screen at (x, y). It shows the music buttons, and answers
+      // with the button the tap landed on ("music" or "next"), which the car service then carries out.
+      window.carTap = (x, y, playing) => {
+        const keys = $("#carKeys");
+        const key =
+          (keys.classList.contains("show") && document.elementFromPoint(x, y)?.closest("#carKeys span")?.dataset.key) || "";
+        keys.firstElementChild.textContent = (key === "music") !== playing ? "Stop music" : "Play music";
+        keys.classList.add("show");
+        clearTimeout(keys.timer);
+        keys.timer = setTimeout(() => keys.classList.remove("show"), 10000);
+        return key;
       };
       window.setSafeInsets = (right, bottom) => {
         document.documentElement.style.setProperty("--safe-right", right + "px");

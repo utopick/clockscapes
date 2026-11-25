@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -85,6 +87,23 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        // The Google Play upload key never enters the repository. The Gradle property clockscapesUpload (set
+        // in the user's own ~/.gradle/gradle.properties) names a file kept with the key, with the lines
+        // storeFile=..., password=... and alias=upload. Without it a release build is left unsigned.
+        val upload = providers.gradleProperty("clockscapesUpload").orNull?.let { file(it) }
+        if (upload?.exists() == true) create("upload") {
+            val p = Properties().apply { upload.inputStream().use { load(it) } }
+            storeFile = file(p.getProperty("storeFile"))
+            storePassword = p.getProperty("password")
+            keyAlias = p.getProperty("alias", "upload")
+            keyPassword = p.getProperty("password")
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.findByName("upload")
         }
     }
 

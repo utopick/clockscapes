@@ -21,6 +21,7 @@ import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
 import androidx.car.app.model.Action
+import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.MessageTemplate
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.validation.HostValidator
@@ -30,8 +31,9 @@ import org.json.JSONArray
 
 /**
  * Android Auto. Clockscapes registers as a weather app, and weather apps may draw their own picture with
- * MapWithContentTemplate: the scene fills the car screen, and a small card lists each clock's city, time
- * and weather, with the music buttons under them.
+ * MapWithContentTemplate only. That template always has a content card, so the card is one short line (the
+ * first clock's temperature) and the music buttons sit in the action strip, which Android Auto hides ten
+ * seconds after the last touch. The scene fills the car screen behind both.
  */
 class CarService : CarAppService() {
     // a debug build lets any host connect (the Desktop Head Unit, sideloaded tests); a release only
@@ -48,9 +50,10 @@ class CarService : CarAppService() {
 }
 
 class ClockScreen(car: CarContext) : Screen(car) {
-    private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true)
+    private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true, query = "?layout=rows")
     private var playing = false
-    // the car screen's dpi, and the right edge of the host's card in CSS pixels (sent to the page)
+    // the car screen's dpi, and where the area the host leaves free starts, in CSS pixels (sent to the page).
+    // The host reports the same area however small the card is, and on which side depends on the car.
     private var dpi = 160
     private var cardRight = 0f
     private val audio = car.getSystemService(AudioManager::class.java)
@@ -90,7 +93,8 @@ class ClockScreen(car: CarContext) : Screen(car) {
                 page.attach(surface, container.width, container.height, container.dpi)
             }
 
-            // the scene fills the whole car screen, behind the card too; the page keeps its clocks right of it
+            // the scene fills the whole car screen, behind the card too; the page starts its clocks where the
+            // free area starts. Its top is ignored: it only moves down while the action strip is showing.
             override fun onVisibleAreaChanged(visibleArea: Rect) {
                 cardRight = visibleArea.left / (dpi / 160f)
                 page.js("window.setCarCard && setCarCard($cardRight)")
@@ -140,8 +144,6 @@ class ClockScreen(car: CarContext) : Screen(car) {
             .build()
         // older car screens (below API level 7, navtest build only) can't show the scene, only the card
         if (carContext.carAppApiLevel < 7) return card
-        // on the scene screen a short message card (the clocks in two lines and the music buttons) instead of
-        // the list, so the card covers as little of the scene as Android Auto allows
         val toggle = Action.Builder()
             .setTitle(if (playing) "Stop music" else "Play music")
             .setOnClickListener {
@@ -152,9 +154,12 @@ class ClockScreen(car: CarContext) : Screen(car) {
             }
             .build()
         val skip = Action.Builder().setTitle("Next song").setOnClickListener { page.js("if (musicOn()) nextSong(3)") }.build()
-        // the scene shows every clock, so the card holds only the music buttons
-        val small = MessageTemplate.Builder("Clockscapes").addAction(toggle).addAction(skip).build()
-        return MapWithContentTemplate.Builder().setContentTemplate(small).build()
+        // the scene shows every clock, so the card is as small as Android Auto allows: one short line
+        val temperature = clocks.firstOrNull()?.get(2)?.substringBefore(' ').orEmpty()
+        return MapWithContentTemplate.Builder()
+            .setContentTemplate(MessageTemplate.Builder(temperature.ifEmpty { "Clockscapes" }).build())
+            .setActionStrip(ActionStrip.Builder().addAction(toggle).addAction(skip).build())
+            .build()
     }
 }
 

@@ -20,6 +20,8 @@ import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.model.Action
+import androidx.car.app.model.MessageTemplate
 import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.validation.HostValidator
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -48,12 +50,16 @@ class CarService : CarAppService() {
 class ClockScreen(car: CarContext) : Screen(car) {
     private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true)
     private var playing = false
+    // the car screen's dpi, and the right edge of the host's card in CSS pixels (sent to the page)
+    private var dpi = 160
+    private var cardRight = 0f
     private val audio = car.getSystemService(AudioManager::class.java)
     // each clock as [city, time, weather], read from the page every half minute
     private var clocks = listOf<List<String>>()
     private val tick = Handler(Looper.getMainLooper())
     private val read: Runnable = object : Runnable {
         override fun run() {
+            page.js("window.setCarCard && setCarCard($cardRight)") // the page may have loaded since
             page.js(CLOCKS_JS) { json ->
                 val rows = runCatching {
                     val a = JSONArray(JSONArray("[$json]").getString(0))
@@ -80,11 +86,15 @@ class ClockScreen(car: CarContext) : Screen(car) {
         car.getCarService(AppManager::class.java).setSurfaceCallback(object : SurfaceCallback {
             override fun onSurfaceAvailable(container: SurfaceContainer) {
                 val surface = container.surface ?: return
+                dpi = container.dpi
                 page.attach(surface, container.width, container.height, container.dpi)
             }
 
-            // the part of the screen not covered by the card: the scene is laid out there
-            override fun onVisibleAreaChanged(visibleArea: Rect) = page.setArea(visibleArea)
+            // the scene fills the whole car screen, behind the card too; the page keeps its clocks right of it
+            override fun onVisibleAreaChanged(visibleArea: Rect) {
+                cardRight = visibleArea.left / (dpi / 160f)
+                page.js("window.setCarCard && setCarCard($cardRight)")
+            }
 
             override fun onSurfaceDestroyed(container: SurfaceContainer) = page.detach()
         })
@@ -130,7 +140,21 @@ class ClockScreen(car: CarContext) : Screen(car) {
             .build()
         // older car screens (below API level 7, navtest build only) can't show the scene, only the card
         if (carContext.carAppApiLevel < 7) return card
-        return MapWithContentTemplate.Builder().setContentTemplate(card).build()
+        // on the scene screen a short message card (the clocks in two lines and the music buttons) instead of
+        // the list, so the card covers as little of the scene as Android Auto allows
+        val toggle = Action.Builder()
+            .setTitle(if (playing) "Stop music" else "Play music")
+            .setOnClickListener {
+                playing = !playing
+                if (playing) audio.requestAudioFocus(focus) else audio.abandonAudioFocusRequest(focus)
+                page.js("musicPlay($playing)")
+                invalidate()
+            }
+            .build()
+        val skip = Action.Builder().setTitle("Next song").setOnClickListener { page.js("if (musicOn()) nextSong(3)") }.build()
+        // the scene shows every clock, so the card holds only the music buttons
+        val small = MessageTemplate.Builder("Clockscapes").addAction(toggle).addAction(skip).build()
+        return MapWithContentTemplate.Builder().setContentTemplate(small).build()
     }
 }
 

@@ -2,7 +2,6 @@ package io.github.utopick.clockscapes
 
 import android.app.Presentation
 import android.content.Context
-import android.graphics.Rect
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.view.Surface
@@ -39,17 +38,6 @@ class SurfacePage(private val context: Context, private val autoplay: Boolean) {
     /** The surface changed size (the wallpaper on rotation): resize without reloading the page. */
     fun resize(width: Int, height: Int, dpi: Int) {
         display?.resize(width, height, dpi)
-    }
-
-    /** Keep the page inside [area] (on the car screen the host's card covers the rest). */
-    fun setArea(area: Rect) {
-        val page = web ?: return
-        val params = page.layoutParams as FrameLayout.LayoutParams
-        params.width = area.width()
-        params.height = area.height()
-        params.leftMargin = area.left
-        params.topMargin = area.top
-        page.layoutParams = params
     }
 
     fun pause() = web?.onPause()

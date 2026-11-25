@@ -22824,7 +22824,8 @@
           if (compact) {
             // clock on the left, label + date beside it, weather underneath
             this.ls = H >= 110 ? 2 : 1;
-            this.x0 = 4;
+            // on a car screen the host's card covers the left of the screen: start the clock right of it
+            this.x0 = window.carCard > r.left ? Math.ceil((window.carCard - r.left) / P) + 4 : 4;
             this.y0 = Math.max(3, Math.round(H * 0.05));
             capV = 7 * this.ls + 4 + 7;
             this.yLabel = this.y0;
@@ -23641,7 +23642,8 @@
       let COLS = [];
       function applyLayout() {
         const mode = PARAMS.get("layout") || CONFIG.layout || "auto";
-        const rows = mode === "rows" || (mode === "auto" && innerWidth < 700);
+        // the car screen always stacks the clocks, so each row's clock can sit right of the host's card
+        const rows = mode === "rows" || (mode === "auto" && innerWidth < 700) || window.carCard > 0;
         document.body.classList.toggle("rows", rows);
       }
       // the screen filters, in the order the SCREEN tab shows them: [id, name]
@@ -23989,6 +23991,13 @@
       $("#music").onclick = toggleMusic;
       // Android app only: the wallpaper button, the alarm note, and room for the phone's navigation bar,
       // whose size (in CSS pixels) the app sends now and whenever it changes
+      // Android Auto only: the right edge (in CSS pixels) of the card the car screen shows over the scene
+      window.setCarCard = (right) => {
+        if (window.carCard === right) return;
+        window.carCard = right;
+        applyLayout();
+        COLS.forEach((c) => c.resize());
+      };
       window.setSafeInsets = (right, bottom) => {
         document.documentElement.style.setProperty("--safe-right", right + "px");
         document.documentElement.style.setProperty("--safe-bottom", bottom + "px");

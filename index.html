@@ -11753,7 +11753,7 @@
   "rosario-ar": [["National Flag Memorial","monumentoBandera",{c:13}],["Rosario-Victoria Bridge","span",{type:"cable",n:2,w:16,h:21,dh:8,apy:1,c:13,t:8}]],
   "roseau-dm": [["Roseau Cathedral","church",{w:17,nh:10,h:24,tw:5,top:"spire",c:13,t:8}],["Old Market","palace",{w:19,nh:6,top:"flat",c:13,rc:10}]],
   "rosso-mr": [["Rosso Grand Mosque","mosque",{w:19,nh:8,r:5,m:2,mh:24,c:6,dc:9}]],
-  "rostov-on-don-ru": [["Cathedral of the Nativity","onion",{w:25,nh:14,r:5,n:4,dd:6,mc:[12],c:6}]],
+  "rostov-on-don-ru": [["Cathedral of the Nativity","rostovNativity",{}]],
   "rotterdam-nl": [["Erasmus Bridge","erasmus",{c:6}],["Euromast","tower",{h:40,s:1,pod:24,pw:5,ant:8,c:13,t:11}]],
   "rouen-fr": [["Rouen Cathedral","rouenCathedral"],["Gros-Horloge","grosHorloge",{c:13}]],
   "rovaniemi-fi": [["Lumberjack's Candle Bridge","span",{type:"suspension",w:20,h:20,dh:6,c:6}]],
@@ -44353,6 +44353,71 @@
             box(-12, 7, 3, 2, S);
             box(-11, 7, 1, 1, Lt);
             box(-15, 1, 25, 1, S);
+            break;
+          }
+          case "rostovNativity": {
+            // Rostov-on-Don's Cathedral of the Nativity of the Virgin (Konstantin Thon, 1850s): a white
+            // Russo-Byzantine cube with round-arched gables (zakomaras) and paired arched windows, five gilded
+            // onions (the big one on a tall windowed drum, four on slim corner drums), and on the right its
+            // detached white bell tower in three stepped tiers under its own gilded onion.
+            const wt = [238, 234, 224],
+              gd = [222, 172, 64],
+              W = css(e.sh(wt)),
+              S = css(e.sh(mixc(wt, [41, 40, 54], 0.22))),
+              Lt = css(e.sh(mixc(wt, [255, 248, 225], 0.6))),
+              G = css(e.sh(gd)),
+              GS = css(e.sh(mixc(gd, [41, 40, 54], 0.3))),
+              GL = css(e.sh(mixc(gd, [255, 248, 225], 0.45))),
+              onion = (cx, base, k) => {
+                const tall = Math.round(k * 1.7) + 1,
+                  tip = base + k + tall + 2;
+                orb(cx, base + k, k, G);
+                cone(cx, base + k, k, tall, G);
+                if (k >= 2) {
+                  box(cx + Math.ceil(k / 2), base + k + 1, 1, k, GS);
+                  box(cx - Math.ceil(k / 2), base + k + Math.round(k * 0.6), 1, k, GL);
+                }
+                box(cx, tip + 2, 1, 4, 12);
+                box(cx - 1, tip, 3, 1, 12);
+              },
+              drum = (cx, base, hw, h) => {
+                box(cx - hw, base + h, 2 * hw + 1, h, W);
+                box(cx + hw, base + h, 1, h, S);
+                box(cx - hw - 1, base + h, 2 * hw + 3, 1, Lt);
+                if (h >= 4)
+                  for (let p = cx - hw + 1; p < cx + hw; p += 2)
+                    box(p, base + h - 1, 1, Math.min(h - 3, 5), 2);
+              };
+            // the bell tower
+            drum(16, 0, 3, 18);
+            box(15, 7, 3, 4, 2);
+            box(13, 11, 7, 1, Lt);
+            drum(16, 18, 2, 8);
+            box(16, 24, 1, 3, 2);
+            drum(16, 26, 1, 5);
+            onion(16, 31, 2);
+            // the cathedral
+            box(-11, 16, 22, 16, W);
+            box(9, 15, 2, 15, S);
+            for (const cx of [-7, 0, 7]) {
+              dome(cx, 16, 3, Lt);
+              dome(cx, 16, 2, W);
+              box(cx, 17, 1, 1, 2);
+              box(cx - 1, 12, 1, 4, 2); // paired arched windows
+              box(cx + 1, 12, 1, 4, 2);
+              box(cx - 1, 6, 3, 3, 2);
+            }
+            box(-11, 16, 22, 1, Lt);
+            for (const p of [-11, -4, 3, 10]) box(p, 15, 1, 14, Lt); // pilasters
+            box(-1, 6, 3, 6, 2);
+            box(-1, 6, 3, 1, S);
+            box(-12, 1, 24, 1, S);
+            for (const cx of [-7, 7]) {
+              drum(cx, 18, 1, 4);
+              onion(cx, 22, 2);
+            }
+            drum(0, 18, 3, 10);
+            onion(0, 28, 4);
             break;
           }
           // ---- end dup ----

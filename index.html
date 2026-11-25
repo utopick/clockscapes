@@ -23194,7 +23194,9 @@
           layer("street");
           for (const [ev, since] of events)
             if (ev.sound && since < 3 && !events.some(([o]) => o.name === ev.quietWith)) {
-              const key = eventTest ? eventTest.start : Math.round(now / 1000 - since);
+              // the second the event began: since counts whole seconds of tp, so take now's whole second too
+              // (rounding now / 1000 - since let the key flip between frames and the sound play again)
+              const key = eventTest ? eventTest.start : Math.floor(now / 1000) - Math.floor(since);
               if (heardEvents[ev.name] !== key) {
                 heardEvents[ev.name] = key;
                 eventSound(ev.sound, tp);

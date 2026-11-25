@@ -13,6 +13,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.webkit.WebView
+import android.window.OnBackInvokedDispatcher
 
 /** The app itself: the web app full screen, like the installed web version. */
 class MainActivity : Activity() {
@@ -98,6 +99,10 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         current = this
         web = Web.make(this)
+        // Android 13 and newer send Back here instead of onBackPressed (the manifest opts in, and from
+        // Android 16 it is the only way)
+        if (Build.VERSION.SDK_INT >= 33)
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { back() }
         // the page writes the songs, so with the screen off its process keeps the app's priority (which
         // MusicService raises while the music plays) instead of being frozen as hidden pages are
         web.setRendererPriorityPolicy(android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT, false)
@@ -125,14 +130,14 @@ class MainActivity : Activity() {
     }
 
     // Back on a TV remote (or the phone's back gesture) first closes settings or hides the buttons in the
-    // page (tvBack), and only leaves the app when the page had nothing to close.
-    @Deprecated("The page decides asynchronously, which the predictive back callback cannot wait for")
-    override fun onBackPressed() {
-        web.evaluateJavascript("window.tvBack ? tvBack() : false") { used ->
-            @Suppress("DEPRECATION")
-            if (used != "true") super.onBackPressed()
-        }
+    // page (tvBack), and only leaves the app when the page had nothing to close. Leaving moves the app to
+    // the background, as Back does on a launcher's own app since Android 12, rather than closing it.
+    private fun back() = web.evaluateJavascript("window.tvBack ? tvBack() : false") { used ->
+        if (used != "true") moveTaskToBack(true)
     }
+
+    @Deprecated("Android 12 and older only; newer versions use the callback registered in onCreate")
+    override fun onBackPressed() = back()
 
     override fun onResume() {
         super.onResume()

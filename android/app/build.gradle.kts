@@ -50,15 +50,15 @@ tasks.named("preBuild") { dependsOn(copyWeb, copyIcon, buildLofi) }
 
 android {
     namespace = "io.github.utopick.clockscapes"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "io.github.utopick.clockscapes"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 8
-        versionName = "1.4.1"
+        targetSdk = 36
+        versionCode = 9
+        versionName = "1.4.2"
     }
 
     // Two builds of the same app. "weather" is the real one. "navtest" is a test build with its own name and

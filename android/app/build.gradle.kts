@@ -13,9 +13,11 @@ val copyWeb by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("web/www"))
 }
 val copyIcon by tasks.registering(Copy::class) {
-    from(projectDir.resolve("launcher-icon.png")) // Android-only icon: New York at dusk (the PWA keeps icons/icon-512.png)
+    // Android-only icon: New York at dusk (the PWA keeps icons/icon-512.png), as a square picture and as the
+    // adaptive icon's foreground (res/mipmap-anydpi-v26/ic_launcher.xml)
+    from(projectDir.resolve("launcher-icon.png")) { rename { "ic_launcher.png" } }
+    from(projectDir.resolve("launcher-foreground.png")) { rename { "ic_launcher_foreground.png" } }
     into(layout.buildDirectory.dir("webres/mipmap-xxxhdpi"))
-    rename { "ic_launcher.png" }
 }
 // The native music engine (native/lofi.c) for each kind of processor, built with the NDK's own clang.
 val buildLofi by tasks.registering {

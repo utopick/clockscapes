@@ -11105,7 +11105,7 @@
   "malaga-es": [["Alcazaba of Málaga","castle",{w:33,wh:9,n:5,th:13,tw:5,top:"crenel",kh:17,kw:9,c:0}],["Málaga Cathedral","manquita"]],
   "malakal-ss": [["Malakal Cathedral","church",{w:19,nh:11,h:24,tw:5,top:"pyr",c:6,t:10}]],
   "malanje-ao": [["Malanje Cathedral","church",{w:17,nh:10,h:26,tw:5,top:"pyr",c:6,t:10}]],
-  "malatya-tr": [["Malatya New Mosque","mosque",{w:23,nh:10,r:7,dd:3,sd:3,m:2,mh:30,c:13,dc:8}]],
+  "malatya-tr": [["Malatya New Mosque","malatyaYeniCami",{}]],
   "maldonado-uy": [["Maldonado Cathedral","cathedral",{w:23,nh:14,h:26,tw:5,top:"dome",c:6,t:6}],["Torre del Vigía","belfry",{w:5,h:20,top:"flat",c:6}]],
   "male-mv": [["Grand Friday Mosque","mosque",{w:19,r:6,dc:12,m:1,mh:28,c:6}],["Sinamalé Bridge","span",{type:"cable",w:16,h:20,dh:7,c:6}]],
   "maliana-tl": [["Maliana Church","church",{w:17,nh:9,h:22,tw:5,top:"pyr",c:6,t:7}]],
@@ -11299,7 +11299,7 @@
   "murcia-es": [["Murcia Cathedral tower","murciaTower"]],
   "murmansk-ru": [["Alyosha Monument","statue",{h:30,ph:6,pw:7,c:8}]],
   "murzuk-ly": [["Murzuk Fort","castle",{w:29,wh:12,n:2,th:16,tw:5,top:"crenel",c:0}]],
-  "mus-tr": [["Muş Alaeddin Bey Mosque","sinanMosque",{w:17,nh:10,r:6,mh:24,c:13}]],
+  "mus-tr": [["Muş Alaeddin Bey Mosque","musAlaeddinBey",{}]],
   "muscat-om": [["Sultan Qaboos Grand Mosque","mosque",{w:25,r:7,dc:12,m:4,mh:32,c:13}],["Al Alam Palace","palace",{w:23,nh:9,top:"flat",cols:8,c:7,rc:12}]],
   "musoma-tz": [["Cathedral of Holy Mary Mother of God","church",{w:19,nh:11,h:24,tw:5,top:"pyr",c:6,t:10}],["Matvilla Beach Boulders","rock",{w:20,h:10,c:14}]],
   "mutare-zw": [["Holy Trinity Cathedral","church",{w:17,nh:10,h:22,tw:5,top:"pyr",c:13,t:1}]],
@@ -39562,7 +39562,8 @@
               lit = css(e.sh([118, 166, 96]));
             const hgt = (x) =>
               Math.round(
-                21 * Math.max(0, Math.cos(((x + 1) / (x < -1 ? 23 : 22)) * 1.56)) ** 0.8 + (x > 6 && x < 14 ? 1 : 0),
+                21 * Math.max(0, Math.cos(((x + 1) / (x < -1 ? 23 : 22)) * 1.56)) ** 0.8 +
+                  (x > 6 && x < 14 ? 1 : 0),
               );
             for (let x = -W; x <= W; x++) {
               const h = Math.max(1, hgt(x));
@@ -44221,6 +44222,139 @@
           // ---- one-off landmarks: b96 ----
           // ---- end b96 ----
           // ---- one-off landmarks: dup ----
+          case "malatyaYeniCami": {
+            // Malatya's Yeni Cami (1912, after the classical Ottoman mosques): a grey ashlar hall whose bays
+            // rise in round-topped gables, a lead central dome on a windowed drum with a half dome and corner
+            // domelets, and two minarets on the right: a slender one with two balconies and a lead cone, and a
+            // thick round shaft ending in a carved ring.
+            const st = [200, 198, 190],
+              ld = [146, 154, 166],
+              B = css(e.sh(st)),
+              S = css(e.sh(mixc(st, [41, 40, 54], 0.25))),
+              Lt = css(e.sh(mixc(st, [255, 248, 225], 0.35))),
+              D = css(e.sh(mixc(st, [41, 40, 54], 0.1))),
+              L = css(e.sh(ld)),
+              LS = css(e.sh(mixc(ld, [41, 40, 54], 0.3))),
+              LL = css(e.sh(mixc(ld, [255, 248, 225], 0.3))),
+              leadDome = (cx, cy, r) => {
+                dome(cx, cy, r, LS);
+                dome(cx - 1, cy, r - 1, L);
+                box(cx - Math.ceil(r / 2), cy + Math.round(r * 0.6), 1, 1, LL);
+              };
+            // the slender minaret, behind the hall's right end
+            box(15, 13, 5, 13, B);
+            box(19, 13, 1, 13, S);
+            box(16, 34, 3, 21, B);
+            box(16, 34, 1, 21, Lt);
+            box(18, 34, 1, 21, S);
+            for (const y of [26, 32]) {
+              box(15, y, 5, 1, Lt);
+              box(15, y - 1, 5, 1, S);
+              box(17, y - 2, 1, 2, 2);
+            }
+            cone(17, 34, 1, 5, L);
+            box(17, 41, 1, 2, 12);
+            // the thick round minaret
+            box(20, 28, 5, 28, B);
+            box(20, 28, 1, 28, Lt);
+            box(23, 28, 2, 28, S);
+            box(19, 29, 7, 2, Lt);
+            for (let p = 19; p <= 25; p += 2) box(p, 28, 1, 1, S);
+            for (const y of [10, 18]) box(22, y, 1, 2, 2);
+            // domes: corner domelets, the half dome and the main dome on its drum
+            for (const [cx, base] of [
+              [-10, 16],
+              [7, 16],
+            ]) {
+              box(cx - 2, base, 5, 2, B);
+              box(cx - 2, base, 5, 1, Lt);
+              leadDome(cx, base, 3);
+              box(cx, base + 5, 1, 2, 12);
+            }
+            box(-6, 22, 13, 5, B);
+            box(-6, 22, 13, 1, Lt);
+            box(6, 21, 1, 4, S);
+            for (let p = -5; p <= 5; p += 2) box(p, 20, 1, 2, 2);
+            box(-9, 18, 6, 2, B);
+            leadDome(-6, 18, 3);
+            leadDome(0, 22, 6);
+            box(0, 30, 1, 3, 12);
+            box(-1, 29, 3, 1, 12);
+            // the hall: round-topped gables over the bays, two rows of arched windows
+            box(-13, 14, 26, 14, B);
+            box(12, 14, 1, 14, S);
+            for (const [cx, r] of [
+              [-8, 4],
+              [5, 5],
+            ]) {
+              dome(cx, 14, r, Lt);
+              dome(cx, 14, r - 1, B);
+              box(cx, 17, 1, 2, 2);
+            }
+            box(-14, 14, 28, 1, Lt);
+            box(-13, 13, 26, 1, D);
+            for (let p = -3; p <= 10; p += 3) {
+              box(p, 11, 2, 4, 2);
+              box(p, 11, 2, 1, D);
+              box(p, 5, 2, 2, 2);
+            }
+            box(-13, 8, 9, 8, D); // the porch arcade
+            box(-14, 8, 11, 1, Lt);
+            for (const p of [-12, -9, -6]) {
+              box(p, 6, 2, 5, 2);
+              box(p, 6, 2, 1, S);
+            }
+            box(-13, 1, 26, 1, S);
+            break;
+          }
+          case "musAlaeddinBey": {
+            // Muş's Alaeddin Bey Camii (18th century): a flat-roofed hall of dark basalt ashlar under a dentilled
+            // cornice, a lower portal block on the left with its pointed arch, and a tall round stone minaret on
+            // a square base, banded with zigzag courses, a balcony near the top and a short conical cap.
+            const st = [124, 112, 102],
+              B = css(e.sh(st)),
+              S = css(e.sh(mixc(st, [41, 40, 54], 0.32))),
+              Lt = css(e.sh(mixc(st, [255, 248, 225], 0.28))),
+              D = css(e.sh(mixc(st, [41, 40, 54], 0.15)));
+            // the minaret
+            box(3, 15, 7, 15, B);
+            box(3, 15, 1, 15, Lt);
+            box(8, 15, 2, 15, S);
+            box(3, 15, 7, 1, Lt);
+            box(4, 16, 5, 1, D);
+            box(4, 33, 5, 17, B);
+            box(4, 33, 1, 17, Lt);
+            box(7, 33, 2, 17, S);
+            for (let y = 19; y < 30; y += 2) box(5 + (y % 4 === 1 ? 0 : 1), y, 1, 1, D);
+            box(4, 23, 5, 1, Lt);
+            box(3, 31, 7, 2, Lt); // the balcony
+            for (let p = 3; p <= 9; p += 2) box(p, 30, 1, 1, S);
+            box(4, 35, 5, 2, D);
+            box(5, 35, 1, 1, 2);
+            box(3, 33, 7, 1, Lt);
+            cone(6, 35, 3, 4, S);
+            box(5, 38, 1, 2, Lt);
+            box(6, 42, 1, 3, 8);
+            // the hall
+            box(-9, 12, 14, 12, B);
+            box(-9, 12, 1, 12, Lt);
+            box(-10, 12, 16, 1, Lt);
+            for (let p = -10; p <= 5; p += 2) box(p, 11, 1, 1, S);
+            box(-9, 10, 14, 1, D);
+            box(-5, 7, 2, 3, 2);
+            box(-5, 7, 2, 1, S);
+            box(-5, 12, 3, 2, D); // the small window high on the wall
+            // the portal block
+            box(-14, 8, 7, 8, B);
+            box(-14, 8, 1, 8, Lt);
+            box(-15, 8, 9, 1, Lt);
+            box(-13, 7, 5, 6, D);
+            box(-12, 5, 3, 5, 2);
+            box(-12, 7, 3, 2, S);
+            box(-11, 7, 1, 1, Lt);
+            box(-15, 1, 25, 1, S);
+            break;
+          }
           // ---- end dup ----
           case "tokyo-tower": {
             // Tokyo Tower (Tokyo only): an orange-and-white lattice on four splayed legs, the main deck with its

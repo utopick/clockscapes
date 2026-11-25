@@ -10312,7 +10312,7 @@
   "erbil-iq": [["Erbil Citadel","castle",{w:35,wh:14,n:4,th:16,tw:5,top:"crenel",c:0}],["Mudhafaria Minaret","column",{h:26,s:2,pw:4,ph:5,top:"none",c:1}]],
   "erdenet-mn": [["Friendship Monument","column",{h:20,s:3,pw:11,ph:4,top:"point",c:6}]],
   "erfurt-de": [["Erfurt Cathedral","cathedral",{w:21,nh:14,h:32,tw:5,top:"spire",c:13,t:2}]],
-  "erzincan-tr": [["Erzincan Grand Mosque","mosque",{w:23,nh:10,r:7,dd:3,sd:3,m:2,mh:30,c:13,dc:8}]],
+  "erzincan-tr": [["Erzincan Grand Mosque","erzincanUlu",{}]],
   "erzurum-tr": [["Twin Minaret Madrasa","ciftMinare",{}]],
   "escuintla-gt": [["Escuintla Cathedral","church",{w:19,nh:11,h:26,tw:5,top:"dome",c:6,t:6}]],
   "eskisehir-tr": [["Eskişehir Clock Tower","hamidClock",{w:7,h:26,n:3,top:"pyr",c:13,t:1}],["Kurşunlu Mosque","sinanMosque",{w:19,nh:10,r:7,mh:26,por:5,c:13}]],
@@ -44680,6 +44680,64 @@
               box(p, 9, 3, 1, Lt);
             }
             box(-12, 2, 26, 2, S);
+            break;
+          }
+          case "erzincanUlu": {
+            // Erzincan's Ulu Camii, rebuilt after the 1939 earthquake in the classical Ottoman manner: a cream
+            // stone cube whose lead domes cascade (corner domelets and half domes up to the central dome on its
+            // buttressed, windowed drum), a five-domed portico across the front, and two slim pencil minarets
+            // at the front corners, each with two balconies and a lead cone.
+            const st = [232, 222, 196],
+              ld = [150, 160, 172],
+              B = css(e.sh(st)),
+              S = css(e.sh(mixc(st, [41, 40, 54], 0.26))),
+              Lt = css(e.sh(mixc(st, [255, 248, 225], 0.45))),
+              L = css(e.sh(ld)),
+              LS = css(e.sh(mixc(ld, [41, 40, 54], 0.3))),
+              LL = css(e.sh(mixc(ld, [255, 248, 225], 0.35))),
+              leadDome = (cx, cy, r) => {
+                dome(cx, cy, r, LS);
+                dome(cx - 1, cy, r - 1, L);
+                if (r >= 3) box(cx - Math.ceil(r / 2), cy + Math.round(r * 0.55), 1, 1, LL);
+              };
+            for (const x0 of [-14, 14]) {
+              box(x0 - 1, 33, 3, 31, B);
+              box(x0 - 1, 33, 1, 31, Lt);
+              box(x0 + 1, 33, 1, 31, S);
+              for (const y of [22, 30]) {
+                box(x0 - 2, y, 5, 1, Lt);
+                box(x0 - 2, y - 1, 5, 1, S);
+              }
+              cone(x0, 33, 1, 7, L);
+              box(x0, 42, 1, 2, 12);
+            }
+            box(-11, 16, 23, 14, B);
+            box(10, 16, 2, 14, S);
+            for (const s of [-1, 1]) {
+              box(s * 8 - 2, 18, 5, 2, B);
+              leadDome(s * 8, 18, 3);
+              leadDome(s * 4, 20, 4);
+            }
+            box(-6, 25, 13, 5, B);
+            box(-6, 25, 13, 1, Lt);
+            box(6, 24, 1, 4, S);
+            for (let p = -5; p <= 5; p += 2) box(p, 23, 1, 2, 2);
+            for (const p of [-7, 7]) box(p, 24, 1, 4, Lt); // buttress turrets
+            leadDome(0, 25, 6);
+            box(0, 33, 1, 2, 12);
+            box(-1, 32, 3, 1, 12);
+            for (let p = -9; p <= 8; p += 3) box(p, 14, 2, 3, 2); // upper windows
+            // the portico
+            box(-12, 9, 25, 9, Lt);
+            box(-12, 10, 25, 1, LS);
+            for (let i = 0; i < 5; i++) {
+              const cx = -10 + i * 5;
+              dome(cx, 10, 2, LS);
+              dome(cx, 10, 1, L);
+              box(cx - 1, 7, 3, 6, 2);
+              box(cx - 1, 7, 3, 1, S);
+            }
+            box(-13, 1, 27, 1, S);
             break;
           }
           // ---- end dup ----

@@ -1,6 +1,6 @@
 # clockscapes
 
-<img src="img/banner.png" alt="Clockscapes at dusk: Tokyo, Mexico City and Rio de Janeiro side by side" width="100%">
+<img src="img/banner.png" alt="Clockscapes: London near dusk, New York at dusk and Sydney at night, under the app's name" width="100%">
 
 Clockscapes shows up to four clocks in different time zones, each one over a pixel-art city lit by the real sun and the real weather there. It's meant as a cozy screensaver or an extra screen on your desk.
 
@@ -16,13 +16,15 @@ From the live page you can install it as an app (Add to Home screen on a phone, 
 
 Clockscapes collects nothing about you, and its [privacy policy](https://utopick.github.io/clockscapes/privacy.html) says what is sent to the weather service.
 
-On a phone held upright the clocks stack in rows, with each clock beside its city name, and the light changes with the time of day in each city.
+On a phone held upright the clocks stack in rows, with each clock beside its city name. Each city has its own light, so here are the same three cities at three moments of one day:
 
-<p>
-<img src="img/phone-day.png" alt="A phone in the morning light: Tokyo, Mexico City and Rio de Janeiro stacked in rows" width="32%">
-<img src="img/phone-dusk.png" alt="The same three cities at dusk" width="32%">
-<img src="img/phone-night.png" alt="The same three cities at night, with lit windows" width="32%">
-</p>
+<table>
+<tr>
+<td width="33%"><img src="img/phone-1.png" alt="07:30 in Tokyo, 16:30 in Mexico City and 19:30 in Rio de Janeiro" width="100%"><br>Morning in Tokyo, afternoon in Mexico City and nightfall in Rio</td>
+<td width="33%"><img src="img/phone-2.png" alt="15:00 in Tokyo, midnight in Mexico City and 03:00 in Rio de Janeiro" width="100%"><br>Afternoon in Tokyo, night in the Americas</td>
+<td width="33%"><img src="img/phone-3.png" alt="23:00 in Tokyo, 08:00 in Mexico City and 11:00 in Rio de Janeiro" width="100%"><br>Night in Tokyo, morning in the Americas</td>
+</tr>
+</table>
 
 ## Android app
 
@@ -50,6 +52,8 @@ Tap the scene and **Play music** and **Next song** show at the lower left for te
 
 ### The cities
 
+<img src="img/city-paris.png" alt="Paris at 11:00 on a June morning, with the Eiffel Tower" width="100%">
+
 Each city has its own scene, with its landmarks, local trees, the mountains you can see from it, traffic, people with the odd dog, boats, trains, planes and birds. Ferris wheels such as the London Eye turn, and lighthouses sweep their beams at night.
 
 Every city has the same street, so clocks side by side line up. There is a sidewalk, a road, a strip of park and a second road, then a railway inland or the water in coastal and river cities. Bigger cities have overhead wires and a station where the trains stop for travellers.
@@ -58,9 +62,22 @@ How many people and cars a city has depends on its real population, in four leve
 
 ### Sun, sky and weather
 
+<img src="img/city-newyork-dusk.png" alt="New York at 18:40 on an October evening, with the Statue of Liberty against the sunset" width="100%">
+
 The light follows the real sun and moon, and the sky follows the live weather, so people open umbrellas when it rains there. Drizzle, rain, freezing rain that glazes the street, storms with or without bouncing hail, snow, snow grains and fog each look different, and so do haze, desert dust and smoke in the air.
 
 A rainbow shows when the sun comes out after rain. On clear nights in the far north or south an aurora sometimes dances, although Open-Meteo has no aurora forecast, so that one is a guess that grows likelier nearer the pole. Trees follow the local season, bare in winter, in blossom in spring and orange in autumn.
+
+<table>
+<tr>
+<td width="50%"><img src="img/wx-london-rain.png" alt="Rain over London on a November afternoon" width="100%"><br>Rain in London</td>
+<td width="50%"><img src="img/wx-montreal-snow.png" alt="Snow falling on Montréal at noon in January" width="100%"><br>Snow in Montréal</td>
+</tr>
+<tr>
+<td><img src="img/wx-reykjavik-aurora.png" alt="An aurora over Reykjavík at 23:00 in January" width="100%"><br>An aurora over Reykjavík</td>
+<td><img src="img/wx-sydney-rainbow.png" alt="A rainbow over Sydney on a March afternoon" width="100%"><br>A rainbow over Sydney</td>
+</tr>
+</table>
 
 To see every kind of weather anywhere, press **R** three times (or swipe up, down, up and down on the clocks). Each time you do it again, every city shows the next one, from rain through hail, snow, fog, dust and smoke to a rainbow and an aurora, and after the last one the real weather comes back.
 
@@ -69,6 +86,19 @@ To see every kind of weather anywhere, press **R** three times (or swipe up, dow
 On a city's holiday or local festival, such as Thanksgiving, Carnaval or Las Fallas, a small plane tows the festival's name across that clock every 15 minutes, and that night there are fireworks. The holiday's name also shows under the date.
 
 Many cities have their own real events at their own time, and every city over four million people has at least one. Austin's bats pour out from under the Congress Avenue Bridge at dusk, starlings swirl over Rome on winter evenings, the Eiffel Tower sparkles on the hour after dark and Big Ben strikes the hour. Bangkok's streets stand still for the anthem at 8 am and 6 pm, kites fill Ahmedabad's sky for Uttarayan, Taipei's garbage truck comes by playing Für Elise, and Chinese cities go square dancing in the evening. Where the call to prayer is heard, it sounds five times a day at the real prayer times, worked out from the sun.
+
+<table>
+<tr>
+<td width="33%"><img src="img/ev-austin-bats.png" alt="Bats leaving the Congress Avenue Bridge over Austin at 20:45 in July" width="100%"><br>Austin's bats at dusk</td>
+<td width="33%"><img src="img/ev-paris-sparkle.png" alt="The Eiffel Tower sparkling at 23:01" width="100%"><br>The Eiffel Tower sparkles on the hour</td>
+<td width="33%"><img src="img/ev-newyork-santa.png" alt="Santa's sleigh over New York at 23:30 on Christmas Eve" width="100%"><br>Santa over New York on Christmas Eve</td>
+</tr>
+<tr>
+<td><img src="img/ev-rio-carnival.png" alt="The carnival parade in Rio de Janeiro on a February afternoon" width="100%"><br>Carnival in Rio</td>
+<td><img src="img/ev-hongkong-lny.png" alt="Lunar New Year in Hong Kong, with lanterns, fireworks and a Happy New Year banner" width="100%"><br>Lunar New Year in Hong Kong</td>
+<td><img src="img/ev-madrid-cabalgata.png" alt="The Cabalgata de Reyes in Madrid on 5 January, with the giant Star and the Kings" width="100%"><br>The Three Kings in Madrid</td>
+</tr>
+</table>
 
 Some holidays have big parades:
 
@@ -108,6 +138,17 @@ The SCREEN tab sets the layout (side by side, stacked, or automatic), a 24 or 12
 ## Music
 
 Press **▶︎ MUSIC** (or **M**) to play lo-fi music made live in the page, and **NEXT »** (or **N**) to skip a song. Browsers only allow sound after you've touched or clicked the page once.
+
+<img src="img/music-seville.png" alt="Seville at 21:15 on an April evening, with the Giralda against the dusk" width="100%">
+
+Here are half a minute of six songs, played by the app's own engine. Each link opens the song in your browser:
+
+- [Seville, flamenco](https://utopick.github.io/clockscapes/audio/seville.mp3)
+- [Lisbon, fado](https://utopick.github.io/clockscapes/audio/lisbon.mp3)
+- [Rio de Janeiro, bossa nova](https://utopick.github.io/clockscapes/audio/rio-de-janeiro.mp3)
+- [Tokyo, shakuhachi and koto](https://utopick.github.io/clockscapes/audio/tokyo.mp3)
+- [New Orleans, jazzy soul](https://utopick.github.io/clockscapes/audio/new-orleans.mp3)
+- [Edinburgh, a Celtic lilt](https://utopick.github.io/clockscapes/audio/edinburgh.mp3)
 
 ### Every song is different
 

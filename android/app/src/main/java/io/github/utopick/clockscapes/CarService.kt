@@ -66,8 +66,8 @@ class ClockScreen(car: CarContext) : Screen(car) {
         private set
     var artist = "Clockscapes"
         private set
-    /** The app's icon, as the song's picture. */
-    val art: Bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888).also {
+    /** The song's picture: the app's icon until the page sends a picture of the city (picture). */
+    var art: Bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888).also {
         car.packageManager.getApplicationIcon(car.packageName).apply { setBounds(0, 0, 256, 256) }.draw(Canvas(it))
     }
     private var resumeOnGain = false
@@ -182,6 +182,11 @@ class ClockScreen(car: CarContext) : Screen(car) {
     }
 
     fun owns(view: WebView) = page.has(view)
+
+    fun picture(scene: Bitmap) {
+        art = scene
+        publish()
+    }
 
     fun next() {
         page.js("if (musicOn()) nextSong(3)")

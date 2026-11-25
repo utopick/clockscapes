@@ -106,6 +106,16 @@ object Web {
             (context as? MainActivity)?.askForNotifications()
         }
 
+        /** The car screen's page drew a picture for its song (a PNG data URL): the media card's artwork. */
+        @JavascriptInterface
+        fun musicArt(png: String) {
+            val bytes = runCatching { android.util.Base64.decode(png.substringAfter(","), android.util.Base64.DEFAULT) }.getOrNull() ?: return
+            val picture = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                ClockScreen.current?.takeIf { it.owns(web) }?.picture(picture)
+            }
+        }
+
         /** The page's music started, stopped or moved to a new song: updates the music notification. */
         @JavascriptInterface
         fun musicState(playing: Boolean, title: String) {

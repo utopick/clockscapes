@@ -22602,6 +22602,7 @@
         $("#nowPlaying").textContent = "Now playing: " + music.title;
         toast("♪ " + music.title);
         window.ClockscapesAndroid?.musicState(true, music.title); // the Android app's music notification
+        carArt();
       }
       // The kaiju song: while a monster is on any clock (several may start one at the same moment, and the
       // song only switches once), the music fades into a 1950s-style monster march, and back into a new
@@ -22635,6 +22636,19 @@
         for (const song of music.songs) song.schedule(now + lookahead());
         // keep songs still sounding; dispose() frees the others and returns nothing, so they are dropped
         music.songs = music.songs.filter((song) => now < song.stopAt + 2 || song.dispose());
+      }
+      // Android Auto only: the song's picture for the car's media card, sent with each new song. It is a
+      // square of the local (or first) clock's scene as it looks now, its bottom part, with crisp pixels.
+      function carArt() {
+        const col = COLS.find((c) => isLocalZone(c.zone.tz)) || COLS[0];
+        if (!PARAMS.has("car") || !col || !window.ClockscapesAndroid?.musicArt) return;
+        const side = Math.min(col.cv.width, col.cv.height),
+          art = document.createElement("canvas");
+        art.width = art.height = 384; // small enough to pass to Android and on to the car in one piece
+        const g = art.getContext("2d");
+        g.imageSmoothingEnabled = false;
+        g.drawImage(col.cv, (col.cv.width - side) / 2, col.cv.height - side, side, side, 0, 0, 384, 384);
+        window.ClockscapesAndroid.musicArt(art.toDataURL("image/png"));
       }
       function musicPlay(on) {
         if (!on) {

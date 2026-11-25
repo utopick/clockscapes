@@ -22997,7 +22997,8 @@
           }
           // on the car screen the weather sits under the date instead of under the clock
           if (compact && this.car) {
-            this.weatherText.style.top = parseFloat(this.dateText.style.top) + Math.ceil(infoSize * 1.25) + "px";
+            this.weatherText.style.top =
+              parseFloat(this.dateText.style.top) + Math.ceil(infoSize * 1.25) + "px";
           }
         }
         // Repaints one window on the finished scene and remembers it, so a rebuild keeps the same lights.
@@ -23714,8 +23715,7 @@
                 const wide = this.clockEl.getBoundingClientRect().width;
                 for (const el of [this.cityText, this.dateText, this.weatherText])
                   el.style.right = Math.ceil(this.xr + wide + 5 * this.P) + "px";
-              }
-              else this.cityText.style.left = this.dateText.style.left = tx + "px";
+              } else this.cityText.style.left = this.dateText.style.left = tx + "px";
             }
           }
           const off = (tp.timeZoneName || "").replace("GMT", "UTC") || "UTC";
@@ -24139,7 +24139,9 @@
       window.carTap = (x, y, playing) => {
         const keys = $("#carKeys");
         const key =
-          (keys.classList.contains("show") && document.elementFromPoint(x, y)?.closest("#carKeys span")?.dataset.key) || "";
+          (keys.classList.contains("show") &&
+            document.elementFromPoint(x, y)?.closest("#carKeys span")?.dataset.key) ||
+          "";
         keys.firstElementChild.textContent = (key === "music") !== playing ? "Stop music" : "Play music";
         keys.classList.add("show");
         clearTimeout(keys.timer);

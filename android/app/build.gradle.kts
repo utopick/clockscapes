@@ -57,8 +57,8 @@ android {
         applicationId = "io.github.utopick.clockscapes"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.4.0"
+        versionCode = 8
+        versionName = "1.4.1"
     }
 
     // Two builds of the same app. "weather" is the real one. "navtest" is a test build with its own name and

@@ -93,10 +93,16 @@ You can also open `index.html` straight from the disk, but the offline copy and 
 
 ```sh
 python3 -m http.server 8000                         # run it locally at http://localhost:8000
-node --test tests/music.test.js                     # test the music writer (33 tests, about 3 seconds)
+node --test tests/music.test.js                     # test the music writer and the version (34 tests, about 10 seconds)
 npx -y prettier@3 --print-width 110 --write index.html   # format the file the way it is kept
 npx -y prettier@3 --print-width 110 --check index.html   # check the format without changing it
 git push origin main                                # publish: GitHub Pages rebuilds in about a minute
+```
+
+The Google Play copy is a release bundle (`.aab`) signed with the Play upload key, which is kept outside the repository. The build finds it through the Gradle property `clockscapesUpload` in your own `~/.gradle/gradle.properties`, which names a file holding `storeFile=`, `password=` and `alias=upload`. Without that property the bundle is built unsigned. Before each upload, raise `versionCode` and `versionName` in `android/app/build.gradle.kts` and `APP_VERSION` in `index.html` (a test checks the two names match), then build it:
+
+```sh
+gradle -p android bundleWeatherRelease              # the Play bundle, in android/app/build/outputs/bundle/weatherRelease/
 ```
 
 Handy addresses for trying things without waiting for the right time or weather:

@@ -50,7 +50,7 @@ class CarService : CarAppService() {
 }
 
 class ClockScreen(car: CarContext) : Screen(car) {
-    private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true, query = "?layout=rows&car")
+    private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true, query = "?layout=columns&car") // ?layout=rows&car stacks the clocks instead
     private var playing = false
     // the car screen's dpi, and where the area the host leaves free starts, in CSS pixels (sent to the page).
     // The host reports the same area however small the card is, and on which side depends on the car.

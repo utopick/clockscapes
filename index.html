@@ -22821,6 +22821,7 @@
           this.cv.style.height = this.H * P + "px";
           const { W, H } = this;
           let capV;
+          this.car = PARAMS.has("car"); // the Android Auto screen
           if (compact) {
             // clock on the left, label + date beside it, weather underneath
             this.ls = H >= 110 ? 2 : 1;
@@ -22828,7 +22829,6 @@
             this.x0 = window.carCard > r.left ? Math.ceil((window.carCard - r.left) / P) + 4 : 4;
             // the car screen (?car) puts the time at the right edge of the area the host leaves free, and
             // the city, date and weather lines just left of it
-            this.car = PARAMS.has("car");
             this.xr = (window.carRight || 0) + 4 * P;
             this.y0 = Math.max(3, Math.round(H * 0.05));
             capV = 7 * this.ls + 4 + 7;
@@ -22851,6 +22851,9 @@
             else this.s = 2;
             this.ls = this.s >= 3 ? 2 : 1;
             this.y0 = Math.max(4, Math.round(H * 0.03));
+            // shortcut: the car host doesn't report its card's height, so columns start under the one-line
+            // card and the music buttons (96 px in Android Auto); use the stable area if a host differs
+            if (this.car) this.y0 += Math.ceil(96 / P);
             capV = 7 * this.s;
             this.yLabel = this.y0 + capV + 5;
             this.yInfo = this.yLabel + 7 * this.ls + 4;

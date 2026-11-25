@@ -10,7 +10,9 @@ Clockscapes shows up to four clocks in different time zones, each over a pixel-a
 
 Open **https://utopick.github.io/clockscapes/** in any browser, or install it from there as an app. It's one file, it collects nothing about you ([privacy policy](https://utopick.github.io/clockscapes/privacy.html)), and it only talks to [Open-Meteo](https://open-meteo.com/) for the weather.
 
-There is also an Android app for phones, tablets, TVs and Android Auto, attached to each [release](https://github.com/utopick/clockscapes/releases). On a phone it can be your live wallpaper, on a TV your screensaver, and in the car it fills the screen with your cities.
+There is also an Android app, attached to each [release](https://github.com/utopick/clockscapes/releases). On a phone it can be your live wallpaper, and on Android TV and Google TV it can be your screensaver. With Android Auto it fills the car's screen with your cities:
+
+<img src="img/android-auto.png" alt="Android Auto: Çanakkale, Nukus and Beira at night side by side, with a small card in the corner" width="100%">
 
 ## What it does
 
@@ -73,6 +75,8 @@ Alarms carry your message across the clocks instead of ringing, and twelve scree
 Press **S** (or tap the screen, then **⚙ SETTINGS**) to pick your cities, set alarms, change the music and choose a filter. **M** plays the music, **N** skips a song and **F** goes full screen.
 
 Everything else, from every event and music style to the keys, the TV remote and the battery settings, is in the [full guide](docs/GUIDE.md). How it works inside is in the [manual](docs/MANUAL.md).
+
+There are a few easter eggs too, so keep po**K**ing.
 
 ## Credits
 

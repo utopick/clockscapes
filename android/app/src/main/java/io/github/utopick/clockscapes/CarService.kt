@@ -1,6 +1,9 @@
 package io.github.utopick.clockscapes
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.os.Handler
+import android.os.Looper
 import android.graphics.Rect
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -21,16 +24,21 @@ import androidx.car.app.navigation.model.MapWithContentTemplate
 import androidx.car.app.validation.HostValidator
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import org.json.JSONArray
 
 /**
- * Android Auto. Clockscapes registers as a weather app (it shows the live weather of every clock), and
- * weather apps may draw their own picture with MapWithContentTemplate: the scene fills the car screen
- * and a small card holds the music buttons.
+ * Android Auto. Clockscapes registers as a weather app, and weather apps may draw their own picture with
+ * MapWithContentTemplate: the scene fills the car screen, and a small card lists each clock's city, time
+ * and weather, with the music buttons under them.
  */
 class CarService : CarAppService() {
-    // shortcut: any host may connect, which is fine for a test build; a Play release must use the
-    // allow-list from R.array.hosts_allowlist_sample instead
-    override fun createHostValidator(): HostValidator = HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
+    // a debug build lets any host connect (the Desktop Head Unit, sideloaded tests); a release only
+    // Android Auto and the car hosts on the library's own allow-list
+    override fun createHostValidator(): HostValidator =
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) HostValidator.ALLOW_ALL_HOSTS_VALIDATOR
+        else HostValidator.Builder(applicationContext)
+            .addAllowedHosts(androidx.car.app.R.array.hosts_allowlist_sample)
+            .build()
 
     override fun onCreateSession(): Session = object : Session() {
         override fun onCreateScreen(intent: Intent): Screen = ClockScreen(carContext)
@@ -41,6 +49,24 @@ class ClockScreen(car: CarContext) : Screen(car) {
     private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true)
     private var playing = false
     private val audio = car.getSystemService(AudioManager::class.java)
+    // each clock as [city, time, weather], read from the page every half minute
+    private var clocks = listOf<List<String>>()
+    private val tick = Handler(Looper.getMainLooper())
+    private val read: Runnable = object : Runnable {
+        override fun run() {
+            page.js(CLOCKS_JS) { json ->
+                val rows = runCatching {
+                    val a = JSONArray(JSONArray("[$json]").getString(0))
+                    List(a.length()) { i -> a.getJSONArray(i).let { r -> List(3) { r.optString(it) } } }
+                }.getOrNull()
+                if (rows != null && rows != clocks) {
+                    clocks = rows
+                    invalidate()
+                }
+            }
+            tick.postDelayed(this, 30_000)
+        }
+    }
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
             AudioAttributes.Builder()
@@ -63,6 +89,12 @@ class ClockScreen(car: CarContext) : Screen(car) {
             override fun onSurfaceDestroyed(container: SurfaceContainer) = page.detach()
         })
         lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                tick.postDelayed(read, 3_000) // once the page has drawn its clocks
+            }
+
+            override fun onStop(owner: LifecycleOwner) = tick.removeCallbacks(read)
+
             override fun onDestroy(owner: LifecycleOwner) {
                 audio.abandonAudioFocusRequest(focus)
                 page.detach()
@@ -85,13 +117,24 @@ class ClockScreen(car: CarContext) : Screen(car) {
             .setTitle("Next song")
             .setOnClickListener { page.js("if (musicOn()) nextSong(3)") }
             .build()
+        val list = ItemList.Builder()
+        for ((city, time, weather) in clocks) {
+            val row = Row.Builder().setTitle(listOf(city, time).filter { it.isNotEmpty() }.joinToString("  ·  "))
+            if (weather.isNotEmpty()) row.addText(weather)
+            list.addItem(row.build())
+        }
         @Suppress("DEPRECATION")
         val card = ListTemplate.Builder()
             .setTitle("Clockscapes")
-            .setSingleList(ItemList.Builder().addItem(music).addItem(next).build())
+            .setSingleList(list.addItem(music).addItem(next).build())
             .build()
         // older car screens (below API level 7, navtest build only) can't show the scene, only the card
         if (carContext.carAppApiLevel < 7) return card
         return MapWithContentTemplate.Builder().setContentTemplate(card).build()
     }
 }
+
+// the page's clocks as JSON text: city, time and the weather line ("12°C clear sky")
+private const val CLOCKS_JS =
+    "JSON.stringify(COLS.map((c) => [c.zone.label, c.clockEl.textContent.replace(/(AM|PM)$/, ' $1'), " +
+        "c.weatherText.textContent.trim()]))"

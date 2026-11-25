@@ -55,8 +55,8 @@ class SurfacePage(private val context: Context, private val autoplay: Boolean) {
     fun pause() = web?.onPause()
     fun resume() = web?.onResume()
 
-    /** Runs JavaScript in the page (the car's music buttons). */
-    fun js(code: String) = web?.evaluateJavascript(code, null)
+    /** Runs JavaScript in the page (the car's music buttons), and hands its result, as JSON, to [done]. */
+    fun js(code: String, done: ((String) -> Unit)? = null) = web?.evaluateJavascript(code) { done?.invoke(it) }
 
     fun detach() {
         presentation?.dismiss()

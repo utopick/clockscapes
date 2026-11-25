@@ -111,7 +111,9 @@ object Web {
         fun musicState(playing: Boolean, title: String) {
             if (context is MainActivity) context.musicState(playing, title)
             // the car's off-screen page (CarMusic); the wallpaper and screensaver pages play no music
-            else CarMusic.current?.let { car -> android.os.Handler(android.os.Looper.getMainLooper()).post { car.state(playing, title) } }
+            else android.os.Handler(android.os.Looper.getMainLooper()).post {
+                ClockScreen.current?.takeIf { it.owns(web) }?.state(playing, title) ?: CarMusic.current?.state(playing, title)
+            }
         }
 
         // The native music engine (NativeMusic), used by NativeSong in the page.

@@ -40,6 +40,9 @@ class SurfacePage(private val context: Context, private val autoplay: Boolean, p
         display?.resize(width, height, dpi)
     }
 
+    /** Whether [view] is this page's WebView (to tell which page a ClockscapesAndroid call came from). */
+    fun has(view: WebView) = web === view
+
     fun pause() = web?.onPause()
     fun resume() = web?.onResume()
 

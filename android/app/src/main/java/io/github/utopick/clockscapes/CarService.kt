@@ -4,7 +4,13 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Handler
 import android.os.Looper
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Rect
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
+import android.webkit.WebView
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -48,8 +54,26 @@ class CarService : CarAppService() {
 }
 
 class ClockScreen(car: CarContext) : Screen(car) {
+    companion object {
+        /** The open car screen, so its page's ClockscapesAndroid.musicState and CarMusic reach it. */
+        var current: ClockScreen? = null
+    }
+
     private val page = SurfacePage(ContextThemeWrapper(car, android.R.style.Theme_Black_NoTitleBar), autoplay = true, query = "?layout=columns&car") // ?layout=rows&car stacks the clocks instead
-    private var playing = false
+    var playing = false
+        private set
+    var title = "Lo-fi from your clocks"
+        private set
+    var artist = "Clockscapes"
+        private set
+    /** The app's icon, as the song's picture. */
+    val art: Bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888).also {
+        car.packageManager.getApplicationIcon(car.packageName).apply { setBounds(0, 0, 256, 256) }.draw(Canvas(it))
+    }
+    private var resumeOnGain = false
+    // The media session makes the music the phone's current media: Android Auto's media card shows the song
+    // with working Play, Pause and Next, and headset buttons work too.
+    private val session = MediaSession(car, "Clockscapes car screen")
     // the car screen's dpi, and where the area the host leaves free starts, in CSS pixels (sent to the page).
     // The host reports the same area however small the card is, and on which side depends on the car.
     private var dpi = 160
@@ -83,9 +107,32 @@ class ClockScreen(car: CarContext) : Screen(car) {
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
         )
+        .setOnAudioFocusChangeListener { change ->
+            when (change) {
+                AudioManager.AUDIOFOCUS_LOSS -> setMusic(false) // another player took over
+                // a call or a navigation prompt: stop, and play again when it is over
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> if (playing) {
+                    resumeOnGain = true
+                    page.js("musicPlay(false)")
+                }
+                AudioManager.AUDIOFOCUS_GAIN -> if (resumeOnGain) {
+                    resumeOnGain = false
+                    page.js("musicPlay(true)")
+                }
+            }
+        }
         .build()
 
     init {
+        current = this
+        session.setCallback(object : MediaSession.Callback() {
+            override fun onPlay() = setMusic(true)
+            override fun onPause() = setMusic(false)
+            override fun onStop() = setMusic(false)
+            override fun onSkipToNext() = next()
+        })
+        publish()
+        session.isActive = true
         car.getCarService(AppManager::class.java).setSurfaceCallback(object : SurfaceCallback {
             override fun onSurfaceAvailable(container: SurfaceContainer) {
                 val surface = container.surface ?: return
@@ -110,7 +157,7 @@ class ClockScreen(car: CarContext) : Screen(car) {
                 page.js("carTap(${x / k}, ${y / k}, $playing)") { key ->
                     when (key) {
                         "\"music\"" -> setMusic(!playing)
-                        "\"next\"" -> page.js("if (musicOn()) nextSong(3)")
+                        "\"next\"" -> next()
                     }
                 }
             }
@@ -127,16 +174,62 @@ class ClockScreen(car: CarContext) : Screen(car) {
             override fun onDestroy(owner: LifecycleOwner) {
                 audio.abandonAudioFocusRequest(focus)
                 page.detach()
+                session.release()
+                if (current === this@ClockScreen) current = null
+                CarMusic.current?.publish()
             }
         })
     }
 
-    private fun setMusic(on: Boolean) {
-        playing = on
+    fun owns(view: WebView) = page.has(view)
+
+    fun next() {
+        page.js("if (musicOn()) nextSong(3)")
+    }
+
+    fun setMusic(on: Boolean) {
         // the car plays the phone's media sound once the app holds audio focus
-        if (playing) audio.requestAudioFocus(focus) else audio.abandonAudioFocusRequest(focus)
+        if (on && audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return
+        if (!on) {
+            resumeOnGain = false
+            audio.abandonAudioFocusRequest(focus)
+        }
+        playing = on
         page.js("musicPlay($playing)")
+        publish()
         invalidate()
+    }
+
+    /** The page's music changed song, started or stopped (from ClockscapesAndroid.musicState). */
+    fun state(on: Boolean, song: String) {
+        // the page's line is "Çanakkale at night (hijaz style), 01:31, variation 2139"
+        title = song.substringBefore(", ")
+        artist = listOf("Clockscapes", song.substringAfterLast(", ", "")).filter { it.isNotEmpty() }.joinToString(" · ")
+        if (!on && !resumeOnGain && playing) {
+            playing = false
+            audio.abandonAudioFocusRequest(focus)
+        }
+        publish()
+    }
+
+    private fun publish() {
+        session.setMetadata(
+            MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
+                .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, art)
+                .build()
+        )
+        session.setPlaybackState(
+            PlaybackState.Builder()
+                .setActions(
+                    PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
+                        PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_NEXT
+                )
+                .setState(if (playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED, 0, 1f)
+                .build()
+        )
+        CarMusic.current?.publish() // Android Auto's media card shows that session
     }
 
     override fun onGetTemplate(): Template {

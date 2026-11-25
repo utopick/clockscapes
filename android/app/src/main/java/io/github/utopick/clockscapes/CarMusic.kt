@@ -75,12 +75,14 @@ class CarMusic : MediaBrowserService() {
         current = this
         session = MediaSession(this, "Clockscapes car")
         session.setCallback(object : MediaSession.Callback() {
-            override fun onPlay() = play()
-            override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) = play()
-            override fun onPause() = stop()
-            override fun onStop() = stop()
+            // while the car screen (ClockScreen) is open its page is the one that plays: Android Auto shows
+            // this session in its media card, so the buttons there go to that page
+            override fun onPlay() = ClockScreen.current?.setMusic(true) ?: play()
+            override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) = onPlay()
+            override fun onPause() = ClockScreen.current?.setMusic(false) ?: stop()
+            override fun onStop() = onPause()
             override fun onSkipToNext() {
-                page.js("if (musicOn()) nextSong(3)")
+                ClockScreen.current?.next() ?: page.js("if (musicOn()) nextSong(3)")
             }
         })
         sessionToken = session.sessionToken
@@ -147,13 +149,16 @@ class CarMusic : MediaBrowserService() {
         publish()
     }
 
-    private fun publish() {
+    /** Shows this player's song, or the car screen's while that is open. */
+    fun publish() {
+        val car = ClockScreen.current
+        val playing = car?.playing ?: playing
         session.setMetadata(
             MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, SONG)
-                .putString(MediaMetadata.METADATA_KEY_TITLE, title)
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, "Clockscapes")
-                .apply { art?.let { putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, it) } }
+                .putString(MediaMetadata.METADATA_KEY_TITLE, car?.title ?: title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, car?.artist ?: "Clockscapes")
+                .apply { (car?.art ?: art)?.let { putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, it) } }
                 .build()
         )
         session.setPlaybackState(

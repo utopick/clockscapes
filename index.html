@@ -9745,7 +9745,7 @@
   "bago-mm": [["Shwethalyaung Buddha","statue",{h:36,ph:4,pw:20,pose:"recline",c:12,t:3}],["Shwemawdaw Pagoda","stupa",{w:25,h:46,c:12,t:3}]],
   "baguio-ph": [["Baguio Cathedral","cathedral",{w:21,nh:12,h:26,top:"pyr",c:14,t:10}]],
   "bahir-dar-et": [["Bahir Dar Martyrs’ Memorial","column",{h:36,s:2,pw:5,ph:5,top:"capital",c:6}],["Abbay Bridge","span",{type:"cable",w:18,h:22,dh:8,c:6}]],
-  "baia-mare-ro": [["Stephen’s Tower","belfry",{w:7,h:30,clock:1,top:"spire",sp:12,c:13,t:2}],["Holy Trinity Cathedral","onion",{w:25,nh:14,r:5,n:4,dd:6,mc:[12],c:6}]],
+  "baia-mare-ro": [["Stephen’s Tower","belfry",{w:7,h:30,clock:1,top:"spire",sp:12,c:13,t:2}],["Holy Trinity Cathedral","baiaMareTrinity",{}]],
   "baidoa-so": [["Baidoa Grand Mosque","mosque",{w:21,nh:9,r:6,m:1,mh:26,c:6,dc:9}]],
   "baikonur-kz": [["Soyuz rocket monument","soyuz",{c:6}]],
   "baku-az": [["Flame Towers","flameTowers",{}],["Maiden Tower","maidenTower",{}]],
@@ -44738,6 +44738,61 @@
               box(cx - 1, 7, 3, 1, S);
             }
             box(-13, 1, 27, 1, S);
+            break;
+          }
+          case "baiaMareTrinity": {
+            // Baia Mare's Holy Trinity Cathedral (being built since the 2000s, Romania's second largest): a
+            // neo-Byzantine cross of cream stone banded in brick, round-arched gables and windows, a columned
+            // porch, two front towers and the big central tower, each a windowed drum under a gilded dome with a
+            // lantern and a cross. Drawn without a photo.
+            const st = [230, 220, 198],
+              gd = [220, 170, 70],
+              B = css(e.sh(st)),
+              S = css(e.sh(mixc(st, [41, 40, 54], 0.26))),
+              Lt = css(e.sh(mixc(st, [255, 248, 225], 0.45))),
+              Br = css(e.sh([176, 98, 72])),
+              G = css(e.sh(gd)),
+              GS = css(e.sh(mixc(gd, [41, 40, 54], 0.3))),
+              GL = css(e.sh(mixc(gd, [255, 248, 225], 0.45))),
+              tower = (cx, base, hw, h, r) => {
+                box(cx - hw, base + h, 2 * hw + 1, h, B);
+                box(cx + hw, base + h, 1, h, S);
+                box(cx - hw, base + 2, 2 * hw + 1, 1, Br);
+                box(cx - hw - 1, base + h, 2 * hw + 3, 1, Lt);
+                for (let p = cx - hw + 1; p < cx + hw; p += 2) box(p, base + h - 2, 1, Math.min(4, h - 4), 2);
+                dome(cx, base + h, r, GS);
+                dome(cx - 1, base + h, r - 1, G);
+                box(cx - Math.ceil(r / 2), base + h + Math.round(r * 0.6), 1, 1, GL);
+                const top = base + h + r;
+                box(cx - 1, top + 2, 3, 2, B);
+                dome(cx, top + 2, 1, G);
+                box(cx, top + 7, 1, 4, 12);
+                box(cx - 1, top + 6, 3, 1, 12);
+              };
+            box(-13, 15, 27, 15, B);
+            box(12, 15, 2, 15, S);
+            for (const y of [5, 10]) box(-13, y, 27, 1, Br); // the brick bands
+            for (const cx of [-9, 9]) {
+              dome(cx, 15, 3, Lt);
+              dome(cx, 15, 2, B);
+              box(cx, 16, 1, 1, 2);
+            }
+            dome(0, 15, 6, Lt);
+            dome(0, 15, 5, B);
+            orb(0, 17, 1, 2); // the rose window
+            for (const p of [-11, -7, 6, 10]) {
+              box(p, 13, 2, 4, 2);
+              box(p, 13, 2, 1, Lt);
+            }
+            // the porch
+            box(-5, 10, 11, 10, Lt);
+            dome(0, 10, 5, Lt);
+            for (const p of [-4, -1, 2]) box(p, 8, 2, 7, 2);
+            box(-1, 8, 3, 1, Br);
+            box(-14, 1, 29, 1, S);
+            tower(-10, 15, 2, 7, 3);
+            tower(10, 15, 2, 7, 3);
+            tower(0, 21, 4, 9, 5);
             break;
           }
           // ---- end dup ----

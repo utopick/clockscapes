@@ -1,57 +1,46 @@
           case "casaVallAndorra": {
-            // Casa de la Vall: a compact stone manor, steep roof and square corner watchtower.
+            // Casa de la Vall: a compact stone manor with a low slate roof and its square corner tower.
             const stone = css(e.sh([174, 164, 139])),
               lit = css(e.sh([205, 195, 168])),
               slate = css(e.sh([69, 76, 84])),
               dark = "rgba(31, 32, 34, 0.82)";
-            box(-10, 1, 20, 16, stone);
-            box(-9, 4, 18, 1, lit);
-            for (let y = 17; y <= 23; y++) {
-              const half = Math.floor((24 - y) * 1.4);
-              box(-half, y, half * 2, 1, y % 2 ? slate : lit);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-10, 0, 18, 16, stone);
+            at(-10, 6, 18, 1, lit);
+            for (const x of [-8, -3, 2]) {
+              at(x, 9, 2, 4, dark);
+              at(x, 3, 2, 2, dark);
             }
-            box(-9, 16, 18, 1, slate);
-            box(-9, 18, 2, 2, dark);
-            box(-3, 18, 2, 2, dark);
-            box(4, 18, 2, 2, dark);
-            box(-8, 8, 2, 3, dark);
-            box(-2, 8, 2, 3, dark);
-            box(5, 8, 2, 3, dark);
-            box(-1, 1, 3, 5, dark);
-            box(6, 1, 7, 22, lit);
-            box(7, 5, 5, 15, stone);
-            box(8, 13, 3, 3, dark);
-            box(8, 19, 3, 3, dark);
-            box(5, 23, 9, 1, slate);
-            box(7, 24, 5, 3, stone);
-            box(8, 25, 3, 1, slate);
+            at(-2, 0, 3, 3, dark);
+            for (let y = 0; y < 4; y++) at(-10 + y, 16 + y, 18 - 2 * y, 1, slate);
+            at(8, 0, 6, 24, lit);
+            at(13, 0, 1, 24, stone);
+            for (const y of [6, 13, 19]) at(10, y, 2, 3, dark);
+            for (let y = 0; y < 4; y++) at(7 + y, 24 + y, 8 - 2 * y, 1, slate);
             break;
           }
           case "santEsteveAndorra": {
-            // Sant Esteve: a Romanesque stone nave with steep roof and a sturdy separate bell tower.
+            // Sant Esteve: a Romanesque stone nave with a steep roof and a sturdy bell tower with paired arches.
             const stone = css(e.sh([180, 170, 146])),
               sun = css(e.sh([210, 198, 168])),
               roof = css(e.sh([75, 80, 83])),
               dark = "rgba(31, 32, 34, 0.82)";
-            box(-11, 1, 18, 11, stone);
-            box(-10, 4, 16, 1, sun);
-            for (let y = 12; y <= 18; y++) {
-              const half = 10 - (y - 12);
-              box(-half, y, half * 2, 1, y % 2 ? roof : stone);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-12, 0, 18, 10, stone);
+            at(-12, 9, 18, 1, sun);
+            for (let y = 0; y < 5; y++) at(-12 + y * 2, 10 + y, 18 - 4 * y, 1, roof);
+            for (const x of [-10, -1, 3]) at(x, 4, 1, 3, dark);
+            at(-5, 0, 3, 5, dark);
+            at(7, 0, 7, 24, stone);
+            at(7, 0, 1, 24, sun);
+            for (const y of [10, 17]) {
+              at(8, y, 2, 3, dark);
+              at(11, y, 2, 3, dark);
             }
-            box(-10, 8, 2, 3, dark);
-            box(-4, 8, 2, 3, dark);
-            box(2, 8, 2, 3, dark);
-            box(-2, 1, 3, 6, dark);
-            box(7, 1, 9, 18, stone);
-            box(8, 3, 1, 14, sun);
-            box(9, 13, 5, 1, sun);
-            box(9, 14, 2, 3, dark);
-            box(12, 14, 2, 3, dark);
-            box(7, 19, 9, 1, roof);
-            for (let x = 7; x <= 15; x += 2) box(x, 20, 1, 2, stone);
-            box(10, 22, 3, 1, roof);
-            box(11, 23, 1, 2, roof);
+            at(7, 16, 7, 1, sun);
+            at(6, 24, 9, 1, roof);
+            at(8, 25, 5, 1, roof);
+            at(10, 26, 1, 1, roof);
             break;
           }
           case "lusailStadium": {
@@ -846,425 +835,442 @@
           }
 
           case "pinderLighthouse": {
-            // Pinder’s Point Lighthouse: a banded tapered tower and lantern.
+            // Pinder’s Point Lighthouse: a pale tapered tower with two red bands, a dark gallery and a lantern.
             const stone = css(e.sh([220, 205, 168])),
               red = css(e.sh([160, 76, 55])),
               dark = css(e.sh([49, 60, 62])),
-              light = css(e.sh([235, 228, 194]));
-            box(-8, 8, 16, 3, stone);
-            box(-6, 36, 12, 36, stone);
-            box(-5, 15, 10, 1, red);
-            box(-4, 21, 8, 1, red);
-            box(-3, 29, 6, 1, red);
-            box(-8, 36, 16, 2, dark);
-            box(-5, 38, 10, 5, light);
-            box(-6, 43, 12, 1, dark);
-            dome(0, 44, 5, dark);
-            box(0, 49, 1, 3, dark);
+              light = css(e.sh([250, 224, 150]));
+            // at() counts from the bottom edge (0 = the ground); box() itself takes the top edge
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-6, 0, 12, 2, stone);
+            for (let y = 2; y < 34; y++) {
+              const hw = 5 - Math.floor((y - 2) / 11);
+              at(-hw, y, hw * 2, 1, (y >= 12 && y < 14) || (y >= 24 && y < 26) ? red : stone);
+            }
+            at(-1, 4, 2, 3, dark);
+            at(-5, 34, 10, 1, dark);
+            at(-3, 35, 6, 4, light);
+            at(-1, 35, 2, 4, dark);
+            at(-4, 39, 8, 1, dark);
+            dome(0, 40, 3, dark);
+            at(0, 43, 1, 2, dark);
             break;
           }
 
           case "atlantisPoseidonTemple": {
-            // Fictional Atlantis temple: six classical columns shelter a central Poseidon figure beneath a stepped pediment.
-            const stone = css(e.sh([179, 164, 132])),
-              lit = css(e.sh([218, 204, 170])),
-              shade = css(e.sh([117, 105, 86]));
-            box(-12, 1, 24, 2, shade);
-            box(-13, 3, 26, 1, lit);
-            for (let x = -10; x <= 10; x += 4) {
-              box(x, 4, 2, 12, stone);
-              box(x, 5, 1, 10, lit);
-              box(x - 1, 15, 4, 1, lit);
-              box(x - 1, 3, 4, 1, stone);
-            }
-            for (let y = 0; y < 7; y++) {
-              const half = 13 - y * 2;
-              box(-half, 16 + y, half * 2, 1, y % 2 ? stone : lit);
-              box(-half, 16 + y, 1, 1, shade);
-            }
-            box(-1, 6, 2, 7, shade);
-            box(-2, 9, 4, 2, lit);
-            box(2, 10, 1, 8, shade);
-            box(1, 17, 3, 1, lit);
+            // Atlantis, after the owner's picture: an old golden city climbing its hill in terraces to a
+            // columned temple at the top.
+            const gold = css(e.sh([214, 170, 98])),
+              lit = css(e.sh([240, 208, 146])),
+              shade = css(e.sh([158, 114, 66])),
+              dark = css(e.sh([82, 58, 44])),
+              green = css(e.sh([92, 128, 72])),
+              brass = css(e.sh([190, 140, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 6, shade);
+            at(-15, 6, 30, 6, gold);
+            at(-12, 12, 24, 6, shade);
+            at(-9, 18, 17, 4, gold);
+            for (let x = -15; x <= 13; x += 4) at(x, 2, 2, 2, dark);
+            for (let x = -13; x <= 11; x += 4) at(x, 8, 1, 2, dark);
+            for (let x = -10; x <= 9; x += 3) at(x, 14, 1, 2, dark);
+            for (const x of [-16, -11, 9, 14]) orb(x, 7, 1.5, green);
+            at(-9, 22, 17, 1, lit);
+            at(-7, 23, 13, 9, shade);
+            for (let x = -8; x <= 6; x += 2) at(x, 23, 1, 9, lit);
+            at(-9, 32, 17, 2, lit);
+            at(-9, 32, 17, 1, gold);
+            for (let y = 0; y < 5; y++) at(-9 + y * 2, 34 + y, 17 - 4 * y, 1, y % 2 ? gold : lit);
+            at(-1, 39, 1, 4, dark);
+            at(0, 41, 3, 2, brass);
             break;
           }
           case "atlantisCaesarsTowers": {
-            // Atlantis fantasy skyline: paired resort towers with stepped crowns and a short elevated link.
-            const wall = css(e.sh([202, 192, 173])),
-              red = css(e.sh([160, 67, 54])),
-              dark = css(e.sh([78, 82, 85]));
-            box(-9, 1, 18, 4, dark);
-            for (const [x, h] of [
-              [-8, 22],
-              [2, 26],
-            ]) {
-              box(x, 5, 6, h, wall);
-              for (let y = 8; y < h + 4; y += 4) {
-                box(x + 1, y, 1, 2, dark);
-                box(x + 4, y, 1, 2, dark);
-              }
-              box(x - 1, h + 5, 8, 1, red);
-              box(x, h + 6, 6, 2, wall);
-              box(x + 1, h + 8, 4, 1, red);
-              box(x + 2, h + 9, 2, 1, wall);
+            // Atlantis: a domed hall between two round towers with copper cones, like the domes in the picture.
+            const gold = css(e.sh([214, 170, 98])),
+              lit = css(e.sh([240, 208, 146])),
+              shade = css(e.sh([158, 114, 66])),
+              dark = css(e.sh([82, 58, 44])),
+              copper = css(e.sh([196, 120, 70]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-12, 0, 24, 12, gold);
+            at(-12, 12, 24, 1, lit);
+            for (let x = -10; x <= 8; x += 4) at(x, 3, 2, 5, dark);
+            at(-5, 13, 10, 4, gold);
+            for (let x = -4; x <= 3; x += 2) at(x, 14, 1, 2, dark);
+            dome(0, 17, 6, copper);
+            at(-1, 23, 2, 2, lit);
+            at(-1, 25, 1, 2, dark);
+            for (const x of [-16, 11]) {
+              at(x, 0, 5, 22, gold);
+              at(x + (x < 0 ? 0 : 4), 0, 1, 22, shade);
+              for (let y = 4; y < 20; y += 5) at(x + 2, y, 1, 2, dark);
+              at(x - 1, 22, 7, 1, lit);
+              for (let y = 0; y < 4; y++) at(x - 1 + y, 23 + y, 7 - 2 * y, 1, copper);
             }
-            box(-2, 15, 4, 2, red);
-            box(-1, 17, 2, 1, wall);
             break;
           }
           case "atlantisPointFermin": {
-            // A compact Point Fermin-inspired lighthouse: square pale shaft, dark gallery and lantern, capped by a tiny roof.
-            const white = css(e.sh([220, 218, 199])),
-              trim = css(e.sh([52, 62, 67])),
-              red = css(e.sh([155, 70, 56]));
-            box(-2, 1, 4, 3, red);
-            box(-2, 4, 4, 20, white);
-            box(-2, 24, 4, 2, trim);
-            box(-2, 26, 4, 4, white);
-            box(-2, 30, 4, 1, trim);
-            box(-2, 31, 4, 1, white);
-            box(-1, 32, 2, 2, trim);
-            box(0, 34, 1, 2, red);
-            for (let y = 7; y <= 21; y += 5) box(-1, y, 1, 2, trim);
+            // Atlantis' steam clock: a golden tower with a brass clock face, its pipe puffing steam.
+            const gold = css(e.sh([214, 170, 98])),
+              lit = css(e.sh([240, 208, 146])),
+              shade = css(e.sh([158, 114, 66])),
+              dark = css(e.sh([82, 58, 44])),
+              copper = css(e.sh([196, 120, 70])),
+              brass = css(e.sh([190, 140, 60])),
+              steam = css(e.sh([236, 232, 224]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-4, 0, 8, 26, gold);
+            at(3, 0, 1, 26, shade);
+            at(-1, 4, 2, 3, dark);
+            at(-1, 11, 2, 3, dark);
+            at(-1, 18, 2, 3, dark);
+            at(-5, 26, 10, 1, lit);
+            at(-4, 27, 8, 8, gold);
+            orb(0, 31, 3, brass);
+            orb(0, 31, 2, lit);
+            at(0, 31, 1, 2, dark);
+            at(0, 31, 2, 1, dark);
+            for (let y = 0; y < 5; y++) at(-5 + y, 35 + y, 10 - 2 * y, 1, copper);
+            at(0, 40, 1, 3, brass);
+            at(5, 0, 1, 20, brass);
+            at(5, 20, 2, 1, brass);
+            at(6, 20, 1, 6, brass);
+            orb(7, 28, 1.5, steam);
+            orb(8.5, 31, 2, steam);
+            orb(10, 35, 2.5, steam);
             break;
           }
 
           case "nassauRoyalTowers": {
-            // Atlantis Royal Towers: two tall pink hotel blocks, crowned in steps and joined by elevated bridges.
-            const wall = css(e.sh([206, 175, 158])),
-              shade = css(e.sh([145, 120, 112])),
-              glass = css(e.sh([80, 112, 129]));
-            box(-11, 1, 22, 4, shade);
+            // Atlantis Royal Towers: two tall coral towers with stepped crowns, joined high up by the bridge suite.
+            const wall = css(e.sh([214, 164, 140])),
+              shade = css(e.sh([150, 112, 100])),
+              glass = css(e.sh([80, 112, 129])),
+              trim = css(e.sh([238, 220, 200]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-14, 0, 28, 3, shade);
             for (const [x, h] of [
-              [-9, 27],
-              [3, 31],
+              [-12, 30],
+              [4, 34],
             ]) {
-              box(x, 5, 7, h, wall);
-              box(x, 7, 1, h - 2, shade);
-              for (let y = 9; y < h; y += 4) {
-                for (let wx = x + 2; wx < x + 7; wx += 3) box(wx, y, 1, 2, glass);
-              }
-              box(x - 1, h + 5, 9, 1, shade);
-              box(x, h + 6, 7, 2, wall);
-              box(x + 1, h + 8, 5, 1, shade);
-              box(x + 2, h + 9, 3, 1, wall);
+              at(x, 3, 8, h, wall);
+              at(x, 3, 1, h, shade);
+              for (let y = 6; y < h; y += 4) for (const wx of [x + 2, x + 5]) at(wx, y, 1, 2, glass);
+              const t = 3 + h;
+              at(x - 1, t, 10, 1, trim);
+              at(x, t + 1, 8, 2, wall);
+              at(x + 1, t + 3, 6, 1, trim);
+              at(x + 2, t + 4, 4, 2, wall);
+              at(x + 3, t + 6, 2, 1, shade);
             }
-            box(-2, 15, 5, 2, shade);
-            box(-1, 17, 3, 1, wall);
-            box(-2, 24, 5, 1, shade);
+            at(-4, 25, 8, 6, wall);
+            at(-4, 25, 8, 1, shade);
+            at(-2, 27, 4, 2, glass);
+            at(-5, 31, 10, 1, trim);
             break;
           }
           case "nassauParliamentSquare": {
-            // Parliament Square: broad central lawn framed by the pastel colonial civic frontage around the open square.
-            const pink = css(e.sh([205, 151, 137])),
-              cream = css(e.sh([233, 209, 183])),
+            // Parliament Square: two pink colonial wings with white columns and Queen Victoria's statue between.
+            const pink = css(e.sh([222, 150, 140])),
+              cream = css(e.sh([240, 230, 210])),
+              roof = css(e.sh([110, 118, 120])),
+              dark = css(e.sh([78, 63, 83])),
               grass = css(e.sh([88, 131, 77]));
-            box(-15, 1, 30, 3, grass);
-            box(-14, 4, 28, 1, cream);
-            box(-13, 5, 26, 8, pink);
-            for (let x = -11; x <= 9; x += 4) {
-              box(x, 7, 2, 4, cream);
-              box(x, 8, 1, 3, 8);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 1, grass);
+            for (const x of [-17, 6]) {
+              at(x, 1, 11, 10, pink);
+              at(x, 1, 11, 1, cream);
+              for (const wx of [x + 2, x + 5, x + 8]) at(wx, 4, 2, 4, dark);
+              for (let c = x + 1; c < x + 11; c += 3) at(c, 2, 1, 9, cream);
+              at(x, 11, 11, 1, cream);
+              at(x + 1, 12, 9, 1, roof);
+              at(x + 3, 13, 5, 1, roof);
             }
-            box(-4, 5, 8, 8, cream);
-            box(-3, 6, 6, 5, pink);
-            box(-2, 7, 4, 3, 8);
-            box(-1, 11, 2, 2, cream);
-            box(-2, 13, 4, 1, cream);
-            box(0, 14, 1, 4, 8);
-            box(-14, 5, 2, 3, cream);
-            box(12, 5, 2, 3, cream);
+            at(-2, 1, 4, 4, 13);
+            at(-1, 5, 2, 5, 6);
+            at(-2, 7, 4, 1, 6);
+            at(-1, 10, 2, 1, 6);
             break;
           }
           case "dakhlaGrandMosque": {
-            // Dakhla mosque, no confirmed facade photo: a compact desert prayer hall with one integrated dome and minaret.
+            // Dakhla mosque, no confirmed facade photo: a desert prayer hall with a green dome and a square minaret.
             const wall = css(e.sh([218, 211, 186])),
               green = css(e.sh([72, 127, 91])),
               shade = css(e.sh([94, 94, 78]));
-            box(-5, 1, 10, 8, wall);
-            box(-6, 9, 12, 1, shade);
-            for (let x = -3; x <= 3; x += 3) box(x, 3, 1, 3, shade);
-            dome(-1, 10, 4, green);
-            box(3, 8, 3, 17, wall);
-            box(2, 12, 5, 1, shade);
-            box(3, 25, 3, 2, green);
-            box(3, 27, 3, 1, shade);
-            box(4, 28, 1, 2, green);
-            for (let y = 13; y < 23; y += 4) box(4, y, 1, 2, shade);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 14, 9, wall);
+            at(-10, 9, 16, 1, shade);
+            for (const x of [-7, -3, 1]) at(x, 2, 2, 4, shade);
+            dome(-2, 10, 4, green);
+            at(-2, 14, 1, 2, 3);
+            at(6, 0, 4, 22, wall);
+            for (let y = 4; y < 20; y += 5) at(7, y, 2, 2, shade);
+            at(5, 22, 6, 1, shade);
+            at(6, 23, 4, 3, wall);
+            at(6, 26, 4, 1, green);
+            at(7, 27, 2, 1, green);
+            at(8, 28, 1, 2, 3);
             break;
           }
           case "laayouneFrancisCathedral": {
-            // No confirmed exterior photo: modest Saharan Catholic church with a broad pale nave and central gable cross.
+            // No confirmed exterior photo: a modest pale Saharan church, broad nave and a gable with its cross.
             const wall = css(e.sh([224, 217, 192])),
               shade = css(e.sh([119, 110, 91])),
               roof = css(e.sh([146, 119, 85]));
-            box(-10, 1, 20, 11, wall);
-            box(-11, 12, 22, 1, roof);
-            for (let y = 0; y < 8; y++) {
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-10, 0, 20, 11, wall);
+            for (let y = 0; y < 9; y++) {
               const half = 11 - y;
-              box(-half, 13 + y, half * 2, 1, y % 2 ? wall : roof);
+              at(-half, 11 + y, half * 2, 1, y === 0 ? shade : roof);
             }
-            box(-2, 2, 4, 6, shade);
-            box(-1, 3, 2, 4, wall);
-            for (let x = -8; x <= 7; x += 5) box(x, 4, 2, 4, shade);
-            box(0, 21, 1, 3, shade);
-            box(-1, 22, 3, 1, shade);
+            at(-2, 0, 4, 6, shade);
+            for (const x of [-8, -5, 3, 6]) at(x, 4, 2, 4, shade);
+            at(-1, 8, 2, 2, shade);
+            at(0, 20, 1, 4, shade);
+            at(-1, 22, 3, 1, shade);
             break;
           }
           case "laayouneGrandMosque": {
-            // No confirmed photo: a restrained light prayer hall with one green dome and a square minaret.
+            // No confirmed photo: a light prayer hall with one green dome and a square minaret.
             const wall = css(e.sh([218, 212, 193])),
               shade = css(e.sh([112, 102, 83])),
               green = css(e.sh([69, 131, 91]));
-            box(-10, 1, 20, 10, wall);
-            box(-11, 11, 22, 1, shade);
-            for (let x = -7; x <= 5; x += 6) box(x, 4, 2, 4, shade);
-            dome(0, 12, 6, green);
-            box(7, 1, 4, 22, wall);
-            box(6, 11, 6, 1, shade);
-            box(6, 23, 6, 1, green);
-            box(7, 24, 4, 2, shade);
-            box(8, 26, 2, 1, green);
-            box(8, 27, 2, 1, shade);
-            box(9, 28, 1, 2, green);
-            for (let y = 14; y < 22; y += 4) box(8, y, 2, 2, shade);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-12, 0, 20, 10, wall);
+            at(-13, 10, 22, 1, shade);
+            for (const x of [-10, -6, 1, 5]) at(x, 3, 2, 4, shade);
+            at(-3, 0, 2, 5, shade);
+            dome(-2, 11, 6, green);
+            at(-2, 17, 1, 2, 3);
+            at(9, 0, 4, 24, wall);
+            for (let y = 6; y < 22; y += 5) at(10, y, 2, 2, shade);
+            at(8, 24, 6, 1, shade);
+            at(9, 25, 4, 3, wall);
+            at(9, 28, 4, 1, green);
+            at(10, 29, 2, 1, green);
+            at(11, 30, 1, 2, 3);
             break;
           }
           case "dublinSpire": {
-            // The Spire of Dublin: a severe, tapering stainless-steel needle on a short plinth, over 50 cells tall.
+            // The Spire of Dublin: a thin stainless-steel needle, far taller than anything around it.
             const steel = css(e.sh([161, 171, 173])),
               glint = css(e.sh([214, 221, 218])),
               base = css(e.sh([89, 98, 101]));
-            box(-2, 1, 4, 2, base);
-            box(-1, 3, 2, 14, steel);
-            box(0, 17, 1, 33, steel);
-            box(0, 5, 1, 10, glint);
-            box(0, 21, 1, 24, glint);
-            box(0, 50, 1, 2, glint);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-2, 0, 4, 1, base);
+            at(-1, 1, 2, 18, steel);
+            at(-1, 3, 1, 14, glint);
+            at(-1, 19, 1, 31, steel);
+            at(-1, 50, 1, 2, glint);
             break;
           }
           case "beckettBridge": {
-            // Samuel Beckett Bridge: a swept harp-shaped mast fans fine stays down to a long shallow deck.
+            // Samuel Beckett Bridge: a curved harp spar rising from the deck, its stays fanned down to the deck.
             const steel = css(e.sh([169, 177, 173])),
               shade = css(e.sh([92, 106, 105]));
-            box(-11, 2, 22, 2, steel);
-            box(-12, 1, 24, 1, shade);
-            for (let x = -10; x <= 10; x += 5) box(x, 4, 1, 2, shade);
-            stroke(-6, 4, -6, 9, 6);
-            stroke(-6, 9, -5, 14, 6);
-            stroke(-5, 14, -3, 18, 6);
-            stroke(-3, 18, 0, 20, 6);
-            stroke(-5, 14, -4, 18, 6);
-            stroke(-7, 4, -6, 9, 8);
-            for (let i = 0; i < 8; i++) {
-              const deckX = -2 + i * 2;
-              const topX = -3 + Math.round((i * 3) / 7);
-              const topY = 17 + Math.round((i * 3) / 7);
-              stroke(topX, topY, deckX, 4, 8);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            for (const x of [-10, 9]) at(x, 0, 1, 3, shade);
+            at(-15, 3, 30, 2, steel);
+            at(-15, 3, 30, 1, shade);
+            const spar = [
+              [-4, 5],
+              [-3, 10],
+              [-1, 15],
+              [2, 19],
+              [5, 22],
+              [8, 24],
+            ];
+            for (let i = 1; i < spar.length; i++) {
+              const [ax, ay] = spar[i - 1],
+                [bx, by] = spar[i];
+              stroke(ax, ay, bx, by, 6);
+              stroke(ax + 1, ay, bx + 1, by, 6);
+              stroke(bx, by, -2 + i * 3, 5, 8);
             }
-            box(-11, 3, 22, 1, steel);
-            box(-12, 1, 24, 1, shade);
+            stroke(8, 24, -10, 5, 8);
+            stroke(5, 22, -13, 5, 8);
             break;
           }
           case "galwayCathedral": {
-            // Galway Cathedral: massive dark-stone cruciform church, two small front towers and a dominant green copper dome.
-            const stone = css(e.sh([112, 114, 109])),
-              lit = css(e.sh([164, 164, 151])),
-              green = css(e.sh([88, 141, 120])),
+            // Galway Cathedral: grey stone, a twin-towered front, a long nave and the big green copper dome.
+            const stone = css(e.sh([128, 130, 124])),
+              lit = css(e.sh([170, 170, 158])),
+              green = css(e.sh([96, 150, 128])),
               dark = css(e.sh([53, 59, 57]));
-            box(-13, 1, 26, 15, stone);
-            box(-14, 16, 28, 1, lit);
-            for (let x = -11; x <= 9; x += 5) {
-              box(x, 4, 2, 7, dark);
-              box(x, 5, 1, 5, lit);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 22, 13, stone);
+            at(-9, 13, 22, 1, lit);
+            for (const x of [-7, -4, 5, 8, 11]) at(x, 4, 1, 6, dark);
+            at(13, 0, 4, 10, stone);
+            at(13, 10, 4, 1, lit);
+            at(-19, 0, 10, 15, stone);
+            at(-15, 0, 2, 4, dark);
+            at(-15, 9, 2, 2, dark);
+            at(-16, 15, 4, 1, stone);
+            at(-15, 16, 2, 1, stone);
+            for (const x of [-19, -12]) {
+              at(x, 0, 3, 24, stone);
+              at(x + 1, 19, 1, 3, dark);
+              at(x, 24, 3, 1, lit);
+              at(x, 25, 3, 2, stone);
+              dome(x + 1.5, 27, 2, green);
+              at(x + 1, 29, 1, 2, lit);
             }
-            box(-12, 1, 24, 1, lit);
-            box(-1, 16, 14, 4, stone);
-            box(-2, 20, 16, 1, lit);
-            dome(6, 21, 8, green);
-            box(6, 29, 1, 3, lit);
-            for (const x of [-10, -3]) {
-              box(x, 13, 4, 13, stone);
-              box(x - 1, 26, 6, 1, lit);
-              box(x, 27, 4, 2, stone);
-              box(x + 1, 29, 2, 1, lit);
-              box(x + 1, 30, 1, 2, stone);
-              box(x + 1, 21, 2, 3, dark);
-            }
-            box(-1, 3, 4, 7, dark);
-            box(0, 4, 2, 5, lit);
+            at(-2, 14, 10, 5, stone);
+            for (const x of [-1, 2, 5]) at(x, 15, 1, 3, dark);
+            at(-3, 19, 12, 1, lit);
+            dome(3, 20, 6, green);
+            at(2, 26, 2, 2, lit);
+            at(2, 28, 1, 3, lit);
             break;
           }
           case "antiguaStJohnsCathedral": {
-            // No facade photo available: a pale Antigua cathedral with twin square bell towers and a broad central nave.
-            const wall = css(e.sh([220, 215, 196])),
-              trim = css(e.sh([243, 236, 214])),
+            // St. John’s Cathedral: a stone nave between twin white towers topped with silver cupolas.
+            const wall = css(e.sh([150, 146, 136])),
+              trim = css(e.sh([236, 232, 218])),
+              silver = css(e.sh([176, 184, 192])),
               dark = css(e.sh([71, 75, 71]));
-            box(-11, 1, 22, 14, wall);
-            box(-12, 15, 24, 1, trim);
-            for (let y = 0; y < 8; y++) {
-              const half = 12 - y;
-              box(-half, 16 + y, half * 2, 1, trim);
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 18, 14, wall);
+            for (let y = 0; y < 5; y++) at(-9 + y * 2, 14 + y, 18 - 4 * y, 1, trim);
+            at(-2, 0, 4, 7, dark);
+            for (const x of [-7, 5]) at(x, 5, 2, 5, dark);
+            at(-1, 10, 2, 2, dark);
+            for (const x of [-14, 9]) {
+              at(x, 0, 5, 26, trim);
+              at(x + 2, 19, 1, 3, dark);
+              at(x + 2, 12, 1, 3, dark);
+              at(x - 1, 26, 7, 1, wall);
+              dome(x + 2.5, 27, 3, silver);
+              at(x + 2, 30, 1, 2, trim);
             }
-            for (const x of [-10, 5]) {
-              box(x, 3, 5, 22, wall);
-              box(x - 1, 25, 7, 1, trim);
-              box(x, 26, 5, 5, wall);
-              box(x + 1, 27, 3, 3, dark);
-              box(x, 31, 5, 1, trim);
-              box(x + 1, 32, 3, 1, wall);
-              box(x + 2, 33, 1, 2, trim);
-            }
-            box(-2, 1, 4, 10, dark);
-            box(-1, 2, 2, 8, trim);
-            box(-1, 15, 2, 5, dark);
-            box(0, 20, 1, 4, trim);
             break;
           }
           case "antiguaFortJames": {
-            // Fort James is a low coastal battery, represented as irregular ramparts with corner bastions and sparse cannon ports.
-            const stone = css(e.sh([154, 143, 119])),
-              lit = css(e.sh([195, 182, 150])),
-              dark = css(e.sh([71, 69, 61]));
-            box(-14, 1, 28, 4, stone);
-            box(-15, 5, 30, 2, stone);
-            box(-16, 7, 32, 1, lit);
-            box(-13, 8, 7, 2, stone);
-            box(-5, 7, 10, 2, stone);
-            box(6, 8, 7, 2, stone);
-            box(-10, 2, 5, 4, lit);
-            box(5, 2, 5, 4, lit);
-            box(-2, 1, 4, 3, dark);
-            for (const x of [-11, -6, 6, 11]) {
-              box(x, 4, 2, 1, dark);
+            // Fort James: low stone walls on the headland, gun ports, corner bastions and the flag.
+            const stone = css(e.sh([168, 150, 120])),
+              lit = css(e.sh([200, 184, 150])),
+              grass = css(e.sh([102, 140, 80])),
+              dark = css(e.sh([60, 58, 56])),
+              red = css(e.sh([190, 50, 48]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-15, 0, 30, 3, grass);
+            at(-12, 3, 24, 6, stone);
+            at(-12, 8, 24, 1, lit);
+            for (let x = -12; x <= 10; x += 3) at(x, 9, 2, 1, stone);
+            for (const x of [-15, 11]) {
+              at(x, 3, 4, 8, stone);
+              at(x, 10, 4, 1, lit);
             }
-            stroke(-13, 3, -8, 3, 8);
-            stroke(8, 3, 13, 3, 8);
+            for (const x of [-8, -2, 4]) at(x, 5, 2, 1, dark);
+            at(0, 9, 1, 10, dark);
+            at(1, 16, 3, 2, red);
             break;
           }
           case "wallblakeHouse": {
-            // Wallblake House: low island estate with a pink two-storey main house, stone outbuilding and picket fence.
-            const pink = css(e.sh([199, 148, 137])),
-              stone = css(e.sh([153, 145, 123])),
-              roof = css(e.sh([71, 68, 61])),
-              fence = css(e.sh([228, 221, 197]));
-            box(-13, 1, 26, 1, fence);
-            for (let x = -13; x <= 12; x += 3) box(x, 1, 1, 4, fence);
-            box(-12, 5, 8, 5, stone);
-            box(-13, 10, 10, 1, roof);
-            for (let y = 0; y < 5; y++) {
-              const half = 5 - y;
-              box(-13 + y, 10 + y, 1, 1, roof);
-              box(-4 - y, 10 + y, 1, 1, roof);
+            // Wallblake House: a two-storey white plantation house with green shutters, a veranda and a hip roof.
+            const white = css(e.sh([236, 232, 222])),
+              green = css(e.sh([60, 110, 80])),
+              roof = css(e.sh([110, 116, 118])),
+              dark = css(e.sh([70, 72, 74]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 14, white);
+            for (const x of [-9, -4, 2, 7]) {
+              at(x, 8, 2, 4, green);
+              at(x, 1, 2, 4, green);
             }
-            box(0, 3, 13, 9, pink);
-            box(-1, 12, 15, 1, roof);
-            for (let y = 0; y < 7; y++) {
-              box(-1 + y, 13 + y, 1, 1, roof);
-              box(13 - y, 13 + y, 1, 1, roof);
-            }
-            for (let x = 2; x <= 9; x += 4) {
-              box(x, 5, 2, 3, roof);
-              box(x, 9, 2, 2, roof);
-            }
-            box(5, 2, 3, 4, roof);
+            at(-1, 0, 2, 5, dark);
+            at(-13, 6, 26, 1, roof);
+            for (let x = -12; x <= 12; x += 4) at(x, 0, 1, 6, white);
+            for (let y = 0; y < 5; y++) at(-12 + y * 2, 14 + y, 24 - 4 * y, 1, roof);
             break;
           }
           case "stGerardsAnguilla": {
-            // No photo found: a modest pale island church with a simple gable, short square bell tower and cross.
-            const wall = css(e.sh([224, 216, 190])),
-              roof = css(e.sh([120, 87, 68])),
-              dark = css(e.sh([57, 66, 65]));
-            box(-10, 1, 20, 12, wall);
-            box(-11, 13, 22, 1, roof);
-            for (let y = 0; y < 8; y++) {
-              const half = 11 - y;
-              box(-half, 14 + y, half * 2, 1, roof);
-            }
-            box(-3, 1, 6, 18, wall);
-            box(-4, 19, 8, 1, roof);
-            box(-2, 12, 4, 4, dark);
-            box(-1, 13, 2, 2, wall);
-            box(-7, 4, 2, 5, dark);
-            box(5, 4, 2, 5, dark);
-            box(-1, 20, 2, 1, roof);
-            box(0, 21, 1, 4, roof);
+            // St. Gerard’s: a stone church whose side wall is pierced with an open stone lattice, and a bell cote.
+            const stone = css(e.sh([164, 150, 128])),
+              lit = css(e.sh([200, 188, 164])),
+              roof = css(e.sh([120, 70, 56])),
+              dark = css(e.sh([64, 60, 58]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 18, 12, stone);
+            for (let y = 2; y < 10; y += 2) for (let x = -8 + (y % 4 ? 1 : 0); x < 8; x += 2) at(x, y, 1, 1, dark);
+            at(-2, 0, 4, 6, dark);
+            for (let y = 0; y < 6; y++) at(-10 + y * 2, 12 + y, 20 - 4 * y, 1, roof);
+            at(-1, 18, 2, 4, lit);
+            at(-1, 19, 2, 2, dark);
+            at(0, 22, 1, 3, lit);
+            at(-1, 23, 3, 1, lit);
             break;
           }
           case "pagoPagoFono": {
-            // The Fono reference was a seal, not its building; draw a restrained open Samoan fale with a broad thatched roof.
-            const timber = css(e.sh([120, 81, 49])),
-              thatch = css(e.sh([191, 145, 83])),
-              light = css(e.sh([218, 180, 121]));
-            box(-13, 1, 26, 2, timber);
-            for (let x = -11; x <= 10; x += 5) box(x, 3, 1, 4, timber);
-            box(-14, 7, 28, 1, thatch);
-            for (let y = 0; y < 5; y++) {
-              const half = 14 - y * 2;
-              box(-half, 8 + y, half * 2, 1, y % 2 ? light : thatch);
+            // American Samoa Fono: a great oval fale roof on a ring of posts, on a raised stone platform.
+            const stone = css(e.sh([150, 146, 138])),
+              post = css(e.sh([120, 84, 56])),
+              thatch = css(e.sh([196, 150, 92])),
+              thatch2 = css(e.sh([174, 128, 76]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-15, 0, 30, 2, stone);
+            for (let x = -12; x <= 12; x += 3) at(x, 2, 1, 6, post);
+            for (let y = 0; y < 8; y++) {
+              const half = Math.round(15 * Math.sqrt(1 - (y / 8) ** 2));
+              at(-half, 8 + y, half * 2, 1, y % 2 ? thatch2 : thatch);
             }
-            box(-1, 4, 2, 1, light);
             break;
           }
           case "pagoPagoHighCourt": {
-            // The second supplied picture was the same seal; a simple formal court block with central entrance and hipped roof.
-            const wall = css(e.sh([220, 213, 188])),
-              trim = css(e.sh([241, 230, 202])),
-              roof = css(e.sh([102, 89, 68]));
-            box(-12, 1, 24, 9, wall);
-            box(-13, 10, 26, 1, trim);
-            for (let y = 0; y < 5; y++) {
-              const half = 13 - y * 2;
-              box(-half, 11 + y, half * 2, 1, roof);
-            }
-            for (let x = -9; x <= 7; x += 4) {
-              box(x, 3, 2, 5, trim);
-              box(x, 4, 1, 3, 8);
-            }
-            box(-3, 1, 6, 7, trim);
-            box(-2, 1, 4, 5, wall);
-            box(-1, 1, 2, 4, 8);
-            box(0, 16, 1, 5, 8);
+            // High Court of American Samoa: a white colonial courthouse, verandas on both floors, a red hip roof.
+            const white = css(e.sh([238, 234, 224])),
+              roof = css(e.sh([170, 64, 52])),
+              dark = css(e.sh([70, 72, 74]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 13, white);
+            for (const y of [1, 8]) for (let x = -9; x <= 7; x += 4) at(x, y, 2, 3, dark);
+            at(-12, 6, 24, 1, white);
+            at(-12, 7, 24, 1, dark);
+            for (let x = -12; x <= 11; x += 3) at(x, 0, 1, 6, white);
+            for (let y = 0; y < 5; y++) at(-12 + y * 2, 13 + y, 24 - 4 * y, 1, roof);
             break;
           }
           case "fortZoutmanAruba": {
-            // Fort Zoutman: low ochre stone battery with a compact crenellated parapet and a dark central entry.
-            const stone = css(e.sh([174, 145, 81])),
-              lit = css(e.sh([211, 177, 101])),
-              dark = css(e.sh([59, 55, 45]));
-            box(-13, 1, 26, 7, stone);
-            box(-14, 8, 28, 1, lit);
-            box(-12, 9, 24, 1, stone);
-            for (let x = -12; x <= 10; x += 4) box(x, 10, 2, 2, stone);
-            box(-3, 1, 6, 5, dark);
-            box(-2, 1, 4, 4, lit);
-            box(-1, 1, 2, 3, dark);
-            for (let x = -10; x <= 8; x += 6) box(x, 5, 2, 1, dark);
+            // Fort Zoutman: Aruba's old fort, a long low grey-stone wall with a parapet and its gate.
+            const stone = css(e.sh([140, 136, 128])),
+              lit = css(e.sh([182, 176, 164])),
+              yellow = css(e.sh([222, 184, 92])),
+              dark = css(e.sh([64, 60, 58]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-15, 0, 30, 9, stone);
+            at(-15, 9, 30, 1, lit);
+            for (let x = -15; x <= 13; x += 3) at(x, 10, 2, 1, stone);
+            at(-15, 0, 30, 1, lit);
+            at(-3, 0, 6, 11, yellow);
+            at(-4, 11, 8, 1, yellow);
+            at(-1, 0, 2, 5, dark);
             break;
           }
           case "willemIIITowerAruba": {
-            // Willem III Tower: red-and-white clock shaft, pale blue lower base and arched louver openings.
-            const white = css(e.sh([235, 231, 209])),
-              red = css(e.sh([163, 59, 59])),
-              blue = css(e.sh([112, 176, 192])),
-              dark = css(e.sh([61, 67, 63]));
-            box(-5, 1, 10, 6, blue);
-            box(-4, 7, 8, 8, red);
-            box(-4, 15, 8, 10, white);
-            box(-5, 25, 10, 1, dark);
-            box(-4, 26, 8, 1, red);
-            box(-3, 27, 6, 1, red);
-            box(-2, 28, 4, 1, dark);
-            for (let y = 3; y <= 5; y += 2) box(-2, y, 4, 1, dark);
-            for (let y = 9; y <= 13; y += 4) {
-              box(-3, y, 2, 3, dark);
-              box(1, y, 2, 3, dark);
-              box(-2, y + 1, 1, 1, blue);
-              box(2, y + 1, 1, 1, blue);
+            // Willem III Tower: a pale blue base, a red stage with white arched windows and a white clock top.
+            const blue = css(e.sh([150, 196, 214])),
+              red = css(e.sh([166, 40, 52])),
+              white = css(e.sh([240, 238, 232])),
+              dark = css(e.sh([60, 62, 70]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-5, 0, 10, 6, blue);
+            at(-1, 0, 2, 4, dark);
+            at(-4, 6, 8, 14, red);
+            for (const y of [8, 14]) {
+              at(-3, y, 2, 4, white);
+              at(1, y, 2, 4, white);
+              at(-2, y, 1, 3, dark);
+              at(2, y, 1, 3, dark);
             }
-            box(-3, 18, 6, 1, dark);
-            box(-2, 19, 4, 4, dark);
-            box(-1, 20, 2, 2, blue);
-            box(0, 29, 1, 3, red);
+            at(-4, 20, 8, 9, white);
+            orb(0, 25, 2, dark);
+            orb(0, 25, 1, white);
+            at(-5, 29, 10, 1, white);
+            for (let x = -5; x <= 4; x += 3) at(x, 30, 1, 1, white);
+            at(0, 30, 1, 5, dark);
+            at(1, 33, 3, 2, red);
             break;
           }

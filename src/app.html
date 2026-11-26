@@ -10040,7 +10040,7 @@
   "athens-gr": [["Parthenon","parthenon"],["Panathenaic Stadium","stadium",{w:21,h:8,c:6,t:13,rc:6}]],
   "ati-td": [["Grande Mosquée d’Ati","mosque",{w:19,nh:8,r:5,m:2,mh:24,c:6,dc:9}]],
   "atlanta-us": [["Bank of America Plaza","sky",{w:9,h:40,top:"pyramid",ph:7,sp:6,rc:12,c:1,t:3}],["Georgia State Capitol","usCapitol",{w:27,nh:9,r:4,dt:3,cols:4,pav:1,top:"statue",dcol:[222,176,64]}]],
-  "atlantis": [["Temple of Poseidon","atlantisPoseidonTemple"],["Clock tower","atlantisCaesarsTowers"],["Lighthouse","atlantisPointFermin"]],
+  "atlantis": [["Temple of Poseidon","atlantisPoseidonTemple"],["Domed hall","atlantisCaesarsTowers"],["Steam clock","atlantisPointFermin"]],
   "atyrau-kz": [["Imangali Mosque","mosque",{w:23,r:7,m:4,mh:32,c:6,dc:11}],["Ural River Pedestrian Bridge","span",{type:"cable",w:18,h:22,dh:8,c:6}]],
   "auch-fr": [["Auch Cathedral","cathedral",{w:27,nh:18,h:30,tw:7,top:"crenel",c:13,t:13}],["Tour d’Armagnac","belfry",{w:9,h:34,top:"spire",c:13,t:8}]],
   "auckland-nz": [["Sky Tower","sky-tower"],["Auckland Harbour Bridge","span",{type:"truss",w:18,h:14,dh:9,c:8}]],
@@ -26266,11 +26266,6 @@
           population: 1e7,
         },
       });
-      CITY_LANDMARKS.atlantis = [
-        ["Temple of Poseidon", "column", { n: 6, h: 12, s: 1, pw: 2, ph: 3, top: "none", c: 0 }],
-        ["Clock tower", "belfry", { w: 7, h: 30, clock: 1, top: "spire", c: 13, t: 8, sp: 6 }],
-        ["Lighthouse", "light", { h: 28, w: 3, b: 10, c: 6 }],
-      ];
       let atlantis = null; // { start, i, paused, timer } while Atlantis shows
       const atlantisZone = () => {
         const { label, lat, lon } = CITY_ATLAS.atlantis;

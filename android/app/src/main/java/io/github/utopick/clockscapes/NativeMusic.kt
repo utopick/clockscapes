@@ -122,9 +122,18 @@ object NativeMusic {
         val buf = FloatArray(FRAMES)
         running = true
         track.play()
+        // With the screen off the page's timers can stall, so its musicIdle() may never come and the track would
+        // write silence (and hold the audio wake lock) for hours: after 5 s with no song, close it from here.
+        // stopIfIdle runs on the main thread, since it takes the lock and joins this thread.
+        var silent = 0
         while (running) {
             render(buf, FRAMES)
             track.write(buf, 0, FRAMES, AudioTrack.WRITE_BLOCKING)
+            silent = if (idle()) silent + FRAMES else 0
+            if (silent >= RATE * 5) {
+                silent = 0
+                main.post { stopIfIdle(0) }
+            }
         }
         track.stop()
         track.release()

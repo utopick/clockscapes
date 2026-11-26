@@ -12,7 +12,7 @@ Open **https://utopick.github.io/clockscapes/** in any browser, or install it fr
 
 There is also an Android app, attached to each [release](https://github.com/utopick/clockscapes/releases). On a phone it can be your live wallpaper, and on Android TV and Google TV it can be your screensaver. With Android Auto it fills the car's screen with your cities:
 
-<img src="img/android-auto.png" alt="Android Auto: Çanakkale, Nukus and Beira at night side by side, with a small card in the corner" width="100%">
+<img src="img/android-auto.png" alt="Android Auto: Barcelona and New York at night side by side, with music buttons and the song playing in the card beside them" width="100%">
 
 ## What it does
 

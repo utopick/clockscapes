@@ -46,7 +46,7 @@ In the app, the music plays with the app's own native sound engine instead of th
 
 With Android Auto, Clockscapes fills the car's screen with your cities standing side by side. Android Auto always keeps a small card in a corner, so Clockscapes uses it for the temperature of your first clock.
 
-<img src="../img/android-auto.png" alt="Android Auto: Çanakkale, Nukus and Beira at night side by side, with a small 6°C card in the corner" width="100%">
+<img src="../img/android-auto.png" alt="Android Auto: Barcelona and New York at night side by side, with music buttons and the song playing in the card beside them" width="100%">
 
 Tap the scene and **Play music** and **Next song** show at the lower left for ten seconds. While the music plays, Android Auto's media card shows the song's name, with the scene of your local city (or your first clock's city) as its picture, and its own pause and skip buttons work too.
 

@@ -4,11 +4,16 @@ This manual is for anyone who wants to run, change or fix Clockscapes. You only 
 
 ## 1. What you have
 
-Clockscapes is a web page that draws one pixel-art city per time zone, with a clock on top. All of the app is one file, `index.html`, holding the HTML, the CSS and the JavaScript. There's no build step, no framework and no dependency to install. Two small extra files make it installable and usable offline.
+Clockscapes is a web page that draws one pixel-art city per time zone, with a clock on top. The app people get is one file, `index.html`, holding the HTML, the CSS and the JavaScript, with no framework and no dependency to install. Two small extra files make it installable and usable offline.
+
+You don't edit `index.html` itself, though. Half of it is the drawings of famous landmarks, so those live in `landmarks/`, one small file per batch of cities, and the rest of the page lives in `src/app.html`. `python3 tools/build.py` joins them back into `index.html`, which is committed, so the website and the Android build use it as it is.
 
 | File | What it is |
 |---|---|
-| `index.html` | The whole app: page, styles, drawing code, music, settings |
+| `index.html` | The whole app: page, styles, drawing code, music, settings. Built by `tools/build.py`, so don't edit it by hand |
+| `src/app.html` | The page you edit: everything except the one-off landmark drawings |
+| `landmarks/` | The one-off landmark drawings, one file per batch (`b01.js`, `spain-a.js`...). Each holds the `case` blocks that go between that batch's two marker lines in `cityLandmark` |
+| `tools/build.py` | Joins `src/app.html` and `landmarks/` into `index.html`. `--check` says whether `index.html` is up to date |
 | `sw.js` | The service worker, which keeps a copy of the app so it opens offline |
 | `manifest.webmanifest` | Name, icons and colours used when the app is installed |
 | `icons/` | App icons (192 and 512 pixels) |
@@ -83,9 +88,9 @@ You need Python 3 (already on macOS and most Linux) and a browser. Node is only 
    ```
 3. Open http://localhost:8000 and you should see three clocks (Barcelona, New York and Sydney).
 4. Try a fake night with rain by opening http://localhost:8000/?alt=-20&wx=rain. The `alt` value is the sun's height in degrees, so a negative number means night.
-5. Make a change. Open `index.html`, search for `DEFAULT_CONFIG` and change `"Barcelona"` in the first `zones` entry to `"Barna"`.
-6. Open the page in a private window (saved settings would otherwise win over the defaults) and the first clock now says Barna.
-7. Undo the change with `git checkout index.html`.
+5. Make a change. Open `src/app.html`, search for `DEFAULT_CONFIG` and change `"Barcelona"` in the first `zones` entry to `"Barna"`.
+6. Run `python3 tools/build.py` to rebuild `index.html`, then open the page in a private window (saved settings would otherwise win over the defaults) and the first clock now says Barna.
+7. Undo the change with `git checkout src/app.html index.html`.
 
 You can also open `index.html` straight from the disk, but the offline copy and the install button only work when the page comes from a web server.
 
@@ -93,8 +98,10 @@ You can also open `index.html` straight from the disk, but the offline copy and 
 
 ```sh
 python3 -m http.server 8000                         # run it locally at http://localhost:8000
+python3 tools/build.py                              # rebuild index.html after editing src/app.html or landmarks/
+python3 tools/build.py --check                      # is index.html up to date? (the APK build runs this too)
 node --test tests/music.test.js                     # test the music writer and the version (34 tests, about 10 seconds)
-npx -y prettier@3 --print-width 110 --write index.html   # format the file the way it is kept
+npx -y prettier@3 --print-width 110 --write index.html   # format the built page, then run tools/build.py --split to carry it back to the sources
 npx -y prettier@3 --print-width 110 --check index.html   # check the format without changing it
 git push origin main                                # publish: GitHub Pages rebuilds in about a minute
 ```
@@ -123,7 +130,7 @@ Handy addresses for trying things without waiting for the right time or weather:
 | If you want to change… | Look in… | Watch out for… |
 |---|---|---|
 | The cities you can pick | `CITY_ATLAS` in the `Config` section | Each row is `[id, label, country code, lat, lon, time zone, style, art, capital]`. Never rename an `id`, because saved settings point to it |
-| A city's landmarks | `CITY_LANDMARKS`, and `cityLandmark` for how a kind is drawn | Only draw a city's real sights, one or two of them; a city with no famous sight keeps the generic skyline, which grows with its population |
+| A city's landmarks | `CITY_LANDMARKS`, and `cityLandmark` for how a kind is drawn (its one-off cases are in `landmarks/`, then run `tools/build.py`) | Only draw a city's real sights, one or two of them; a city with no famous sight keeps the generic skyline, which grows with its population |
 | Mountains behind a city | `MOUNTAINS` (ranges) and `PEAKS` (single famous peaks) | Only add mountains you can really see from the city |
 | Trees in a city | `FLORA_OVERRIDES` and `cityFlora`, with the seasons in `plantKind` and `leafSeason` | Trees follow the climate, so palms stay out of Oslo. Away from the tropics they are bare in winter, blossom in spring and turn in autumn, flipped in the southern hemisphere |
 | The ground (street, park, railway, water) | `ground` and `street` | Every city calls `ground`, so the bands line up when clocks stand side by side. Don't give one city its own street |

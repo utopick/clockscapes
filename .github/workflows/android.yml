@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # index.html is built from src/app.html and landmarks/ (tools/build.py); refuse a page that was not rebuilt
+      - name: Check index.html is built
+        run: python3 tools/build.py --check
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

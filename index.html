@@ -58730,6 +58730,9 @@
           wakeLock = null;
           return;
         }
+        // In the Android app the window flag above does it. The wallpaper and the car draw the page on a hidden display
+        // that shares the phone's screen, so a browser wake lock there kept the phone's screen on behind the lock screen.
+        if (window.ClockscapesAndroid) return;
         try {
           if ("wakeLock" in navigator && !document.hidden)
             wakeLock = await navigator.wakeLock.request("screen");

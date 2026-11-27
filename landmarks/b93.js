@@ -1,0 +1,1366 @@
+          case "casaVallAndorra": {
+            // Casa de la Vall: a compact stone manor with a low slate roof and its square corner tower.
+            const stone = css(e.sh([174, 164, 139])),
+              lit = css(e.sh([205, 195, 168])),
+              slate = css(e.sh([69, 76, 84])),
+              dark = "rgba(31, 32, 34, 0.82)";
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-10, 0, 18, 16, stone);
+            at(-10, 6, 18, 1, lit);
+            for (const x of [-8, -3, 2]) {
+              at(x, 9, 2, 4, dark);
+              at(x, 3, 2, 2, dark);
+            }
+            at(-2, 0, 3, 3, dark);
+            for (let y = 0; y < 4; y++) at(-10 + y, 16 + y, 18 - 2 * y, 1, slate);
+            at(8, 0, 6, 24, lit);
+            at(13, 0, 1, 24, stone);
+            for (const y of [6, 13, 19]) at(10, y, 2, 3, dark);
+            for (let y = 0; y < 4; y++) at(7 + y, 24 + y, 8 - 2 * y, 1, slate);
+            break;
+          }
+          case "santEsteveAndorra": {
+            // Sant Esteve: a Romanesque stone nave with a steep roof and a sturdy bell tower with paired arches.
+            const stone = css(e.sh([180, 170, 146])),
+              sun = css(e.sh([210, 198, 168])),
+              roof = css(e.sh([75, 80, 83])),
+              dark = "rgba(31, 32, 34, 0.82)";
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-12, 0, 18, 10, stone);
+            at(-12, 9, 18, 1, sun);
+            for (let y = 0; y < 5; y++) at(-12 + y * 2, 10 + y, 18 - 4 * y, 1, roof);
+            for (const x of [-10, -1, 3]) at(x, 4, 1, 3, dark);
+            at(-5, 0, 3, 5, dark);
+            at(7, 0, 7, 24, stone);
+            at(7, 0, 1, 24, sun);
+            for (const y of [10, 17]) {
+              at(8, y, 2, 3, dark);
+              at(11, y, 2, 3, dark);
+            }
+            at(7, 16, 7, 1, sun);
+            at(6, 24, 9, 1, roof);
+            at(8, 25, 5, 1, roof);
+            at(10, 26, 1, 1, roof);
+            break;
+          }
+          case "lusailStadium": {
+            // Lusail Stadium: its broad golden bowl is wrapped in a dense, geometric lantern-like skin.
+            const w = o.w ?? 35,
+              h = o.h ?? 14,
+              half = Math.floor(w / 2),
+              gold = css(e.sh([207, 157, 62])),
+              lit = css(e.sh([240, 199, 102])),
+              shadow = css(e.sh([133, 94, 40])),
+              dark = "rgba(24, 20, 48, 0.34)";
+            // The shell flares from its compact foot into a wide, faceted upper bowl.
+            for (let i = 1; i <= h; i++) {
+              const hw = Math.round(half * (0.72 + (0.28 * i) / h));
+              box(-hw, i, 2 * hw + 1, 1, i % 3 === 0 ? lit : gold);
+              box(hw - 2, i, 3, 1, shadow);
+              for (let p = -hw + 2; p < hw - 2; p += 4) {
+                const facet = Math.floor((p + half) / 4 + i / 2) % 2;
+                box(p, i, 1, 1, facet ? lit : shadow);
+              }
+            }
+            // Deep base, three concentric roof courses, and the shaded inner opening.
+            box(-half + 2, 3, w - 4, 2, shadow);
+            box(-half - 1, h + 1, w + 2, 1, lit);
+            box(-half - 2, h + 2, w + 4, 1, gold);
+            box(-half + 3, h + 3, w - 6, 1, dark);
+            box(-half + 5, h + 1, w - 10, 1, dark);
+            // Vertical rhythm in the perforated shell, grouped as angular golden panels.
+            for (let p = -half + 3; p < half - 2; p += 6) {
+              box(p, 5, 1, h - 5, lit);
+              box(p + 2, 4, 1, h - 4, shadow);
+            }
+            break;
+          }
+          case "alKhorWatchtower": {
+            // Al Khor's old watchtower: a stout cylindrical stone drum with a crenellated crown.
+            const h = o.h ?? 18,
+              r = o.r ?? 6,
+              stone = css(e.sh([177, 120, 65])),
+              sun = css(e.sh([213, 159, 92])),
+              shade = css(e.sh([111, 74, 47])),
+              slit = "rgba(34, 28, 24, 0.8)";
+            for (let i = 1; i <= h; i++) {
+              const taper = i > h - 4 ? -1 : 0,
+                half = r + taper;
+              box(-half, i, half * 2 + 1, 1, stone);
+              box(-half, i, 1, 1, sun);
+              box(half, i, 1, 1, shade);
+              if (i % 3 === 0) box(-half + 1, i, half * 2 - 1, 1, i % 2 ? sun : shade);
+              if (i % 4 === 0) {
+                box(-2, i, 1, 1, sun);
+                box(3, i, 1, 1, shade);
+              }
+            }
+            // Deep slit, projecting beam sockets, and the toothed parapet ring.
+            box(-1, 13, 2, 5, slit);
+            box(-r - 3, 10, 2, 1, shade);
+            box(r + 1, 10, 2, 1, shade);
+            box(-r - 1, h + 1, 2 * r + 3, 1, sun);
+            for (let p = -r - 1; p <= r + 1; p += 2) box(p, h + 2, 1, 2, stone);
+            break;
+          }
+          case "kuwaitTowersB93": {
+            // Kuwait Towers: three white needles carry turquoise mosaic spheres of different sizes.
+            const sphere = (cx, cy, r) => {
+              orb(cx, cy, r, css(e.sh([73, 150, 168])));
+              for (let dy = -r + 1; dy < r; dy += 2) {
+                const half = Math.floor(Math.sqrt(r * r - dy * dy));
+                for (let dx = -half + 1; dx < half; dx += 3)
+                  box(
+                    cx + dx,
+                    cy + dy,
+                    1,
+                    1,
+                    (dx + dy) % 2 ? css(e.sh([157, 210, 203])) : css(e.sh([39, 92, 128])),
+                  );
+              }
+            };
+            for (const [cx, h] of [
+              [-11, 39],
+              [-4, 45],
+              [8, 58],
+            ]) {
+              box(cx - 1, 1, 3, 2, 8);
+              for (let y = 3; y <= h; y++) box(cx, y, 1, 1, y % 6 === 0 ? 8 : 6);
+              box(cx - 2, h, 5, 1, 6);
+            }
+            // The tallest right tower has two globes and a needle; the middle one has one, the left stays bare.
+            box(1, 23, 15, 2, 8);
+            box(2, 25, 13, 1, 6);
+            sphere(8, 32, 7);
+            sphere(8, 47, 4);
+            box(6, 39, 5, 1, 8);
+            box(-10, 27, 11, 2, 8);
+            sphere(-4, 33, 6);
+            box(8, 58, 1, 8, 6);
+            box(-4, 45, 1, 7, 6);
+            box(-11, 39, 1, 6, 6);
+            break;
+          }
+          case "alHamraTowerB93": {
+            // Al Hamra: a dark glazed shaft and the sweeping bronze shell that twists up its right side.
+            const h = o.h ?? 46,
+              core = o.core ?? 11,
+              blue = css(e.sh([88, 104, 119])),
+              glass = css(e.sh([126, 149, 163])),
+              bronze = css(e.sh([174, 121, 57])),
+              sun = css(e.sh([221, 173, 92])),
+              deep = "rgba(28, 31, 44, 0.56)";
+            for (let y = 1; y <= h; y++) {
+              const taper = y > h - 8 ? Math.floor((y - (h - 8)) / 3) : 0;
+              const half = Math.max(3, Math.floor(core / 2) - taper);
+              box(-half, y, half + 1, 1, y % 4 ? blue : glass);
+              box(1, y, half, 1, deep);
+              if (y > 3 && y % 2 === 0)
+                for (let x = -half + 1; x < half; x += 2) box(x, y, 1, 1, y % 4 ? 8 : 6);
+              // The shell advances inward as it rises, leaving the glazed blade visible on its left.
+              const edge = Math.round(half + 5 - (5 * y) / h);
+              box(edge, y, 3, 1, y % 3 ? bronze : sun);
+              box(edge + 3, y, 1, 1, deep);
+            }
+            // Flared foot, projecting crown, and the small angled gold fin at the roof.
+            box(-7, 2, 15, 2, deep);
+            box(-6, h + 1, core + 7, 1, bronze);
+            box(3, h + 2, 2, 3, sun);
+            box(4, h + 4, 2, 1, sun);
+            break;
+          }
+          case "stMichaelBlantyre": {
+            // St Michael and All Angels: its improvised brick Gothic nave and deliberately unmatched towers.
+            const brick = css(e.sh([158, 58, 42])),
+              lit = css(e.sh([205, 102, 69])),
+              shade = css(e.sh([92, 40, 35])),
+              roof = css(e.sh([75, 48, 40])),
+              glass = css(e.sh([55, 105, 133]));
+            // Long nave, high gable, and rhythm of deep vertical buttresses.
+            box(-12, 17, 24, 17, brick);
+            for (let p = -11; p <= 10; p += 5) {
+              box(p, 17, 2, 8, lit);
+              box(p + 1, 17, 1, 8, shade);
+            }
+            cone(0, 17, 13, 6, roof);
+            box(-12, 17, 24, 1, lit);
+            // Pointed window lights across the nave.
+            for (let x = -8; x <= 8; x += 4) {
+              box(x, 15, 2, 4, glass);
+              cone(x, 15, 1, 2, glass);
+              box(x + 1, 15, 1, 4, shade);
+            }
+            // Taller west tower with stepped shoulders and a narrow spire.
+            box(-11, 25, 6, 25, brick);
+            box(-11, 25, 1, 25, lit);
+            box(-6, 25, 1, 25, shade);
+            box(-10, 22, 4, 4, glass);
+            cone(-8, 22, 3, 4, brick);
+            box(-8, 26, 1, 1, lit);
+            box(-8, 30, 1, 3, roof);
+            // Shorter, broader eastern tower with an unmistakable shallow dome and finial.
+            box(6, 20, 7, 20, brick);
+            box(6, 20, 1, 20, lit);
+            box(12, 20, 1, 20, shade);
+            box(7, 17, 5, 4, glass);
+            dome(9, 20, 4, brick);
+            box(6, 21, 7, 1, lit);
+            box(9, 24, 1, 2, roof);
+            // Extend the nave walls to the street line and connect the roof cross to the gable.
+            box(-12, 0, 24, 17, brick);
+            box(-12, 17, 24, 1, lit);
+            box(0, 17, 1, 7, lit);
+            // Recessed central entrance and the cross on the gable.
+            box(-1, 14, 3, 5, shade);
+            box(0, 14, 1, 4, glass);
+            box(0, 25, 1, 10, lit);
+            box(-1, 25, 3, 1, lit);
+            break;
+          }
+          case "binguStadium": {
+            // Bingu National Stadium: broad two-tier bowl, sloping roof canopy and open ends.
+            const w = o.w ?? 33,
+              h = o.h ?? 14,
+              half = Math.floor(w / 2),
+              concrete = css(e.sh([195, 199, 192])),
+              shade = css(e.sh([105, 117, 122])),
+              roof = css(e.sh([139, 151, 151])),
+              seats = css(e.sh([105, 141, 121]));
+            // A compact base supports the stepped seating bowl and its two open end galleries.
+            box(-half + 3, 3, w - 6, 2, shade);
+            for (let y = 5; y <= h; y++) {
+              const hw = Math.round((half - 4) * (0.76 + (0.24 * y) / h));
+              box(-hw, y, 2 * hw + 1, 1, y % 3 === 0 ? concrete : seats);
+              box(-hw, y, 2, 1, roof);
+              box(hw - 1, y, 2, 1, shade);
+              if (y % 3 === 0) box(-hw + 3, y - 1, 2 * hw - 6, 1, shade);
+            }
+            // Uneven canopy spans the two main stands, leaving the corners visibly open.
+            box(-half + 2, h + 1, Math.floor(w * 0.46), 1, roof);
+            box(-half + 4, h + 2, Math.floor(w * 0.4), 1, concrete);
+            box(3, h + 1, Math.floor(w * 0.38), 1, roof);
+            box(5, h + 2, Math.floor(w * 0.3), 1, concrete);
+            // Tall pier rhythm and the separated entry bays around the lower concourse.
+            for (let x = -half + 5; x < half - 4; x += 5) {
+              box(x, 5, 1, 3, concrete);
+              box(x + 1, 5, 1, 3, shade);
+            }
+            box(-half + 8, 2, w - 16, 1, css(e.sh([181, 70, 54])));
+            break;
+          }
+          case "kamuzuMausoleum": {
+            // Kamuzu Mausoleum: a stepped open pavilion and a white lantern over the memorial chamber.
+            const white = css(e.sh([224, 222, 203])),
+              shade = css(e.sh([117, 130, 131])),
+              roof = css(e.sh([74, 87, 85])),
+              red = css(e.sh([135, 58, 53]));
+            box(-13, 2, 26, 2, shade);
+            box(-12, 4, 24, 1, white);
+            // Open colonnades frame the central commemorative panel.
+            for (const x of [-10, -5, 5, 10]) {
+              box(x, 11, 2, 7, white);
+              box(x + 1, 11, 1, 7, shade);
+              box(x, 10, 2, 1, white);
+            }
+            box(-4, 11, 8, 5, white);
+            dome(0, 16, 4, white);
+            box(-3, 11, 6, 3, red);
+            box(-2, 10, 4, 1, shade);
+            // Broad canopy, stepped dark roof and the small white dome above it.
+            box(-14, 12, 28, 1, white);
+            box(-12, 13, 24, 2, shade);
+            box(-10, 15, 20, 2, roof);
+            box(-7, 17, 14, 2, roof);
+            box(-4, 19, 8, 2, white);
+            dome(0, 19, 3, white);
+            box(0, 24, 1, 2, shade);
+            box(-1, 25, 3, 1, shade);
+            box(-4, 17, 8, 2, white);
+            // A centered stair run projects from the platform toward the forecourt.
+            box(-5, 2, 10, 1, white);
+            box(-3, 3, 6, 1, white);
+            break;
+          }
+          case "dohaTowerB93": {
+            // Doha Tower (Burj Qatar): a cylindrical glass shaft behind its mashrabiya-like metal screen.
+            const h = o.h ?? 43,
+              w = o.w ?? 13,
+              half = Math.floor(w / 2),
+              glass = css(e.sh([122, 153, 164])),
+              metal = css(e.sh([193, 183, 150])),
+              shade = css(e.sh([77, 89, 94]));
+            for (let y = 1; y <= h; y++) {
+              const hw = Math.round(half * (0.94 + (0.06 * y) / h));
+              box(-hw, y, 2 * hw + 1, 1, y % 4 ? glass : metal);
+              box(hw - 1, y, 2, 1, shade);
+              for (let x = -hw + 1; x < hw; x += 2) if ((x + y) % 4 === 0) box(x, y, 1, 1, metal);
+              for (let x = -hw + 2; x < hw; x += 4) if ((x - y) % 5 === 0) box(x, y, 1, 1, shade);
+            }
+            // Narrow foot, low dome cap and short antenna above the uninterrupted cylinder.
+            box(-half - 2, 2, w + 4, 1, shade);
+            dome(0, h, half - 1, metal);
+            box(0, h + 2, 1, 4, shade);
+            break;
+          }
+          case "aspireTowerB93": {
+            // Aspire Tower: a tapered torch-like shaft passes through the open oval loop at its crown.
+            const h = o.h ?? 43,
+              w = o.w ?? 15,
+              half = Math.floor(w / 2),
+              steel = css(e.sh([145, 160, 164])),
+              light = css(e.sh([216, 220, 210])),
+              blue = css(e.sh([80, 139, 169])),
+              dark = css(e.sh([62, 72, 77]));
+            box(-half - 1, 2, 2 * half + 3, 2, dark);
+            for (let y = 4; y <= h; y++) {
+              const hw = Math.max(2, Math.round(half * (1 - (0.76 * y) / h)));
+              box(-hw, y, 2 * hw + 1, 1, y % 5 === 0 ? light : steel);
+              box(hw, y, 1, 1, dark);
+              if (y % 3 === 0) box(-hw + 1, y, 2 * hw - 1, 1, blue);
+            }
+            // Separate loop rails create a hollow eye, with the core spire visible through it.
+            for (let dy = -4; dy <= 4; dy++) {
+              const f = Math.sqrt(Math.max(0, 1 - (dy * dy) / 25)),
+                outer = Math.max(1, Math.round(7 * f)),
+                inner = Math.max(1, Math.round(3 * f));
+              box(-outer, h + 7 + dy, outer - inner + 1, 1, light);
+              box(inner, h + 7 + dy, outer - inner + 1, 1, steel);
+            }
+            box(0, h + 3, 1, 10, dark);
+            box(0, h + 13, 1, 6, light);
+            break;
+          }
+          case "saintSavaBelgrade": {
+            // Saint Sava: a pale Serbian-Byzantine basilica crowned by one huge green dome and four smaller ones.
+            const stone = css(e.sh([226, 222, 208])),
+              lit = css(e.sh([247, 239, 218])),
+              shade = css(e.sh([132, 132, 122])),
+              green = css(e.sh([91, 133, 111])),
+              glass = css(e.sh([44, 54, 58]));
+            // Broad lower body, raised central drum and receding sanctuary wings.
+            box(-16, 17, 32, 17, stone);
+            box(-13, 22, 26, 5, lit);
+            box(-9, 24, 18, 2, stone);
+            box(-9, 31, 18, 7, stone);
+            box(-8, 30, 16, 1, shade);
+            box(-9, 38, 18, 7, stone);
+            box(-8, 39, 16, 1, shade);
+            // Central dome and four smaller roof domes mark the cross-shaped plan.
+            dome(0, 38, 9, green);
+            box(-2, 47, 4, 1, shade);
+            box(0, 48, 1, 3, lit);
+            for (const [x, y, r] of [
+              [-12, 24, 4],
+              [12, 24, 4],
+              [-7, 32, 3],
+              [7, 32, 3],
+            ]) {
+              dome(x, y, r, green);
+              box(x, y + r + 2, 1, 2, lit);
+            }
+            // Three arched portals, tall arched window lights, and bright facade framing.
+            for (let x = -7; x <= 7; x += 7) {
+              box(x - 2, 11, 4, 6, glass);
+              dome(x, 17, 2, glass);
+              box(x - 2, 11, 1, 6, lit);
+            }
+            for (let x = -12; x <= 12; x += 4) {
+              box(x, 19, 2, 4, glass);
+              dome(x + 1, 23, 1, glass);
+              box(x, 19, 1, 4, shade);
+            }
+            for (const x of [-15, -10, 10, 15]) {
+              box(x, 22, 1, 6, shade);
+              box(x + 1, 22, 1, 6, lit);
+            }
+            box(-15, 9, 30, 2, shade);
+            box(-14, 7, 28, 2, stone);
+            break;
+          }
+          case "victorMonumentBelgrade": {
+            // Pobednik: tiny bronze figure on a fluted Doric shaft and an oversized square plinth.
+            const stone = css(e.sh([195, 194, 180])),
+              light = css(e.sh([224, 219, 197])),
+              bronze = css(e.sh([108, 111, 90])),
+              dark = css(e.sh([57, 62, 53]));
+            box(-7, 8, 14, 8, dark);
+            box(-6, 8, 12, 8, stone);
+            box(-4, 33, 8, 25, stone);
+            box(-5, 34, 10, 2, light);
+            box(-5, 9, 1, 23, light);
+            box(3, 9, 1, 23, dark);
+            for (let x = -2; x <= 2; x += 2) box(x, 10, 1, 22, dark);
+            box(-6, 33, 12, 2, light);
+            box(-5, 35, 10, 1, stone);
+            box(-7, 36, 14, 2, dark);
+            // Compact bronze victor, with a shoulder-wide torso, falcon and lowered sword.
+            orb(0, 51, 2, bronze);
+            box(-1, 50, 2, 3, bronze);
+            box(-3, 47, 6, 3, bronze);
+            box(-2, 47, 4, 6, bronze);
+            box(-2, 41, 4, 7, bronze);
+            box(-4, 45, 2, 4, bronze);
+            box(3, 45, 2, 4, bronze);
+            box(-5, 47, 3, 2, dark);
+            box(-6, 48, 2, 2, bronze);
+            box(4, 43, 1, 5, bronze);
+            box(5, 39, 1, 5, dark);
+            box(-2, 38, 2, 4, bronze);
+            box(1, 38, 2, 4, bronze);
+            break;
+          }
+          case "nameMaryNoviSad": {
+            // Name of Mary Church: pale Gothic Revival facade beneath a vividly tiled central spire.
+            const stone = css(e.sh([222, 210, 183])),
+              trim = css(e.sh([243, 233, 210])),
+              shade = css(e.sh([139, 118, 96])),
+              glass = css(e.sh([43, 63, 76])),
+              blue = css(e.sh([45, 102, 157])),
+              red = css(e.sh([175, 67, 55]));
+            // Broad nave frontage, side aisles, buttresses and its rose window.
+            box(-15, 17, 30, 9, stone);
+            box(-12, 24, 24, 6, trim);
+            box(-10, 30, 20, 1, shade);
+            orb(0, 20, 4, glass);
+            orb(0, 20, 2, trim);
+            for (let x = -13; x <= 12; x += 5) {
+              box(x, 17, 2, 9, shade);
+              box(x, 17, 1, 9, trim);
+            }
+            for (let x = -9; x <= 9; x += 6) {
+              box(x, 22, 2, 4, glass);
+              dome(x + 1, 26, 1, glass);
+            }
+            // Three deep pointed portals at the base.
+            for (let x = -7; x <= 7; x += 7) {
+              box(x - 2, 10, 4, 6, shade);
+              box(x - 1, 10, 2, 5, glass);
+              cone(x, 16, 2, 3, glass);
+            }
+            // Clock tower and the pair of slim pinnacles at its shoulders.
+            box(-5, 43, 10, 13, stone);
+            box(-5, 43, 1, 13, trim);
+            box(4, 43, 1, 13, shade);
+            orb(0, 36, 3, glass);
+            orb(0, 36, 2, trim);
+            box(-1, 38, 1, 3, shade);
+            box(0, 36, 2, 1, shade);
+            for (const x of [-7, 6]) {
+              box(x, 30, 2, 12, stone);
+              cone(x + 1, 42, 2, 6, shade);
+              box(x + 1, 48, 1, 1, trim);
+            }
+            // High diamond-tiled roof, tapering in colored courses to the cross.
+            for (let j = 0; j < 16; j++) {
+              const hw = Math.max(0, Math.round(5 * (1 - j / 18)));
+              box(-hw, 43 + j + 1, 2 * hw + 1, 1, j % 2 ? blue : red);
+              if (hw > 2 && j % 3 === 0) box(-1, 43 + j + 1, 3, 1, trim);
+            }
+            box(0, 59, 1, 3, shade);
+            box(-1, 60, 3, 1, trim);
+            box(-15, 8, 30, 2, shade);
+            break;
+          }
+          case "petrovaradinClockNoviSad": {
+            // Petrovaradin fortress clock: solid stone tower, oversized reversed dial and green roof.
+            const stone = css(e.sh([197, 184, 151])),
+              trim = css(e.sh([228, 213, 179])),
+              shade = css(e.sh([119, 107, 88])),
+              green = css(e.sh([91, 126, 93])),
+              dial = css(e.sh([47, 58, 61]));
+            // The square masonry shaft runs from the ground to its clock stage without breaks.
+            box(-5, 30, 10, 30, stone);
+            box(-6, 30, 12, 2, trim);
+            box(-5, 30, 1, 30, trim);
+            box(4, 30, 1, 30, shade);
+            // Reversed hands: the shorter hour hand points up while the longer minute hand drops.
+            orb(0, 21, 4, trim);
+            orb(0, 21, 3, dial);
+            box(-1, 22, 1, 4, trim);
+            box(0, 17, 1, 4, trim);
+            for (const x of [-3, 2]) box(x, 18, 1, 1, trim);
+            // Green onion roof and its small finial sit directly on the masonry parapet.
+            box(-6, 32, 12, 1, shade);
+            dome(0, 32, 5, green);
+            box(-4, 37, 8, 1, trim);
+            // Two squat corner turrets join the tower walls and frame the main roof.
+            for (const x of [-5, 3]) {
+              box(x, 36, 2, 6, stone);
+              box(x, 36, 1, 6, trim);
+              dome(x + 1, 36, 2, green);
+            }
+            box(0, 40, 1, 5, trim);
+            box(-1, 45, 3, 1, shade);
+            break;
+          }
+          case "somhloloStadium": {
+            // Somhlolo National Stadium: a low open bowl, with a shield-shaped main stand in Swazi colors.
+            const concrete = css(e.sh([190, 193, 179])),
+              shade = css(e.sh([95, 107, 99])),
+              blue = css(e.sh([51, 119, 166])),
+              red = css(e.sh([169, 58, 58])),
+              gold = css(e.sh([223, 181, 74]));
+            // Wide lower concourse and two stepped tiers taper toward open ends.
+            box(-15, 4, 30, 3, shade);
+            box(-14, 8, 28, 4, concrete);
+            for (let y = 9; y <= 12; y++) {
+              const hw = 12 - Math.floor((y - 9) / 2);
+              box(-hw, y, 2 * hw + 1, 1, y % 2 ? blue : concrete);
+              if (y % 2 === 0) box(-hw + 2, y - 1, 2 * hw - 3, 1, shade);
+            }
+            // A broad central canopy rises to a shallow shield point; the end stands stay open.
+            box(-13, 13, 26, 1, gold);
+            box(-11, 14, 22, 1, blue);
+            box(-8, 15, 16, 1, red);
+            box(-5, 16, 10, 1, gold);
+            box(-2, 17, 4, 1, blue);
+            // Flag bands and the dark central entrance mark the principal stand.
+            box(-12, 7, 24, 1, blue);
+            box(-10, 6, 20, 1, red);
+            box(-8, 5, 16, 1, gold);
+            box(-2, 4, 4, 3, shade);
+            box(-13, 3, 26, 1, concrete);
+            break;
+          }
+          case "sobhuzaMemorial": {
+            // King Sobhuza II Memorial: statue inside a roofed pavilion with a broad connected dome.
+            const stone = css(e.sh([220, 217, 199])),
+              trim = css(e.sh([241, 231, 208])),
+              shade = css(e.sh([111, 107, 91])),
+              roof = css(e.sh([74, 92, 80])),
+              bronze = css(e.sh([123, 102, 68]));
+            // Raised pavilion platform and four open stone columns reach the roof line.
+            box(-12, 5, 24, 5, shade);
+            for (const x of [-9, -5, 5, 9]) {
+              box(x, 13, 2, 13, stone);
+              box(x + 1, 13, 1, 13, trim);
+            }
+            // A solid entablature joins the columns; the bronze figure stands in its opening.
+            box(-13, 21, 26, 8, stone);
+            box(-1, 21, 3, 8, bronze);
+            orb(0, 22, 2, bronze);
+            box(-4, 18, 3, 1, bronze);
+            box(2, 18, 3, 1, bronze);
+            box(-5, 18, 2, 2, bronze);
+            box(4, 14, 1, 5, shade);
+            box(4, 19, 2, 1, bronze);
+            // Broad roof bands meet the dome with no open sky seam.
+            box(-13, 22, 26, 1, trim);
+            box(-11, 23, 22, 1, roof);
+            box(-10, 24, 20, 1, stone);
+            dome(0, 24, 10, stone);
+            box(-2, 34, 4, 1, trim);
+            box(0, 36, 1, 3, roof);
+            // The two symbolic lions flank the low entrance platform.
+            for (const x of [-15, 14]) {
+              box(x, 4, 2, 4, shade);
+              box(x, 8, 4, 2, bronze);
+              orb(x + 2, 10, 1, bronze);
+              box(x + 1, 8, 1, 3, bronze);
+              box(x + 3, 8, 1, 3, bronze);
+            }
+            box(-6, 5, 12, 2, trim);
+            box(-4, 3, 8, 2, stone);
+            break;
+          }
+          case "allSaintsMbabane": {
+            // All Saints Cathedral: a modest natural-stone church kept deliberately restrained without a photo.
+            const stone = css(e.sh([184, 177, 154])),
+              lit = css(e.sh([220, 212, 190])),
+              shade = css(e.sh([106, 102, 88])),
+              roof = css(e.sh([68, 79, 70])),
+              glass = css(e.sh([54, 73, 79]));
+            box(-11, 22, 22, 22, stone);
+            box(-10, 22, 1, 9, lit);
+            box(9, 22, 2, 9, shade);
+            // Low gabled roof and a small side bell turret, without claiming a detailed facade likeness.
+            cone(0, 22, 12, 7, roof);
+            box(-12, 22, 24, 1, lit);
+            box(-8, 13, 16, 1, shade);
+            box(-1, 17, 2, 5, glass);
+            dome(0, 22, 1, glass);
+            box(-2, 13, 4, 9, shade);
+            box(-1, 13, 2, 8, glass);
+            box(8, 37, 3, 16, stone);
+            box(8, 37, 1, 16, lit);
+            box(10, 37, 1, 16, shade);
+            box(7, 37, 5, 1, lit);
+            box(9, 29, 1, 5, glass);
+            cone(9, 38, 3, 4, roof);
+            box(9, 42, 1, 3, shade);
+            box(8, 44, 3, 1, lit);
+            box(-12, 4, 24, 1, shade);
+            box(-11, 0, 22, 5, stone);
+            break;
+          }
+          case "sibebeRock": {
+            // Sibebe is a bare granite pluton: one immense smooth dome, not a round boulder or a built tower.
+            const r = o.r ?? 17,
+              h = o.h ?? 18,
+              lit = css(e.sh([184, 187, 177])),
+              stone = css(e.sh([148, 153, 150])),
+              shade = css(e.sh([91, 99, 101])),
+              foothill = css(e.sh([80, 123, 83]));
+            box(-r - 2, 2, 2 * r + 4, 2, foothill);
+            for (let y = 1; y <= h; y++) {
+              const f = (y - 0.5) / h,
+                half = Math.round(r * Math.sqrt(Math.max(0, 1 - f * f)));
+              if (half < 1) continue;
+              box(-half, y, 2 * half + 1, 1, y % 4 ? stone : lit);
+              box(0, y, half + 1, 1, shade);
+              if (y % 5 === 0 && half > 5) {
+                box(-half + 2, y, half - 4, 1, lit);
+                box(2, y, half - 1, 1, shade);
+              }
+            }
+            // Green wooded shoulders peek from either edge of the massive exposed granite face.
+            box(-r - 3, 4, 4, 2, foothill);
+            box(r - 1, 4, 4, 2, foothill);
+            break;
+          }
+
+          case "fortChristianB93": {
+            // Fort Christian: red ramparts, pointed entrance and the taller clock tower at their center.
+            const brick = css(e.sh([157, 57, 47])),
+              lit = css(e.sh([207, 101, 78])),
+              shade = css(e.sh([92, 42, 36])),
+              stone = css(e.sh([219, 200, 167])),
+              dial = css(e.sh([45, 52, 55]));
+            box(-15, 17, 30, 10, brick);
+            box(-15, 17, 1, 10, lit);
+            box(14, 17, 1, 10, shade);
+            for (let x = -14; x <= 13; x += 3) box(x, 18, 1, 1, lit);
+            for (let x = -12; x <= 11; x += 6) {
+              box(x, 14, 2, 3, shade);
+              box(x, 13, 2, 1, stone);
+            }
+            // High square clock tower and a second clock on its front face.
+            box(-5, 39, 10, 22, brick);
+            box(-5, 39, 1, 22, lit);
+            box(4, 39, 1, 22, shade);
+            orb(0, 32, 3, stone);
+            orb(0, 32, 2, dial);
+            box(-1, 33, 1, 2, stone);
+            box(0, 31, 2, 1, stone);
+            for (let x = -6; x <= 5; x += 2) box(x, 39, 1, 1, stone);
+            box(-6, 39, 12, 1, stone);
+            box(-6, 16, 12, 1, shade);
+            box(-2, 10, 4, 7, shade);
+            box(-1, 10, 2, 5, dial);
+            box(-15, 7, 30, 7, brick);
+            cone(0, 39, 6, 3, brick);
+            box(-6, 42, 12, 1, stone);
+            box(0, 43, 1, 2, shade);
+            break;
+          }
+          case "frederikLutheranB93": {
+            // Frederik Lutheran Church: yellow ballast brick, Gothic Revival openings and its signature stairs.
+            const gold = css(e.sh([207, 168, 78])),
+              lit = css(e.sh([239, 209, 132])),
+              shade = css(e.sh([133, 102, 51])),
+              roof = css(e.sh([77, 89, 76])),
+              glass = css(e.sh([53, 78, 85]));
+            box(-10, 17, 20, 9, gold);
+            box(-9, 17, 1, 9, lit);
+            box(8, 17, 2, 9, shade);
+            cone(0, 26, 11, 5, roof);
+            box(-11, 26, 22, 1, lit);
+            // Central clock tower and a Gothic arch under its simple roof.
+            box(-4, 40, 8, 14, gold);
+            box(-4, 40, 1, 14, lit);
+            box(3, 40, 1, 14, shade);
+            orb(0, 34, 2, glass);
+            orb(0, 34, 1, lit);
+            box(-1, 35, 1, 3, shade);
+            box(-3, 28, 6, 1, lit);
+            cone(0, 40, 5, 5, roof);
+            box(0, 45, 1, 3, shade);
+            box(-1, 47, 3, 1, lit);
+            // Narrow pointed windows and the wide stair flights that open toward the street.
+            for (let x = -7; x <= 7; x += 4) {
+              box(x, 22, 2, 5, glass);
+              cone(x, 22, 1, 2, glass);
+            }
+            for (let step = 0; step < 6; step++) {
+              const width = 6 + step * 2;
+              box(-Math.floor(width / 2), 12 - step, width, 1, step % 2 ? shade : lit);
+            }
+            box(-8, 12, 16, 1, shade);
+            box(-10, 8, 20, 8, gold);
+            box(-1, 13, 2, 4, glass);
+            break;
+          }
+
+          case "fortChristiansvaernB93": {
+            // Fort Christiansvaern: a low yellow harbor fort, with angled bastions and a simple parapet.
+            const yellow = css(e.sh([210, 177, 97])),
+              lit = css(e.sh([236, 211, 145])),
+              shade = css(e.sh([137, 116, 68]));
+            box(-12, 15, 24, 15, yellow);
+            box(-16, 12, 8, 12, yellow);
+            box(8, 12, 8, 12, yellow);
+            box(-16, 12, 2, 11, lit);
+            box(14, 12, 2, 11, shade);
+            box(-14, 22, 28, 2, lit);
+            box(-15, 23, 5, 1, shade);
+            box(10, 23, 5, 1, shade);
+            // Tall corner parapets and dark cannon ports break the sunlit wall mass.
+            for (const x of [-12, -6, 0, 6, 12]) {
+              box(x, 19, 2, 2, shade);
+              box(x, 18, 1, 1, lit);
+            }
+            for (const x of [-13, -9, 9, 13]) box(x, 24, 1, 2, yellow);
+            box(-2, 12, 4, 7, shade);
+            box(-1, 12, 2, 5, lit);
+            box(-17, 11, 34, 1, shade);
+            break;
+          }
+          case "steepleBuildingStCroix": {
+            // Christiansted's Steeple Building: long hipped church and four-stage tower with octagonal cupola.
+            const wall = css(e.sh([220, 214, 190])),
+              trim = css(e.sh([244, 234, 210])),
+              shade = css(e.sh([117, 111, 96])),
+              roof = css(e.sh([79, 91, 76])),
+              dial = css(e.sh([48, 59, 61]));
+            box(-15, 14, 30, 14, wall);
+            box(-15, 14, 1, 14, trim);
+            box(14, 14, 1, 14, shade);
+            box(-16, 23, 32, 1, roof);
+            box(-14, 24, 28, 1, shade);
+            for (let x = -12; x <= 10; x += 4) {
+              box(x, 21, 2, 5, dial);
+              box(x, 21, 1, 5, trim);
+            }
+            // Four shrinking stages create the tall central tower; arched belfry openings sit under its cupola.
+            box(-5, 38, 10, 28, wall);
+            box(-5, 38, 1, 38, trim);
+            box(4, 38, 1, 38, shade);
+            box(-5, 52, 10, 14, wall);
+            box(-4, 48, 8, 1, trim);
+            box(-4, 52, 8, 14, wall);
+            box(-3, 51, 6, 1, trim);
+            box(-3, 57, 6, 5, wall);
+            box(-3, 63, 6, 6, wall);
+            for (const x of [-2, 1]) {
+              box(x, 62, 1, 3, dial);
+              dome(x, 63, 1, dial);
+            }
+            box(-2, 64, 4, 1, trim);
+            dome(0, 64, 3, roof);
+            box(0, 67, 1, 5, trim);
+            box(-1, 72, 3, 1, shade);
+            // Central clock and the front entry stairs.
+            orb(0, 44, 3, trim);
+            orb(0, 44, 2, dial);
+            box(-1, 45, 1, 2, trim);
+            box(0, 43, 2, 1, trim);
+            for (let s = 0; s < 5; s++) box(-3 - s, 9 - s, 6 + s * 2, 1, s % 2 ? shade : trim);
+            break;
+          }
+
+          case "dzaoudziResidence": {
+            // Former Governor’s Residence: a restrained colonial house with a shallow portico and hipped roof.
+            const wall = css(e.sh([220, 210, 183])),
+              trim = css(e.sh([240, 230, 207])),
+              roof = css(e.sh([95, 86, 70])),
+              glass = css(e.sh([51, 70, 75]));
+            box(-14, 27, 28, 27, wall);
+            box(-15, 27, 30, 1, trim);
+            box(-16, 28, 32, 1, roof);
+            for (let x = -11; x <= 9; x += 5) {
+              box(x, 19, 3, 5, glass);
+              box(x - 1, 18, 5, 1, trim);
+            }
+            for (let x = -5; x <= 5; x += 5) box(x, 10, 1, 10, trim);
+            box(-7, 9, 14, 1, roof);
+            break;
+          }
+
+          case "koungouFriday": {
+            // Koungou Friday Mosque: a compact prayer hall and a single slender minaret.
+            const wall = css(e.sh([224, 220, 195])),
+              trim = css(e.sh([246, 237, 211])),
+              green = css(e.sh([91, 132, 91])),
+              dark = css(e.sh([48, 64, 57]));
+            box(-13, 24, 26, 24, wall);
+            box(-14, 24, 28, 1, trim);
+            box(-6, 26, 12, 2, trim);
+            dome(0, 26, 6, green);
+            box(9, 52, 3, 52, wall);
+            box(9, 40, 3, 1, trim);
+            box(8, 48, 5, 1, green);
+            cone(10, 52, 3, 4, green);
+            for (let x = -9; x <= 7; x += 8) {
+              box(x, 17, 3, 5, dark);
+              dome(x + 1, 22, 1, dark);
+            }
+            break;
+          }
+
+          case "mamoudzouMosque": {
+            // Mtsapéré Mosque: pale prayer hall with a green-tipped minaret.
+            const wall = css(e.sh([230, 225, 203])),
+              green = css(e.sh([74, 126, 92])),
+              shade = css(e.sh([89, 93, 80]));
+            box(-13, 25, 26, 25, wall);
+            box(-14, 25, 28, 1, shade);
+            box(-6, 27, 12, 2, green);
+            dome(0, 27, 6, green);
+            box(9, 52, 3, 52, wall);
+            box(9, 38, 3, 1, shade);
+            box(8, 48, 5, 1, green);
+            cone(10, 52, 3, 4, green);
+            for (let x = -9; x <= 7; x += 8) {
+              box(x, 17, 3, 5, shade);
+              dome(x + 1, 22, 1, shade);
+            }
+            break;
+          }
+          case "fatimaMamoudzou": {
+            // Notre-Dame de Fatima: a modest gabled church with a short front bell tower.
+            const wall = css(e.sh([223, 211, 183])),
+              roof = css(e.sh([137, 72, 52])),
+              glass = css(e.sh([48, 67, 74]));
+            box(-11, 25, 22, 25, wall);
+            cone(0, 25, 13, 7, roof);
+            box(-4, 25, 8, 1, roof);
+            box(-3, 27, 6, 12, wall);
+            box(-2, 31, 2, 3, glass);
+            cone(0, 39, 4, 5, roof);
+            for (let x = -7; x <= 5; x += 6) {
+              box(x, 17, 2, 5, glass);
+            }
+            box(-2, 13, 4, 6, glass);
+            break;
+          }
+
+          case "pinderLighthouse": {
+            // Pinder’s Point Lighthouse: a pale tapered tower with two red bands, a dark gallery and a lantern.
+            const stone = css(e.sh([220, 205, 168])),
+              red = css(e.sh([160, 76, 55])),
+              dark = css(e.sh([49, 60, 62])),
+              light = css(e.sh([250, 224, 150]));
+            // at() counts from the bottom edge (0 = the ground); box() itself takes the top edge
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-6, 0, 12, 2, stone);
+            for (let y = 2; y < 34; y++) {
+              const hw = 5 - Math.floor((y - 2) / 11);
+              at(-hw, y, hw * 2, 1, (y >= 12 && y < 14) || (y >= 24 && y < 26) ? red : stone);
+            }
+            at(-1, 4, 2, 3, dark);
+            at(-5, 34, 10, 1, dark);
+            at(-3, 35, 6, 4, light);
+            at(-1, 35, 2, 4, dark);
+            at(-4, 39, 8, 1, dark);
+            dome(0, 40, 3, dark);
+            at(0, 43, 1, 2, dark);
+            break;
+          }
+
+          case "atlantisPoseidonTemple": {
+            // Atlantis, after the owner's picture: an old golden city climbing its hill in terraces to a
+            // columned temple at the top.
+            const gold = css(e.sh([214, 170, 98])),
+              lit = css(e.sh([240, 208, 146])),
+              shade = css(e.sh([158, 114, 66])),
+              dark = css(e.sh([82, 58, 44])),
+              green = css(e.sh([92, 128, 72])),
+              brass = css(e.sh([190, 140, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 6, shade);
+            at(-15, 6, 30, 6, gold);
+            at(-12, 12, 24, 6, shade);
+            at(-9, 18, 17, 4, gold);
+            for (let x = -15; x <= 13; x += 4) at(x, 2, 2, 2, dark);
+            for (let x = -13; x <= 11; x += 4) at(x, 8, 1, 2, dark);
+            for (let x = -10; x <= 9; x += 3) at(x, 14, 1, 2, dark);
+            for (const x of [-16, -11, 9, 14]) orb(x, 7, 1.5, green);
+            at(-9, 22, 17, 1, lit);
+            at(-7, 23, 13, 9, shade);
+            for (let x = -8; x <= 6; x += 2) at(x, 23, 1, 9, lit);
+            at(-9, 32, 17, 2, lit);
+            at(-9, 32, 17, 1, gold);
+            for (let y = 0; y < 5; y++) at(-9 + y * 2, 34 + y, 17 - 4 * y, 1, y % 2 ? gold : lit);
+            at(-1, 39, 1, 4, dark);
+            at(0, 41, 3, 2, brass);
+            break;
+          }
+          case "atlantisCaesarsTowers": {
+            // Atlantis: a domed hall between two round towers with copper cones, like the domes in the picture.
+            const gold = css(e.sh([214, 170, 98])),
+              lit = css(e.sh([240, 208, 146])),
+              shade = css(e.sh([158, 114, 66])),
+              dark = css(e.sh([82, 58, 44])),
+              copper = css(e.sh([196, 120, 70]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-12, 0, 24, 12, gold);
+            at(-12, 12, 24, 1, lit);
+            for (let x = -10; x <= 8; x += 4) at(x, 3, 2, 5, dark);
+            at(-5, 13, 10, 4, gold);
+            for (let x = -4; x <= 3; x += 2) at(x, 14, 1, 2, dark);
+            dome(0, 17, 6, copper);
+            at(-1, 23, 2, 2, lit);
+            at(-1, 25, 1, 2, dark);
+            for (const x of [-16, 11]) {
+              at(x, 0, 5, 22, gold);
+              at(x + (x < 0 ? 0 : 4), 0, 1, 22, shade);
+              for (let y = 4; y < 20; y += 5) at(x + 2, y, 1, 2, dark);
+              at(x - 1, 22, 7, 1, lit);
+              for (let y = 0; y < 4; y++) at(x - 1 + y, 23 + y, 7 - 2 * y, 1, copper);
+            }
+            break;
+          }
+          case "atlantisPointFermin": {
+            // Atlantis' steam clock: a golden tower with a brass clock face, its pipe puffing steam.
+            const gold = css(e.sh([214, 170, 98])),
+              lit = css(e.sh([240, 208, 146])),
+              shade = css(e.sh([158, 114, 66])),
+              dark = css(e.sh([82, 58, 44])),
+              copper = css(e.sh([196, 120, 70])),
+              brass = css(e.sh([190, 140, 60])),
+              steam = css(e.sh([236, 232, 224]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-4, 0, 8, 26, gold);
+            at(3, 0, 1, 26, shade);
+            at(-1, 4, 2, 3, dark);
+            at(-1, 11, 2, 3, dark);
+            at(-1, 18, 2, 3, dark);
+            at(-5, 26, 10, 1, lit);
+            at(-4, 27, 8, 8, gold);
+            orb(0, 31, 3, brass);
+            orb(0, 31, 2, lit);
+            at(0, 31, 1, 2, dark);
+            at(0, 31, 2, 1, dark);
+            for (let y = 0; y < 5; y++) at(-5 + y, 35 + y, 10 - 2 * y, 1, copper);
+            at(0, 40, 1, 3, brass);
+            at(5, 0, 1, 20, brass);
+            at(5, 20, 2, 1, brass);
+            at(6, 20, 1, 6, brass);
+            orb(7, 28, 1.5, steam);
+            orb(8.5, 31, 2, steam);
+            orb(10, 35, 2.5, steam);
+            break;
+          }
+
+          case "nassauRoyalTowers": {
+            // Atlantis Royal Towers: two tall coral towers with stepped crowns, joined high up by the bridge suite.
+            const wall = css(e.sh([214, 164, 140])),
+              shade = css(e.sh([150, 112, 100])),
+              glass = css(e.sh([80, 112, 129])),
+              trim = css(e.sh([238, 220, 200]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-14, 0, 28, 3, shade);
+            for (const [x, h] of [
+              [-12, 30],
+              [4, 34],
+            ]) {
+              at(x, 3, 8, h, wall);
+              at(x, 3, 1, h, shade);
+              for (let y = 6; y < h; y += 4) for (const wx of [x + 2, x + 5]) at(wx, y, 1, 2, glass);
+              const t = 3 + h;
+              at(x - 1, t, 10, 1, trim);
+              at(x, t + 1, 8, 2, wall);
+              at(x + 1, t + 3, 6, 1, trim);
+              at(x + 2, t + 4, 4, 2, wall);
+              at(x + 3, t + 6, 2, 1, shade);
+            }
+            at(-4, 25, 8, 6, wall);
+            at(-4, 25, 8, 1, shade);
+            at(-2, 27, 4, 2, glass);
+            at(-5, 31, 10, 1, trim);
+            break;
+          }
+          case "nassauParliamentSquare": {
+            // Parliament Square: two pink colonial wings with white columns and Queen Victoria's statue between.
+            const pink = css(e.sh([222, 150, 140])),
+              cream = css(e.sh([240, 230, 210])),
+              roof = css(e.sh([110, 118, 120])),
+              dark = css(e.sh([78, 63, 83])),
+              grass = css(e.sh([88, 131, 77]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 1, grass);
+            for (const x of [-17, 6]) {
+              at(x, 1, 11, 10, pink);
+              at(x, 1, 11, 1, cream);
+              for (const wx of [x + 2, x + 5, x + 8]) at(wx, 4, 2, 4, dark);
+              for (let c = x + 1; c < x + 11; c += 3) at(c, 2, 1, 9, cream);
+              at(x, 11, 11, 1, cream);
+              at(x + 1, 12, 9, 1, roof);
+              at(x + 3, 13, 5, 1, roof);
+            }
+            at(-2, 1, 4, 4, 13);
+            at(-1, 5, 2, 5, 6);
+            at(-2, 7, 4, 1, 6);
+            at(-1, 10, 2, 1, 6);
+            break;
+          }
+          case "dakhlaGrandMosque": {
+            // Dakhla mosque, no confirmed facade photo: a desert prayer hall with a green dome and a square minaret.
+            const wall = css(e.sh([218, 211, 186])),
+              green = css(e.sh([72, 127, 91])),
+              shade = css(e.sh([94, 94, 78]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 14, 9, wall);
+            at(-10, 9, 16, 1, shade);
+            for (const x of [-7, -3, 1]) at(x, 2, 2, 4, shade);
+            dome(-2, 10, 4, green);
+            at(-2, 14, 1, 2, 3);
+            at(6, 0, 4, 22, wall);
+            for (let y = 4; y < 20; y += 5) at(7, y, 2, 2, shade);
+            at(5, 22, 6, 1, shade);
+            at(6, 23, 4, 3, wall);
+            at(6, 26, 4, 1, green);
+            at(7, 27, 2, 1, green);
+            at(8, 28, 1, 2, 3);
+            break;
+          }
+          case "laayouneFrancisCathedral": {
+            // No confirmed exterior photo: a modest pale Saharan church, broad nave and a gable with its cross.
+            const wall = css(e.sh([224, 217, 192])),
+              shade = css(e.sh([119, 110, 91])),
+              roof = css(e.sh([146, 119, 85]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-10, 0, 20, 11, wall);
+            for (let y = 0; y < 9; y++) {
+              const half = 11 - y;
+              at(-half, 11 + y, half * 2, 1, y === 0 ? shade : roof);
+            }
+            at(-2, 0, 4, 6, shade);
+            for (const x of [-8, -5, 3, 6]) at(x, 4, 2, 4, shade);
+            at(-1, 8, 2, 2, shade);
+            at(0, 20, 1, 4, shade);
+            at(-1, 22, 3, 1, shade);
+            break;
+          }
+          case "laayouneGrandMosque": {
+            // No confirmed photo: a light prayer hall with one green dome and a square minaret.
+            const wall = css(e.sh([218, 212, 193])),
+              shade = css(e.sh([112, 102, 83])),
+              green = css(e.sh([69, 131, 91]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-12, 0, 20, 10, wall);
+            at(-13, 10, 22, 1, shade);
+            for (const x of [-10, -6, 1, 5]) at(x, 3, 2, 4, shade);
+            at(-3, 0, 2, 5, shade);
+            dome(-2, 11, 6, green);
+            at(-2, 17, 1, 2, 3);
+            at(9, 0, 4, 24, wall);
+            for (let y = 6; y < 22; y += 5) at(10, y, 2, 2, shade);
+            at(8, 24, 6, 1, shade);
+            at(9, 25, 4, 3, wall);
+            at(9, 28, 4, 1, green);
+            at(10, 29, 2, 1, green);
+            at(11, 30, 1, 2, 3);
+            break;
+          }
+          case "dublinSpire": {
+            // The Spire of Dublin: a thin stainless-steel needle, far taller than anything around it.
+            const steel = css(e.sh([161, 171, 173])),
+              glint = css(e.sh([214, 221, 218])),
+              base = css(e.sh([89, 98, 101]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-2, 0, 4, 1, base);
+            at(-1, 1, 2, 18, steel);
+            at(-1, 3, 1, 14, glint);
+            at(-1, 19, 1, 31, steel);
+            at(-1, 50, 1, 2, glint);
+            break;
+          }
+          case "beckettBridge": {
+            // Samuel Beckett Bridge: a curved harp spar rising from the deck, its stays fanned down to the deck.
+            const steel = css(e.sh([169, 177, 173])),
+              shade = css(e.sh([92, 106, 105]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            for (const x of [-10, 9]) at(x, 0, 1, 3, shade);
+            at(-15, 3, 30, 2, steel);
+            at(-15, 3, 30, 1, shade);
+            const spar = [
+              [-4, 5],
+              [-3, 10],
+              [-1, 15],
+              [2, 19],
+              [5, 22],
+              [8, 24],
+            ];
+            for (let i = 1; i < spar.length; i++) {
+              const [ax, ay] = spar[i - 1],
+                [bx, by] = spar[i];
+              stroke(ax, ay, bx, by, 6);
+              stroke(ax + 1, ay, bx + 1, by, 6);
+              stroke(bx, by, -2 + i * 3, 5, 8);
+            }
+            stroke(8, 24, -10, 5, 8);
+            stroke(5, 22, -13, 5, 8);
+            break;
+          }
+          case "galwayCathedral": {
+            // Galway Cathedral: grey stone, a twin-towered front, a long nave and the big green copper dome.
+            const stone = css(e.sh([128, 130, 124])),
+              lit = css(e.sh([170, 170, 158])),
+              green = css(e.sh([96, 150, 128])),
+              dark = css(e.sh([53, 59, 57]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 22, 13, stone);
+            at(-9, 13, 22, 1, lit);
+            for (const x of [-7, -4, 5, 8, 11]) at(x, 4, 1, 6, dark);
+            at(13, 0, 4, 10, stone);
+            at(13, 10, 4, 1, lit);
+            at(-19, 0, 10, 15, stone);
+            at(-15, 0, 2, 4, dark);
+            at(-15, 9, 2, 2, dark);
+            at(-16, 15, 4, 1, stone);
+            at(-15, 16, 2, 1, stone);
+            for (const x of [-19, -12]) {
+              at(x, 0, 3, 24, stone);
+              at(x + 1, 19, 1, 3, dark);
+              at(x, 24, 3, 1, lit);
+              at(x, 25, 3, 2, stone);
+              dome(x + 1.5, 27, 2, green);
+              at(x + 1, 29, 1, 2, lit);
+            }
+            at(-2, 14, 10, 5, stone);
+            for (const x of [-1, 2, 5]) at(x, 15, 1, 3, dark);
+            at(-3, 19, 12, 1, lit);
+            dome(3, 20, 6, green);
+            at(2, 26, 2, 2, lit);
+            at(2, 28, 1, 3, lit);
+            break;
+          }
+          case "antiguaStJohnsCathedral": {
+            // St. John’s Cathedral: a stone nave between twin white towers topped with silver cupolas.
+            const wall = css(e.sh([150, 146, 136])),
+              trim = css(e.sh([236, 232, 218])),
+              silver = css(e.sh([176, 184, 192])),
+              dark = css(e.sh([71, 75, 71]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 18, 14, wall);
+            for (let y = 0; y < 5; y++) at(-9 + y * 2, 14 + y, 18 - 4 * y, 1, trim);
+            at(-2, 0, 4, 7, dark);
+            for (const x of [-7, 5]) at(x, 5, 2, 5, dark);
+            at(-1, 10, 2, 2, dark);
+            for (const x of [-14, 9]) {
+              at(x, 0, 5, 26, trim);
+              at(x + 2, 19, 1, 3, dark);
+              at(x + 2, 12, 1, 3, dark);
+              at(x - 1, 26, 7, 1, wall);
+              dome(x + 2.5, 27, 3, silver);
+              at(x + 2, 30, 1, 2, trim);
+            }
+            break;
+          }
+          case "antiguaFortJames": {
+            // Fort James: low stone walls on the headland, gun ports, corner bastions and the flag.
+            const stone = css(e.sh([168, 150, 120])),
+              lit = css(e.sh([200, 184, 150])),
+              grass = css(e.sh([102, 140, 80])),
+              dark = css(e.sh([60, 58, 56])),
+              red = css(e.sh([190, 50, 48]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-15, 0, 30, 3, grass);
+            at(-12, 3, 24, 6, stone);
+            at(-12, 8, 24, 1, lit);
+            for (let x = -12; x <= 10; x += 3) at(x, 9, 2, 1, stone);
+            for (const x of [-15, 11]) {
+              at(x, 3, 4, 8, stone);
+              at(x, 10, 4, 1, lit);
+            }
+            for (const x of [-8, -2, 4]) at(x, 5, 2, 1, dark);
+            at(0, 9, 1, 10, dark);
+            at(1, 16, 3, 2, red);
+            break;
+          }
+          case "wallblakeHouse": {
+            // Wallblake House: a two-storey white plantation house with green shutters, a veranda and a hip roof.
+            const white = css(e.sh([236, 232, 222])),
+              green = css(e.sh([60, 110, 80])),
+              roof = css(e.sh([110, 116, 118])),
+              dark = css(e.sh([70, 72, 74]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 14, white);
+            for (const x of [-9, -4, 2, 7]) {
+              at(x, 8, 2, 4, green);
+              at(x, 1, 2, 4, green);
+            }
+            at(-1, 0, 2, 5, dark);
+            at(-13, 6, 26, 1, roof);
+            for (let x = -12; x <= 12; x += 4) at(x, 0, 1, 6, white);
+            for (let y = 0; y < 5; y++) at(-12 + y * 2, 14 + y, 24 - 4 * y, 1, roof);
+            break;
+          }
+          case "stGerardsAnguilla": {
+            // St. Gerard’s: a stone church whose side wall is pierced with an open stone lattice, and a bell cote.
+            const stone = css(e.sh([164, 150, 128])),
+              lit = css(e.sh([200, 188, 164])),
+              roof = css(e.sh([120, 70, 56])),
+              dark = css(e.sh([64, 60, 58]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-9, 0, 18, 12, stone);
+            for (let y = 2; y < 10; y += 2) for (let x = -8 + (y % 4 ? 1 : 0); x < 8; x += 2) at(x, y, 1, 1, dark);
+            at(-2, 0, 4, 6, dark);
+            for (let y = 0; y < 6; y++) at(-10 + y * 2, 12 + y, 20 - 4 * y, 1, roof);
+            at(-1, 18, 2, 4, lit);
+            at(-1, 19, 2, 2, dark);
+            at(0, 22, 1, 3, lit);
+            at(-1, 23, 3, 1, lit);
+            break;
+          }
+          case "pagoPagoFono": {
+            // American Samoa Fono: a great oval fale roof on a ring of posts, on a raised stone platform.
+            const stone = css(e.sh([150, 146, 138])),
+              post = css(e.sh([120, 84, 56])),
+              thatch = css(e.sh([196, 150, 92])),
+              thatch2 = css(e.sh([174, 128, 76]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-15, 0, 30, 2, stone);
+            for (let x = -12; x <= 12; x += 3) at(x, 2, 1, 6, post);
+            for (let y = 0; y < 8; y++) {
+              const half = Math.round(15 * Math.sqrt(1 - (y / 8) ** 2));
+              at(-half, 8 + y, half * 2, 1, y % 2 ? thatch2 : thatch);
+            }
+            break;
+          }
+          case "pagoPagoHighCourt": {
+            // High Court of American Samoa: a white colonial courthouse, verandas on both floors, a red hip roof.
+            const white = css(e.sh([238, 234, 224])),
+              roof = css(e.sh([170, 64, 52])),
+              dark = css(e.sh([70, 72, 74]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 13, white);
+            for (const y of [1, 8]) for (let x = -9; x <= 7; x += 4) at(x, y, 2, 3, dark);
+            at(-12, 6, 24, 1, white);
+            at(-12, 7, 24, 1, dark);
+            for (let x = -12; x <= 11; x += 3) at(x, 0, 1, 6, white);
+            for (let y = 0; y < 5; y++) at(-12 + y * 2, 13 + y, 24 - 4 * y, 1, roof);
+            break;
+          }
+          case "fortZoutmanAruba": {
+            // Fort Zoutman: Aruba's old fort, a long low grey-stone wall with a parapet and its gate.
+            const stone = css(e.sh([140, 136, 128])),
+              lit = css(e.sh([182, 176, 164])),
+              yellow = css(e.sh([222, 184, 92])),
+              dark = css(e.sh([64, 60, 58]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-15, 0, 30, 9, stone);
+            at(-15, 9, 30, 1, lit);
+            for (let x = -15; x <= 13; x += 3) at(x, 10, 2, 1, stone);
+            at(-15, 0, 30, 1, lit);
+            at(-3, 0, 6, 11, yellow);
+            at(-4, 11, 8, 1, yellow);
+            at(-1, 0, 2, 5, dark);
+            break;
+          }
+          case "willemIIITowerAruba": {
+            // Willem III Tower: a pale blue base, a red stage with white arched windows and a white clock top.
+            const blue = css(e.sh([150, 196, 214])),
+              red = css(e.sh([166, 40, 52])),
+              white = css(e.sh([240, 238, 232])),
+              dark = css(e.sh([60, 62, 70]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-5, 0, 10, 6, blue);
+            at(-1, 0, 2, 4, dark);
+            at(-4, 6, 8, 14, red);
+            for (const y of [8, 14]) {
+              at(-3, y, 2, 4, white);
+              at(1, y, 2, 4, white);
+              at(-2, y, 1, 3, dark);
+              at(2, y, 1, 3, dark);
+            }
+            at(-4, 20, 8, 9, white);
+            orb(0, 25, 2, dark);
+            orb(0, 25, 1, white);
+            at(-5, 29, 10, 1, white);
+            for (let x = -5; x <= 4; x += 3) at(x, 30, 1, 1, white);
+            at(0, 30, 1, 5, dark);
+            at(1, 33, 3, 2, red);
+            break;
+          }
+          case "tarantiaPalace": {
+            // Tarantia, capital of Aquilonia (Robert E. Howard's Conan): the King's palace, a grey keep
+            // between round towers with blue cones and the golden lion banners.
+            const stone = css(e.sh([150, 146, 140])),
+              lit = css(e.sh([190, 186, 176])),
+              dark = css(e.sh([56, 54, 62])),
+              blue = css(e.sh([64, 86, 150])),
+              gold = css(e.sh([214, 170, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 10, stone);
+            for (let x = -17; x <= 15; x += 3) at(x, 10, 2, 1, stone);
+            at(-2, 0, 4, 6, dark);
+            at(-8, 0, 16, 26, stone);
+            at(-8, 26, 16, 1, lit);
+            for (let x = -8; x <= 6; x += 3) at(x, 27, 2, 2, stone);
+            for (const y of [12, 19]) for (const x of [-6, -1, 4]) at(x, y, 2, 3, dark);
+            for (const x of [-17, 12]) {
+              at(x, 0, 5, 20, lit);
+              at(x + 2, 8, 1, 3, dark);
+              at(x + 2, 14, 1, 3, dark);
+              for (let y = 0; y < 6; y++) at(x - 1 + Math.floor(y / 2), 20 + y, 7 - 2 * Math.floor(y / 2), 1, blue);
+              at(x + 2, 26, 1, 4, dark);
+              at(x + 3, 28, 2, 2, gold);
+            }
+            at(-1, 29, 1, 6, dark);
+            at(0, 32, 4, 3, gold);
+            break;
+          }
+          case "mitraTemple": {
+            // The Temple of Mitra: white marble columns under a golden dome with Mitra's sun disc.
+            const marble = css(e.sh([236, 232, 222])),
+              shade = css(e.sh([178, 172, 160])),
+              gold = css(e.sh([214, 170, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 2, shade);
+            at(-10, 2, 20, 1, marble);
+            at(-8, 3, 16, 10, shade);
+            for (let x = -9; x <= 7; x += 3) at(x, 3, 2, 10, marble);
+            at(-10, 13, 20, 2, marble);
+            at(-7, 15, 14, 3, marble);
+            dome(0, 18, 7, gold);
+            at(-1, 25, 2, 2, marble);
+            orb(0, 29, 2, gold);
+            break;
+          }
+          case "towerOfTheElephant": {
+            // The Tower of the Elephant: a slender tower gleaming like silver, crowned by a great jewel that
+            // glows in the dark (Robert E. Howard, 1933).
+            const silver = css(e.sh([214, 220, 228])),
+              shade = css(e.sh([150, 158, 172])),
+              jewel = e.k < 0.5 ? "#7dfcff" : css(e.sh([90, 210, 220]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-5, 0, 10, 3, shade);
+            for (let y = 3; y < 46; y++) {
+              const hw = y < 10 ? 4 : y < 30 ? 3 : 2;
+              at(-hw, y, hw * 2, 1, silver);
+              at(hw - 1, y, 1, 1, shade);
+            }
+            for (let y = 8; y < 42; y += 7) at(-1, y, 2, 2, shade);
+            at(-4, 46, 8, 1, shade);
+            at(-3, 47, 6, 2, silver);
+            orb(0, 51, 2.5, jewel);
+            break;
+          }
+          case "arenjunHill": {
+            // Arenjun, the City of Thieves: flat-roofed houses and small domes crowding up its hill behind a wall.
+            const clay = css(e.sh([196, 160, 118])),
+              lit = css(e.sh([226, 196, 150])),
+              dark = css(e.sh([70, 54, 48])),
+              dome1 = css(e.sh([170, 96, 64]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-16, 0, 32, 6, clay);
+            for (let x = -16; x <= 14; x += 3) at(x, 6, 2, 1, clay);
+            at(-2, 0, 4, 4, dark);
+            for (const [l, b, w, h] of [
+              [-13, 7, 8, 6],
+              [-4, 7, 9, 10],
+              [6, 7, 8, 7],
+              [-9, 13, 6, 5],
+              [1, 17, 6, 4],
+            ]) {
+              at(l, b, w, h, lit);
+              at(l + 1, b + h - 3, 1, 2, dark);
+              at(l + w - 2, b + h - 3, 1, 2, dark);
+            }
+            dome(-6, 18, 3, dome1);
+            dome(4, 21, 3, dome1);
+            dome(10, 14, 2, dome1);
+            break;
+          }

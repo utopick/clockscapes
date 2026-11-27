@@ -2308,6 +2308,27 @@
             gong: "gong",
             form: ["A", "B", "A2", "B2"],
           },
+          // (new styles go last: the pinned-score test walks the styles in order)
+          // Atlantis: a Victorian parlour, a music box or a grand piano over a harp's arpeggios, lilting in 6/8
+          victorian: {
+            modes: ["major", "major", "aeolian"],
+            leads: ["musicbox", "grand"],
+            meter: "6/8",
+            strum: ["zither", "a.......a......."],
+            bpm: [60, 72],
+            swing: 0,
+            band: { bass: "upright", drums: "brush", loops: ["muineira"], echo: [0.3, 4, 0.45], level: 0.9 },
+          },
+          // Hyboria: dungeon synth, a slow minor pad with a flute or a bowed lead over a drone, and a drum's
+          // slow tread like an army far away
+          dungeon: {
+            modes: ["aeolian", "phrygian", "harmonic"],
+            leads: ["flute", "bowed"],
+            drone: "drone",
+            bpm: [52, 62],
+            swing: 0,
+            band: { chords: "pad", bass: "sub", drums: "march", loops: ["tread"], echo: [0.45, 4, 0.6], level: 0.8 },
+          },
         };
         // Where each style plays. OWN_REGIONS are picked by hand and checked first. REGIONS is written by
         // tools/lofi-regions.py from the research table of regional music (regional-instruments.tsv), whose
@@ -2322,6 +2343,8 @@
           "ES/La Rioja": ["rioja", "logrono-es"],
           "ES/Murcia": ["flamenco", "murcia-es cartagena-es"],
           "ES/Valencia": ["", "valencia-es alicante-es castellon-es"], // the plain lo-fi, all three alike
+          Atlantis: ["victorian", "atlantis"],
+          "XH/Hyboria": ["dungeon", "tarantia-xh"],
         };
         // prettier-ignore
         const REGIONS = {
@@ -5667,6 +5690,7 @@
   ["ardahan-tr","Ardahan","TR",41.109,42.702,"Europe/Istanbul","ridge","",false,22927],
   ["arecibo-pr","Arecibo","PR",18.472,-66.716,"America/Puerto_Rico","island","",false,87754],
   ["arendal-no","Arendal","NO",58.462,8.773,"Europe/Oslo","harbor","",false,30916],
+  ["arenjun-xm","Arenjun","XM",-21.2,-159.8,"Pacific/Rarotonga","ridge","",true,60000],
   ["arequipa-pe","Arequipa","PE",-16.399,-71.537,"America/Lima","ridge","",false,1195700],
   ["arezzo-it","Arezzo","IT",43.463,11.881,"Europe/Rome","old","",false,100734],
   ["arica-cl","Arica","CL",-18.476,-70.301,"America/Santiago","harbor","",false,241653],
@@ -8117,6 +8141,7 @@
   ["tangshan-cn","Tangshan","CN",39.644,118.183,"Asia/Shanghai","metro","",false,3372102],
   ["tanjung-selor-id","Tanjung Selor","ID",2.837,117.365,"Asia/Makassar","lush","",false,67837],
   ["tanta-eg","Tanta","EG",30.788,31.002,"Africa/Cairo","desert","",false,576648],
+  ["tarantia-xh","Tarantia","XH",46.2,1.9,"Europe/Paris","old","",true,110000],
   ["taranto-it","Taranto","IT",40.464,17.247,"Europe/Rome","harbor","",false,198585],
   ["tarawa-ki","Tarawa","KI",1.328,172.977,"Pacific/Tarawa","island","",true],
   ["taraz-kz","Taraz","KZ",42.898,71.373,"Asia/Almaty","desert","",false,358153],
@@ -8700,7 +8725,7 @@
           star: 0,
         },
       ];
-      function paletteAt(alt, morning) {
+      function paletteAt(alt, morning, red = false) {
         // find the row just below alt (never the last one, so B always exists)
         let i = 0;
         while (i < PAL.length - 2 && alt > PAL[i + 1].a) i++;
@@ -8721,6 +8746,13 @@
           const bump = clamp(1 - Math.abs(alt) / 12, 0, 1);
           p.bot = mixc(p.bot, [245, 160, 180], 0.35 * bump);
           p.tint = mixc(p.tint, [245, 160, 180], 0.3 * bump);
+        }
+        if (red) {
+          // the Hyborian Age: dawn and dusk go blood red
+          const bump = clamp(1 - Math.abs(alt) / 14, 0, 1);
+          p.bot = mixc(p.bot, [214, 40, 32], 0.7 * bump);
+          p.top = mixc(p.top, [96, 22, 34], 0.45 * bump);
+          p.tint = mixc(p.tint, [220, 60, 44], 0.45 * bump);
         }
         return p;
       }
@@ -9029,6 +9061,17 @@
         commuter: { speed: 42, cars: 3, nose: 1, body: [204, 208, 212], stripe: [92, 168, 72] },
         ave: { speed: 75, cars: 4, nose: 6, body: [236, 236, 238], stripe: [118, 48, 128] },
         cercanias: { speed: 42, cars: 3, nose: 1, body: [234, 232, 228], stripe: [204, 36, 44] },
+        // Atlantis' steam train: a dark green engine and carriages with brass trim, smoke from the chimney
+        steam: { speed: 30, cars: 3, nose: 0, body: [52, 74, 60], stripe: [190, 140, 60], smoke: true },
+      };
+      // Cities out of stories, and what moves in them instead of planes, cars and trains: Atlantis (the secret
+      // city) is steampunk, with zeppelins, steam cars and steam trains on a raised line; the two Conan cities
+      // (Robert E. Howard's Hyborian Age) have dragons in the sky, beasts and ox carts on the road, no trains
+      // and blood-red dawns. sky: drawSkyLife's flyer; mix: the traffic (see VEHICLE_MIX); trains: TRAIN_KINDS.
+      const FANTASY = {
+        atlantis: { sky: "zeppelin", mix: [["steamcar", 100]], trains: ["steam"] },
+        "tarantia-xh": { sky: "dragon", mix: [["beast", 55], ["oxcart", 45]], trains: [], redDawn: true },
+        "arenjun-xm": { sky: "dragon", mix: [["beast", 45], ["oxcart", 55]], trains: [], redDawn: true },
       };
       // Countries whose cities get an elevated line, and the trains on it (repeats make a kind more common).
       const TRAIN_LINES = {
@@ -9114,7 +9157,9 @@
       // from G + 24 to the bottom: a railway inland, or water with boats in coastal and river cities.
       // Returns where that band starts (e.H when there is no room for it).
       function ground(g, e, waterBelow) {
-        const bottom = e.H - e.G >= 35 ? e.G + 24 : e.H;
+        // the Conan cities have no railway, so their street takes the whole depth
+        const noRail = !waterBelow && FANTASY[e.scene]?.trains?.length === 0;
+        const bottom = e.H - e.G >= 35 && !noRail ? e.G + 24 : e.H;
         street(g, e, bottom);
         if (bottom < e.H) (waterBelow ? water : railway)(g, e, bottom);
         return bottom;
@@ -9999,6 +10044,7 @@
   "ardahan-tr": [["Ardahan Castle","castle",{w:35,wh:8,n:5,th:11,tw:5,top:"crenel",c:8}]],
   "arecibo-pr": [["Los Morrillos Lighthouse","light",{h:16,w:3,c:6}],["San Felipe Apóstol Cathedral","church",{w:17,nh:11,h:24,tw:5,top:"dome",c:6,t:6}]],
   "arendal-no": [["Trinity Church","church",{w:19,nh:11,h:36,tw:5,top:"needle",c:1,t:8}]],
+  "arenjun-xm": [["Tower of the Elephant","towerOfTheElephant"],["Arenjun on its hill","arenjunHill"]],
   "arequipa-pe": [["Basilica Cathedral of Arequipa","cathedral",{w:31,nh:12,h:26,top:"bulb",c:6,t:6}]],
   "arezzo-it": [["Arezzo Cathedral","arezzoCathedral",{}],["Vasari Loggia","vasariLoggia",{}]],
   "arica-cl": [["Cathedral of San Marcos","church",{w:15,nh:9,h:24,tw:5,top:"spire",sp:10,c:6,t:6}]],
@@ -12447,6 +12493,7 @@
   "tangshan-cn": [["Tangshan Earthquake Memorial","tangshanMemorial"],["Eastern Qing Tombs","b04Hall",{wall:8,ww:19,w:11,h:5,n:2,uh:2,dw:2,c:10,rc:12}]],
   "tanjung-selor-id": [["Tanjung Selor Grand Mosque","mosque",{w:21,nh:9,r:6,sd:2,dc:12,m:2,mh:26,c:6}]],
   "tanta-eg": [["Ahmad al-Badawi Mosque","mosque",{w:23,r:6,dc:13,m:2,mh:34,c:13}]],
+  "tarantia-xh": [["The King's Palace","tarantiaPalace"],["Temple of Mitra","mitraTemple"]],
   "taranto-it": [["Aragonese Castle","aragoneseTaranto"]],
   "tarawa-ki": [["Maneaba ni Maungatabu (Parliament)","tarawaManeaba"],["Sacred Heart Cathedral","sacredHeartTarawa"]],
   "taraz-kz": [["Aisha Bibi Mausoleum","mosque",{w:11,nh:12,r:4,m:0,c:0,dc:0}],["Karakhan Mausoleum","mosque",{w:11,nh:10,r:4,m:0,c:1,dc:1}]],
@@ -48076,6 +48123,96 @@
             at(1, 33, 3, 2, red);
             break;
           }
+          case "tarantiaPalace": {
+            // Tarantia, capital of Aquilonia (Robert E. Howard's Conan): the King's palace, a grey keep
+            // between round towers with blue cones and the golden lion banners.
+            const stone = css(e.sh([150, 146, 140])),
+              lit = css(e.sh([190, 186, 176])),
+              dark = css(e.sh([56, 54, 62])),
+              blue = css(e.sh([64, 86, 150])),
+              gold = css(e.sh([214, 170, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 10, stone);
+            for (let x = -17; x <= 15; x += 3) at(x, 10, 2, 1, stone);
+            at(-2, 0, 4, 6, dark);
+            at(-8, 0, 16, 26, stone);
+            at(-8, 26, 16, 1, lit);
+            for (let x = -8; x <= 6; x += 3) at(x, 27, 2, 2, stone);
+            for (const y of [12, 19]) for (const x of [-6, -1, 4]) at(x, y, 2, 3, dark);
+            for (const x of [-17, 12]) {
+              at(x, 0, 5, 20, lit);
+              at(x + 2, 8, 1, 3, dark);
+              at(x + 2, 14, 1, 3, dark);
+              for (let y = 0; y < 6; y++) at(x - 1 + Math.floor(y / 2), 20 + y, 7 - 2 * Math.floor(y / 2), 1, blue);
+              at(x + 2, 26, 1, 4, dark);
+              at(x + 3, 28, 2, 2, gold);
+            }
+            at(-1, 29, 1, 6, dark);
+            at(0, 32, 4, 3, gold);
+            break;
+          }
+          case "mitraTemple": {
+            // The Temple of Mitra: white marble columns under a golden dome with Mitra's sun disc.
+            const marble = css(e.sh([236, 232, 222])),
+              shade = css(e.sh([178, 172, 160])),
+              gold = css(e.sh([214, 170, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 2, shade);
+            at(-10, 2, 20, 1, marble);
+            at(-8, 3, 16, 10, shade);
+            for (let x = -9; x <= 7; x += 3) at(x, 3, 2, 10, marble);
+            at(-10, 13, 20, 2, marble);
+            at(-7, 15, 14, 3, marble);
+            dome(0, 18, 7, gold);
+            at(-1, 25, 2, 2, marble);
+            orb(0, 29, 2, gold);
+            break;
+          }
+          case "towerOfTheElephant": {
+            // The Tower of the Elephant: a slender tower gleaming like silver, crowned by a great jewel that
+            // glows in the dark (Robert E. Howard, 1933).
+            const silver = css(e.sh([214, 220, 228])),
+              shade = css(e.sh([150, 158, 172])),
+              jewel = e.k < 0.5 ? "#7dfcff" : css(e.sh([90, 210, 220]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-5, 0, 10, 3, shade);
+            for (let y = 3; y < 46; y++) {
+              const hw = y < 10 ? 4 : y < 30 ? 3 : 2;
+              at(-hw, y, hw * 2, 1, silver);
+              at(hw - 1, y, 1, 1, shade);
+            }
+            for (let y = 8; y < 42; y += 7) at(-1, y, 2, 2, shade);
+            at(-4, 46, 8, 1, shade);
+            at(-3, 47, 6, 2, silver);
+            orb(0, 51, 2.5, jewel);
+            break;
+          }
+          case "arenjunHill": {
+            // Arenjun, the City of Thieves: flat-roofed houses and small domes crowding up its hill behind a wall.
+            const clay = css(e.sh([196, 160, 118])),
+              lit = css(e.sh([226, 196, 150])),
+              dark = css(e.sh([70, 54, 48])),
+              dome1 = css(e.sh([170, 96, 64]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-16, 0, 32, 6, clay);
+            for (let x = -16; x <= 14; x += 3) at(x, 6, 2, 1, clay);
+            at(-2, 0, 4, 4, dark);
+            for (const [l, b, w, h] of [
+              [-13, 7, 8, 6],
+              [-4, 7, 9, 10],
+              [6, 7, 8, 7],
+              [-9, 13, 6, 5],
+              [1, 17, 6, 4],
+            ]) {
+              at(l, b, w, h, lit);
+              at(l + 1, b + h - 3, 1, 2, dark);
+              at(l + w - 2, b + h - 3, 1, 2, dark);
+            }
+            dome(-6, 18, 3, dome1);
+            dome(4, 21, 3, dome1);
+            dome(10, 14, 2, dome1);
+            break;
+          }
           // ---- end b93 ----
           // ---- one-off landmarks: b94 ----
 
@@ -55633,7 +55770,7 @@
         }
         // the ground's bottom band is water here, or a railway inland when the column is deep enough
         const railBelow = !coastal && H - G >= 35;
-        if (TRAIN_LINES[city.country] && W >= 60 && !railBelow) {
+        if ((TRAIN_LINES[city.country] || FANTASY[city.id]?.trains?.length) && W >= 60 && !railBelow) {
           // an elevated line across the city for its regional and high-speed trains, where the ground has no
           // railway of its own (inland cities run them on the ground railway instead)
           const deck = G - 7;
@@ -55822,10 +55959,20 @@
           boats,
           rail: e.rail,
           // the country's own trains, or a suburban train where the city is electric; freight everywhere
-          trains: [
+          trains: FANTASY[e.scene]?.trains ?? [
             ...(TRAIN_LINES[e.country] || (e.electric && e.station ? ["commuter"] : [])),
             ...(e.freight ? ["freight"] : []),
           ],
+          flyer: FANTASY[e.scene]?.sky,
+          mix: FANTASY[e.scene]?.mix,
+          brass: paint([190, 140, 60]),
+          steam: paint([236, 232, 224]),
+          beastColors: [
+            [112, 92, 74],
+            [94, 104, 82],
+            [128, 110, 92],
+          ].map(paint),
+          wood: paint([140, 96, 60]),
           station: e.station,
           wire: e.wire,
           trainPaint: Object.fromEntries(
@@ -55892,7 +56039,13 @@
         const run = seconds * PLANE_SPEED + life.phase * cycle;
         const aircraft = run % cycle; // how far into this cycle; a plane is on screen while below aircraftDistance
         // on Christmas Eve and the Kings' night, Santa or the Kings fly instead (City events)
-        if (aircraft < aircraftDistance && !life.noPlanes) {
+        if (aircraft < aircraftDistance && !life.noPlanes && life.flyer) {
+          const roll = mix32(life.skyId, Math.floor(run / cycle)),
+            direction = roll & 8 ? 1 : -1;
+          const x = Math.round(direction > 0 ? aircraft - 32 : W + 32 - aircraft);
+          const y = top + 4 + ((roll >>> 4) % 6);
+          (life.flyer === "dragon" ? drawDragon : drawZeppelin)(g, life, x, y, direction, seconds, roll);
+        } else if (aircraft < aircraftDistance && !life.noPlanes) {
           // every pass is a new aircraft for this city: a jet, a jumbo, a small prop plane or a helicopter,
           // flying either way at its own height. roll mixes the city and the pass number into 32 bits.
           const roll = mix32(life.skyId, Math.floor(run / cycle));
@@ -56056,6 +56209,9 @@
         danfo: 5,
         jingle: 6,
         rickshaw: 2,
+        steamcar: 4,
+        beast: 6,
+        oxcart: 7,
       };
       const BOAT_MIX = [
         ["motorboat", 35],
@@ -56099,6 +56255,151 @@
           run = go < 4 ? (t.speed * go * go) / 8 : 2 * t.speed + t.speed * (go - 4);
         return { front: stop + dir * run, gone: go };
       }
+      // A steampunk airship: a riveted brass-tan hull, tail fins, a gondola with lit windows at night and a
+      // turning propeller. x is its middle, y its middle row; r() draws in its own frame, nose forward.
+      function drawZeppelin(g, life, x, y, dir, seconds) {
+        const r = (dx, dy, w, h) => g.fillRect(dir > 0 ? x + dx : x - dx - w + 1, y + dy, w, h);
+        g.fillStyle = life.night ? "#6f6a74" : "#c8b08a";
+        for (const [dy, a, b] of [
+          [-2, -7, 7],
+          [-1, -9, 9],
+          [0, -10, 10],
+          [1, -9, 9],
+          [2, -7, 7],
+        ])
+          r(a, dy, b - a + 1, 1);
+        g.fillStyle = life.night ? "#4e4a56" : "#9a8060";
+        for (const dx of [-5, 0, 5]) r(dx, -2, 1, 5);
+        r(-12, -4, 3, 2);
+        r(-12, 3, 3, 2);
+        g.fillStyle = "#4c3a2e";
+        r(-3, 4, 7, 2);
+        g.fillStyle = life.night ? "#ffd27a" : "#9fc0cf";
+        r(-2, 4, 1, 1);
+        r(0, 4, 1, 1);
+        r(2, 4, 1, 1);
+        g.fillStyle = "#59596a";
+        r(-11, Math.floor(seconds * 12) % 2 ? -1 : 0, 1, 2);
+        g.fillStyle = css([236, 232, 224], 0.6);
+        for (let k = 0; k < 3; k++) r(-5 - k * 3 - (Math.floor(seconds * 4) % 3), 6 + (k % 2), 2, 1);
+      }
+      // A dragon: a long body and tail, a horned head, wings beating, and now and then a burst of fire.
+      function drawDragon(g, life, x, y, dir, seconds, roll) {
+        const r = (dx, dy, w, h) => g.fillRect(dir > 0 ? x + dx : x - dx - w + 1, y + dy, w, h);
+        const hide = life.night
+          ? "#3e3442"
+          : ["#8a2f28", "#3f6e3a", "#2f2f3a", "#9a7a2a"][(roll >>> 9) % 4];
+        g.fillStyle = hide;
+        r(-8, 0, 14, 2);
+        r(5, -1, 3, 2);
+        r(7, -2, 4, 2);
+        r(11, -1, 1, 1);
+        r(8, -3, 1, 1);
+        r(-12, 1, 4, 1);
+        r(-15, 2, 3, 1);
+        r(-16, 1, 1, 1);
+        if (Math.floor(seconds * 3) % 2) {
+          r(-6, -1, 7, 1);
+          r(-5, -2, 5, 1);
+          r(-4, -3, 4, 1);
+          r(-3, -4, 3, 1);
+          r(-2, -5, 2, 1);
+          r(-5, 2, 1, 1);
+          r(1, 2, 1, 1);
+        } else {
+          r(-6, 2, 7, 1);
+          r(-5, 3, 5, 1);
+          r(-4, 4, 3, 1);
+          r(-3, 5, 2, 1);
+        }
+        g.fillStyle = "#ffd24a";
+        r(9, -2, 1, 1);
+        if (seconds % 7 < 1.2) {
+          const flick = Math.floor(seconds * 10) % 2;
+          if (life.night) softGlow(g, x + dir * 15, y - 1, 6, "255,140,40", 0.5);
+          g.fillStyle = "#ffb12e";
+          r(12, -2, 5 + flick, 2);
+          g.fillStyle = "#ff5a1e";
+          r(14, -3, 3, 1);
+          r(16 + flick, -1, 2, 1);
+          g.fillStyle = "#fff2b0";
+          r(12, -1, 2, 1);
+        }
+      }
+      // The street beasts of the Conan cities and Atlantis' steam cars, drawn instead of a car. r() draws in
+      // the mover's own frame, nose forward, y the road line.
+      function drawFantasyVehicle(g, life, kind, vehicle, x, y, dir, seconds) {
+        const r = (dx, dy, w, h) => g.fillRect(dir > 0 ? x + dx : x - dx - w + 1, y + dy, w, h);
+        const step = Math.floor(seconds * 4 + vehicle.id) % 2;
+        if (kind === "steamcar") {
+          // a brass-trimmed steam carriage: a coloured body, a tall cab, big spoked rear wheels, a smoking stack
+          g.fillStyle = life.shade;
+          r(-3, 1, 7, 1);
+          g.fillStyle = vehicle.color;
+          r(-4, -2, 9, 2);
+          g.fillStyle = life.brass;
+          r(-4, -2, 9, 1);
+          r(3, -5, 1, 3);
+          g.fillStyle = life.ink;
+          r(-3, -5, 4, 3);
+          r(-4, 0, 3, 2);
+          r(2, 0, 2, 2);
+          g.fillStyle = life.night ? "#ffd27a" : life.glass;
+          r(-2, -4, 2, 1);
+          g.fillStyle = life.steam;
+          for (let k = 0; k < 3; k++) r(2 - k * 2 - ((seconds * 5) % 2 | 0), -7 - k, 2, 1);
+          if (life.night) beam(g, x + dir * 6, y, dir, 6, 0.25);
+          return;
+        }
+        const hide = life.beastColors[vehicle.id % life.beastColors.length];
+        if (kind === "beast") {
+          // a great war beast, a mammoth's cousin, with tusks, a swinging trunk and a rider on its back
+          g.fillStyle = life.shade;
+          r(-4, 1, 10, 1);
+          g.fillStyle = hide;
+          r(-5, -5, 9, 5);
+          r(-4, -6, 7, 1);
+          r(4, -5, 2, 3);
+          r(5 + step, -2, 1, 2);
+          r(-5, 0, 2, 1 + step);
+          r(-1, 0, 2, 2 - step);
+          r(2, 0, 2, 1 + step);
+          g.fillStyle = life.steam;
+          r(5, -2, 2, 1);
+          g.fillStyle = life.ink;
+          r(5, -4, 1, 1);
+          r(-2, -9, 1, 3);
+          g.fillStyle = life.skin;
+          r(-2, -10, 1, 1);
+          g.fillStyle = vehicle.color;
+          r(-3, -8, 3, 2);
+          return;
+        }
+        // an ox cart: a horned ox in front, a wooden cart on two wheels and its driver
+        g.fillStyle = life.shade;
+        r(-6, 1, 13, 1);
+        g.fillStyle = hide;
+        r(2, -3, 4, 2);
+        r(5, -4, 2, 2);
+        r(2 + step, -1, 1, 2);
+        r(5 - step, -1, 1, 2);
+        g.fillStyle = life.steam;
+        r(5, -5, 1, 1);
+        r(7, -5, 1, 1);
+        g.fillStyle = life.wood;
+        r(-6, -3, 7, 2);
+        r(1, -2, 2, 1);
+        r(-6, -5, 1, 2);
+        r(0, -5, 1, 2);
+        g.fillStyle = life.ink;
+        r(-4, -1, 2, 2);
+        r(-3, -7, 1, 2);
+        g.fillStyle = life.skin;
+        r(-3, -8, 1, 1);
+        g.fillStyle = vehicle.color;
+        r(-5, -4, 4, 1);
+      }
+
       function drawTrain(g, life, seconds) {
         const cycle = 40 + Math.round(life.width / 10),
           clock = seconds + life.phase * cycle,
@@ -56186,11 +56487,20 @@
             g.fillRect(x, y - 5, 1, door ? 4 : 2);
           }
           // the pantograph on electric trains: a thin arm up to the wire from the first car's roof
-          if (life.wire != null && kind !== "freight" && px === Math.floor(TRAIN_CAR / 2)) {
+          if (life.wire != null && kind !== "freight" && !t.smoke && px === Math.floor(TRAIN_CAR / 2)) {
             g.fillStyle = life.ink;
             g.fillRect(x, life.wire + 1, 1, y - h - life.wire - 1);
             g.fillRect(x - 1, life.wire + 1, 3, 1);
           }
+        }
+        if (t.smoke) {
+          // the engine's chimney, puffing smoke that drifts back over the train
+          const cx = Math.round(front - dir * 4);
+          g.fillStyle = life.ink;
+          g.fillRect(cx, y - 9, 2, 3);
+          g.fillStyle = life.steam;
+          for (let k = 0; k < 4; k++)
+            g.fillRect(Math.round(cx - dir * (3 + k * 4 + ((seconds * 6) % 4))), y - 11 - k, 2 + (k > 1), 2);
         }
       }
 
@@ -56308,6 +56618,10 @@
           const kind = life.mix ? lapKind(vehicle, seconds, 20, life.mix) : vehicleKind(vehicle, seconds);
           const x = lifePosition(vehicle, seconds, 20);
           const half = VEHICLE_HALF[kind];
+          if (kind === "steamcar" || kind === "beast" || kind === "oxcart") {
+            drawFantasyVehicle(g, life, kind, vehicle, x, y, direction, seconds);
+            continue;
+          }
           const left = x - half,
             w = half * 2 + 1,
             nose = x + direction * half;
@@ -62052,7 +62366,7 @@
             eventTest && this.events.includes(eventTest.name) && TEST_SKY[EVENTS[eventTest.name].sky];
           const alt = forced ? forced[0] : PARAMS.has("alt") ? +PARAMS.get("alt") : sun.alt;
           const morning = forced ? forced[1] : PARAMS.has("alt") ? false : sun.H < 0;
-          const pal = paletteAt(alt, morning);
+          const pal = paletteAt(alt, morning, Boolean(FANTASY[atlasRow(z)?.id]?.redDawn));
           // the weather greys the sky (ov = how overcast, 0..1), dims the light and lights more windows
           const ov = OVERCAST[wx.cat] ?? 0;
           const grey = mixc([150, 156, 166], [26, 28, 38], clamp(1 - pal.k, 0, 1));
@@ -62226,6 +62540,8 @@
           this.life = makeSceneLife(e, this.seed);
           // events that change the street (car-free Sundays, a city's own traffic, dhows on the water)
           for (const [ev] of this.eventsNow(tp, now)) ev.life?.(this.life, e);
+          // a story city keeps its own vehicles whatever traffic an event brings (Atlantis plays them all)
+          if (FANTASY[e.scene]) this.life.mix = FANTASY[e.scene].mix;
           // --- clouds ---
           const count = { clear: 1, partly: 3, cloudy: 6, fog: 3, rain: 7, thunder: 8, snow: 6 }[wx.cat] ?? 2;
           const ck = count + "|" + (ov > 0.5) + "|" + W + "x" + H;
@@ -63023,7 +63339,9 @@
       // A city's country line, with its state in the US.
       const placeName = (c) => (US_STATES[c.id] ? US_STATES[c.id] + " - " : "") + countryName(c.country);
       const REGIONS = Intl.DisplayNames ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
-      const countryName = (code) => (code === "KO" ? "Kosovo" : (code && REGIONS?.of(code)) || code); // "" for Atlantis
+      // "" for Atlantis; XH and XM are made-up codes for the two cities out of Robert E. Howard's stories
+      const OWN_COUNTRIES = { KO: "Kosovo", XH: "Hyboria", XM: "Mu" };
+      const countryName = (code) => OWN_COUNTRIES[code] || (code && REGIONS?.of(code)) || code;
       // The cities of each country, A to Z, and the countries A to Z by name, for the two lists in each zone
       // (lists instead of a search box, so a TV remote can pick a city).
       const COUNTRY_CITIES = {};
@@ -63749,7 +64067,7 @@
       // times on the clocks, or press Down Down Down Right Right Right on a remote; the same again comes back ----
       // It shows alone, at the local time, and plays every event of every city two seconds each (through the
       // event test, so each at its time of day). A tap stops on the event showing, and another goes on.
-      // A harbour city of ten million: water, a deep street with its median, towers and landmarks. Not
+      // An old harbour city (golden stone, zeppelins, steam cars and trains, see FANTASY) with its landmarks. Not
       // enumerable, so the city lists and the random cities never offer it, and nothing saves it.
       Object.defineProperty(CITY_ATLAS, "atlantis", {
         value: {
@@ -63762,7 +64080,7 @@
           style: "harbor",
           art: "",
           capital: true,
-          population: 1e7,
+          population: 150000, // low old roofs, like the picture it was drawn from, not towers
         },
       });
       let atlantis = null; // { start, i, paused, timer } while Atlantis shows

@@ -1274,3 +1274,93 @@
             at(1, 33, 3, 2, red);
             break;
           }
+          case "tarantiaPalace": {
+            // Tarantia, capital of Aquilonia (Robert E. Howard's Conan): the King's palace, a grey keep
+            // between round towers with blue cones and the golden lion banners.
+            const stone = css(e.sh([150, 146, 140])),
+              lit = css(e.sh([190, 186, 176])),
+              dark = css(e.sh([56, 54, 62])),
+              blue = css(e.sh([64, 86, 150])),
+              gold = css(e.sh([214, 170, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-17, 0, 34, 10, stone);
+            for (let x = -17; x <= 15; x += 3) at(x, 10, 2, 1, stone);
+            at(-2, 0, 4, 6, dark);
+            at(-8, 0, 16, 26, stone);
+            at(-8, 26, 16, 1, lit);
+            for (let x = -8; x <= 6; x += 3) at(x, 27, 2, 2, stone);
+            for (const y of [12, 19]) for (const x of [-6, -1, 4]) at(x, y, 2, 3, dark);
+            for (const x of [-17, 12]) {
+              at(x, 0, 5, 20, lit);
+              at(x + 2, 8, 1, 3, dark);
+              at(x + 2, 14, 1, 3, dark);
+              for (let y = 0; y < 6; y++) at(x - 1 + Math.floor(y / 2), 20 + y, 7 - 2 * Math.floor(y / 2), 1, blue);
+              at(x + 2, 26, 1, 4, dark);
+              at(x + 3, 28, 2, 2, gold);
+            }
+            at(-1, 29, 1, 6, dark);
+            at(0, 32, 4, 3, gold);
+            break;
+          }
+          case "mitraTemple": {
+            // The Temple of Mitra: white marble columns under a golden dome with Mitra's sun disc.
+            const marble = css(e.sh([236, 232, 222])),
+              shade = css(e.sh([178, 172, 160])),
+              gold = css(e.sh([214, 170, 60]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-11, 0, 22, 2, shade);
+            at(-10, 2, 20, 1, marble);
+            at(-8, 3, 16, 10, shade);
+            for (let x = -9; x <= 7; x += 3) at(x, 3, 2, 10, marble);
+            at(-10, 13, 20, 2, marble);
+            at(-7, 15, 14, 3, marble);
+            dome(0, 18, 7, gold);
+            at(-1, 25, 2, 2, marble);
+            orb(0, 29, 2, gold);
+            break;
+          }
+          case "towerOfTheElephant": {
+            // The Tower of the Elephant: a slender tower gleaming like silver, crowned by a great jewel that
+            // glows in the dark (Robert E. Howard, 1933).
+            const silver = css(e.sh([214, 220, 228])),
+              shade = css(e.sh([150, 158, 172])),
+              jewel = e.k < 0.5 ? "#7dfcff" : css(e.sh([90, 210, 220]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-5, 0, 10, 3, shade);
+            for (let y = 3; y < 46; y++) {
+              const hw = y < 10 ? 4 : y < 30 ? 3 : 2;
+              at(-hw, y, hw * 2, 1, silver);
+              at(hw - 1, y, 1, 1, shade);
+            }
+            for (let y = 8; y < 42; y += 7) at(-1, y, 2, 2, shade);
+            at(-4, 46, 8, 1, shade);
+            at(-3, 47, 6, 2, silver);
+            orb(0, 51, 2.5, jewel);
+            break;
+          }
+          case "arenjunHill": {
+            // Arenjun, the City of Thieves: flat-roofed houses and small domes crowding up its hill behind a wall.
+            const clay = css(e.sh([196, 160, 118])),
+              lit = css(e.sh([226, 196, 150])),
+              dark = css(e.sh([70, 54, 48])),
+              dome1 = css(e.sh([170, 96, 64]));
+            const at = (l, b, w, h, c) => box(l, b + h, w, h, c);
+            at(-16, 0, 32, 6, clay);
+            for (let x = -16; x <= 14; x += 3) at(x, 6, 2, 1, clay);
+            at(-2, 0, 4, 4, dark);
+            for (const [l, b, w, h] of [
+              [-13, 7, 8, 6],
+              [-4, 7, 9, 10],
+              [6, 7, 8, 7],
+              [-9, 13, 6, 5],
+              [1, 17, 6, 4],
+            ]) {
+              at(l, b, w, h, lit);
+              at(l + 1, b + h - 3, 1, 2, dark);
+              at(l + w - 2, b + h - 3, 1, 2, dark);
+            }
+            dome(-6, 18, 3, dome1);
+            dome(4, 21, 3, dome1);
+            dome(10, 14, 2, dome1);
+            break;
+          }

@@ -27,17 +27,7 @@ Everything lives on the one `main` branch. GitHub Pages publishes it as it is, s
 
 ## 2. How the parts fit
 
-```mermaid
-flowchart LR
-  you[You] -->|open| page[index.html]
-  page -->|registers| sw[sw.js offline copy]
-  page -->|saves settings| db[(IndexedDB)]
-  page -->|asks every 10 min| meteo[Open-Meteo weather]
-  page -->|one per city| col[Column]
-  col -->|once a minute| build[build: sky and city]
-  col -->|15 times a second| frame[frame: moving things]
-  page -->|plays| music[lofi music script]
-```
+![How the parts fit: opening index.html registers the sw.js offline copy, saves settings in IndexedDB, asks Open-Meteo for weather every 10 minutes, makes one Column per city and plays the lofi music script](diagrams/clockscapes-parts.svg)
 
 Inside `index.html` the script is split into sections, each starting with a `// ==== Name ====` comment. Search for those headers to jump around.
 
@@ -62,14 +52,7 @@ The comment at the top of the script explains the short names used everywhere: `
 
 This is how a single clock is drawn:
 
-```mermaid
-flowchart TD
-  start[Column created] --> resize[resize: pick layout and pixel size]
-  resize --> build[build: sky, city, clouds, windows and lamps]
-  build --> frame[frame, 15 times a second]
-  frame -->|draws| layers[sky, stars, planes and birds, clouds, city, water, traffic, weather, clock text]
-  frame -->|each new minute or new weather| build
-```
+![How a single clock is drawn: Column created, resize picks the layout and pixel size, build draws the still sky and city, and frame draws the moving layers 15 times a second, calling build again on each new minute or new weather](diagrams/clockscapes-column.svg)
 
 So far you have seen that the app is one file in named sections, and that each clock is a `Column` that builds a still picture once a minute and draws the moving things on top of it. Next, get it running.
 

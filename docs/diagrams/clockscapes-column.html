@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How a single clock is drawn</title>
+  <!-- utopick skin (diagram-design profile "utopick"): system fonts, no network requests. -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0d0f12; color: #e8ecf1; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: #8a94a3; margin-bottom: 0.5rem; }
+    h1 { font: 800 14px ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: #8a94a3; margin-bottom: 1.5rem; }
+    svg { width: 100%; min-width: 864px; display: block; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Flowchart · Clockscapes</p>
+    <h1>How a single clock is drawn</h1>
+    <div class="diagram-container">
+      <svg viewBox="0 0 864 384" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="clockscapes-column-title clockscapes-column-desc">
+        <title id="clockscapes-column-title">How a single clock is drawn</title>
+        <desc id="clockscapes-column-desc">A Column is created, resize picks the layout and pixel size, build draws the still sky and city, and frame draws the moving layers fifteen times a second, calling build again each new minute or new weather.</desc>
+        <defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8a94a3"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3aa8d8"/></marker>
+<marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#a3b8f0"/></marker>
+        </defs>
+        <rect width="100%" height="100%" fill="#0d0f12"/>
+<!-- arrows -->
+<path d="M 200,108 H 246" fill="none" stroke="#8a94a3" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 408,108 H 454" fill="none" stroke="#8a94a3" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 616,108 H 662" fill="none" stroke="#8a94a3" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 728,72 V 48 Q 728,40 720,40 H 544 Q 536,40 536,48 V 70" fill="none" stroke="#3aa8d8" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+<path d="M 744,144 V 214" fill="none" stroke="#8a94a3" stroke-width="1.2" marker-end="url(#arrow)"/>
+<!-- labels -->
+<rect x="588.0" y="20" width="88" height="12" rx="2" fill="#0d0f12"/>
+<text x="632.0" y="29" fill="#3aa8d8" font-size="8" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">MINUTE/WEATHER</text>
+<rect x="752" y="174" width="36" height="12" rx="2" fill="#0d0f12"/>
+<text x="770.0" y="183" fill="#8a94a3" font-size="8" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">DRAWS</text>
+<!-- nodes -->
+<rect x="40" y="72" width="160" height="72" rx="6" fill="#0d0f12"/>
+<rect x="40" y="72" width="160" height="72" rx="6" fill="rgba(138,148,163,0.10)" stroke="#7d8796" stroke-width="1"/>
+<rect x="48" y="80" width="36" height="12" rx="2" fill="transparent" stroke="rgba(125,135,150,0.50)" stroke-width="0.8"/>
+<text x="66.0" y="89" fill="#7d8796" font-size="7" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">START</text>
+<text x="120.0" y="114.0" fill="#e8ecf1" font-size="12" font-weight="600" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">Column created</text>
+<text x="120.0" y="130.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">one per city</text>
+<rect x="248" y="72" width="160" height="72" rx="6" fill="#0d0f12"/>
+<rect x="248" y="72" width="160" height="72" rx="6" fill="#161a20" stroke="#e8ecf1" stroke-width="1"/>
+<rect x="256" y="80" width="32" height="12" rx="2" fill="transparent" stroke="rgba(232,236,241,0.40)" stroke-width="0.8"/>
+<text x="272.0" y="89" fill="#e8ecf1" font-size="7" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">STEP</text>
+<text x="328.0" y="108.0" fill="#e8ecf1" font-size="12" font-weight="600" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">resize</text>
+<text x="328.0" y="124.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">layout</text>
+<text x="328.0" y="136.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">pixel size</text>
+<rect x="456" y="72" width="160" height="72" rx="6" fill="#0d0f12"/>
+<rect x="456" y="72" width="160" height="72" rx="6" fill="#161a20" stroke="#e8ecf1" stroke-width="1"/>
+<rect x="464" y="80" width="36" height="12" rx="2" fill="transparent" stroke="rgba(232,236,241,0.40)" stroke-width="0.8"/>
+<text x="482.0" y="89" fill="#e8ecf1" font-size="7" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">STILL</text>
+<text x="536.0" y="108.0" fill="#e8ecf1" font-size="12" font-weight="600" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">build</text>
+<text x="536.0" y="124.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">sky · city · clouds</text>
+<text x="536.0" y="136.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">windows · lamps</text>
+<rect x="664" y="72" width="160" height="72" rx="6" fill="#0d0f12"/>
+<rect x="664" y="72" width="160" height="72" rx="6" fill="rgba(58,168,216,0.12)" stroke="#3aa8d8" stroke-width="1"/>
+<rect x="672" y="80" width="32" height="12" rx="2" fill="transparent" stroke="rgba(58,168,216,0.50)" stroke-width="0.8"/>
+<text x="688.0" y="89" fill="#3aa8d8" font-size="7" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">LOOP</text>
+<text x="744.0" y="114.0" fill="#e8ecf1" font-size="12" font-weight="600" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">frame</text>
+<text x="744.0" y="130.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">15 times a second</text>
+<rect x="384" y="216" width="440" height="72" rx="6" fill="#0d0f12"/>
+<rect x="384" y="216" width="440" height="72" rx="6" fill="rgba(232,236,241,0.05)" stroke="#8a94a3" stroke-width="1"/>
+<rect x="392" y="224" width="40" height="12" rx="2" fill="transparent" stroke="rgba(138,148,163,0.50)" stroke-width="0.8"/>
+<text x="412.0" y="233" fill="#8a94a3" font-size="7" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle" letter-spacing="0.08em">LAYERS</text>
+<text x="604.0" y="252.0" fill="#e8ecf1" font-size="12" font-weight="600" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">Drawn on top, in order</text>
+<text x="604.0" y="268.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">sky · stars · planes and birds · clouds</text>
+<text x="604.0" y="280.0" fill="#8a94a3" font-size="9" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">city · water · traffic · weather · clock text</text>
+<!-- legend -->
+<line x1="40" y1="324" x2="824" y2="324" stroke="rgba(232,236,241,0.12)" stroke-width="0.8"/>
+<text x="40" y="340" fill="#8a94a3" font-size="8" font-family="ui-monospace, Menlo, Consolas, monospace" letter-spacing="0.18em">LEGEND</text>
+<rect x="40" y="356" width="14" height="10" rx="2" fill="rgba(58,168,216,0.12)" stroke="#3aa8d8" stroke-width="1"/>
+<text x="60" y="364" fill="#8a94a3" font-size="8.5" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">Runs 15 times a second</text>
+<rect x="200" y="356" width="14" height="10" rx="2" fill="rgba(138,148,163,0.10)" stroke="#7d8796" stroke-width="1"/>
+<text x="220" y="364" fill="#8a94a3" font-size="8.5" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">Start</text>
+<rect x="276" y="356" width="14" height="10" rx="2" fill="rgba(232,236,241,0.05)" stroke="#8a94a3" stroke-width="1"/>
+<text x="296" y="364" fill="#8a94a3" font-size="8.5" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">What frame draws</text>
+<line x1="404" y1="361" x2="428" y2="361" stroke="#3aa8d8" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<text x="436" y="364" fill="#8a94a3" font-size="8.5" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">Rebuild on a new minute or new weather</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

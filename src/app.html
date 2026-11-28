@@ -24937,54 +24937,6 @@
             }
           }
           bg.putImageData(img, 0, 0);
-          // sun
-          if (alt > -3 && ov < 0.7) {
-            // x follows the hour angle (noon in the middle), y the altitude (42 degrees or more is the top)
-            // up to half again as big near the horizon, as the eye sees it (the moon illusion)
-            const r = Math.round((W > 140 ? 5 : 4) * (1 + 0.5 * clamp((15 - alt) / 15, 0, 1)));
-            const sx = Math.round(clamp(W / 2 + (sun.H / 100) * W * 0.42, r + 2, W - r - 2));
-            const sy = Math.round(G - clamp((alt + 3) / 45, 0, 1) * (G - T + r));
-            const sc = mixc([255, 248, 215], [255, 130, 60], clamp((12 - alt) / 14, 0, 1));
-            const vis = 1 - ov * 0.9;
-            bg.fillStyle = css(sc, 0.18 * vis);
-            disc(bg, sx, sy, r + 4);
-            bg.fillStyle = css(sc, 0.3 * vis);
-            disc(bg, sx, sy, r + 2);
-            bg.fillStyle = css(sc, Math.max(0.15, vis));
-            disc(bg, sx, sy, r);
-          }
-          // The night sky as seen facing the equator (south in the north, north in the south): x from the
-          // azimuth and y from the altitude, at the same number of pixels per degree both ways, with the
-          // horizon 3 degrees under the ground line like the sun's. A wide band shows 180 degrees at most.
-          const perDeg = Math.max((G - T) / 45, W / 180),
-            south = +z.lat < 0,
-            place = (p) => {
-              const a = south ? ((p.az + 360) % 360) - 180 : p.az; // degrees right of the middle, before mirroring
-              return [W / 2 + (south ? -a : a) * perDeg, G - (p.alt + 3) * perDeg];
-            };
-          // moon: where it really is, when it is up (kept inside the picture, like the sun)
-          const mp = moonPos(now, +z.lat, +z.lon);
-          if (alt < -4 && ov < 0.6 && mp.alt > -1) {
-            const p = moonPhase(now),
-              c = Math.cos(p * 2 * Math.PI),
-              r = Math.round(4 * (1 + 0.5 * clamp((15 - mp.alt) / 15, 0, 1))); // bigger near the horizon
-            const [px, py] = place(mp);
-            const mx = Math.round(clamp(px, r + 2, W - r - 2)),
-              my = Math.round(clamp(py, T + r + 2, G)),
-              vis = 1 - ov * 0.85;
-            bg.fillStyle = css([230, 230, 200], 0.12 * vis);
-            disc(bg, mx, my, r + 3);
-            for (let dy = -r; dy <= r; dy++) {
-              const w = Math.sqrt(r * r - dy * dy);
-              for (let dx = -Math.floor(w + 0.5); dx <= Math.floor(w + 0.5); dx++) {
-                // waxing (p < 0.5) lights the right side, waning the left; c moves the shadow's edge
-                const lit = p < 0.5 ? dx > c * w - 0.5 : dx < -c * w + 0.5;
-                bg.fillStyle = lit ? css([238, 236, 214], vis) : css(mixc([238, 236, 214], top, 0.82), vis);
-                bg.fillRect(mx + dx, my + dy, 1, 1);
-              }
-            }
-            this.moon = { x: mx, y: my, r };
-          } else this.moon = null;
           // stars
           const rs = rngFrom(this.seed ^ 0xabc);
           this.stars = [];
@@ -24996,17 +24948,6 @@
               b: 0.4 + rs() * 0.6,
             });
           this.starAmt = pal.star * (1 - ov);
-          // the constellations whose every star is up and inside the picture now
-          this.figures = [];
-          if (CONFIG.stars !== false && this.starAmt > 0.05) {
-            const d = daysJ2000(now);
-            for (const [name, stars, lines] of CONSTELLATIONS) {
-              const pos = stars.map(([ra, dec]) => skyPos(d, +z.lat, +z.lon, ra * 15, rad(dec)));
-              const pts = pos.map((p) => place(p).map(Math.round));
-              if (pos.some((p) => p.alt < 2) || pts.some(([x, y]) => x < 1 || x > W - 2 || y < 1)) continue;
-              this.figures.push({ name, pts, lines: lines.split(" ").map((l) => l.split("-").map(Number)) });
-            }
-          }
           // --- foreground scene ---
           this.fg = mkCanvas(W, H);
           const fg = this.fg.getContext("2d");
@@ -25040,6 +24981,75 @@
             return [0, 1, 2].every((k) => Math.abs(px[i + k] - (c[k] | 0)) <= 1);
           };
           e.windows = e.windows.filter((w) => w.x >= 0 && w.y >= 0 && w.x < W && w.y < H && shows(w));
+          // The sky's horizon is the city's roofline (the middle roof height, from the finished scene), so a
+          // low sun or moon rises from behind the rooftops instead of the street.
+          const roofs = [];
+          for (let x = 0; x < W; x += 2) {
+            let y = 0;
+            while (y < G && !px[(y * W + x) * 4 + 3]) y++;
+            roofs.push(y);
+          }
+          const HZ = roofs.sort((a, b) => a - b)[roofs.length >> 1];
+          // sun
+          if (alt > -3 && ov < 0.7) {
+            // x follows the hour angle (noon in the middle), y the altitude from the roofline (42 degrees or more is the top)
+            // up to half again as big near the horizon, as the eye sees it (the moon illusion)
+            const r = Math.round((W > 140 ? 5 : 4) * (1 + 0.5 * clamp((15 - alt) / 15, 0, 1)));
+            const sx = Math.round(clamp(W / 2 + (sun.H / 100) * W * 0.42, r + 2, W - r - 2));
+            const sy = Math.round(HZ - Math.min(1, (alt + 1) / 43) * (HZ - T + r)); // sinks behind the roofs below -1
+            const sc = mixc([255, 248, 215], [255, 130, 60], clamp((12 - alt) / 14, 0, 1));
+            const vis = 1 - ov * 0.9;
+            bg.fillStyle = css(sc, 0.18 * vis);
+            disc(bg, sx, sy, r + 4);
+            bg.fillStyle = css(sc, 0.3 * vis);
+            disc(bg, sx, sy, r + 2);
+            bg.fillStyle = css(sc, Math.max(0.15, vis));
+            disc(bg, sx, sy, r);
+          }
+          // The night sky as seen facing the equator (south in the north, north in the south): x from the
+          // azimuth and y from the altitude, at the same number of pixels per degree both ways, with the
+          // horizon on the roofline (HZ). The view is 120 degrees wide (a wide-angle
+          // look, so whole constellations fit on a phone), less on a wide short band so it shows 30 degrees up.
+          const perDeg = Math.min(W / 120, (HZ - T) / 30),
+            south = +z.lat < 0,
+            place = (p) => {
+              const a = south ? ((p.az + 360) % 360) - 180 : p.az; // degrees right of the middle, before mirroring
+              return [W / 2 + (south ? -a : a) * perDeg, HZ - p.alt * perDeg];
+            };
+          // moon: where it really is, when it is up (kept inside the picture, like the sun)
+          const mp = moonPos(now, +z.lat, +z.lon);
+          if (alt < -4 && ov < 0.6 && mp.alt > -1) {
+            const p = moonPhase(now),
+              c = Math.cos(p * 2 * Math.PI),
+              r = Math.round(4 * (1 + 0.5 * clamp((15 - mp.alt) / 15, 0, 1))); // bigger near the horizon
+            const [px, py] = place(mp);
+            const mx = Math.round(clamp(px, r + 2, W - r - 2)),
+              my = Math.round(clamp(py, T + r + 2, HZ + r)),
+              vis = 1 - ov * 0.85;
+            bg.fillStyle = css([230, 230, 200], 0.12 * vis);
+            disc(bg, mx, my, r + 3);
+            for (let dy = -r; dy <= r; dy++) {
+              const w = Math.sqrt(r * r - dy * dy);
+              for (let dx = -Math.floor(w + 0.5); dx <= Math.floor(w + 0.5); dx++) {
+                // waxing (p < 0.5) lights the right side, waning the left; c moves the shadow's edge
+                const lit = p < 0.5 ? dx > c * w - 0.5 : dx < -c * w + 0.5;
+                bg.fillStyle = lit ? css([238, 236, 214], vis) : css(mixc([238, 236, 214], top, 0.82), vis);
+                bg.fillRect(mx + dx, my + dy, 1, 1);
+              }
+            }
+            this.moon = { x: mx, y: my, r };
+          } else this.moon = null;
+          // the constellations whose every star is up and inside the picture now
+          this.figures = [];
+          if (CONFIG.stars !== false && this.starAmt > 0.05) {
+            const d = daysJ2000(now);
+            for (const [name, stars, lines] of CONSTELLATIONS) {
+              const pos = stars.map(([ra, dec]) => skyPos(d, +z.lat, +z.lon, ra * 15, rad(dec)));
+              const pts = pos.map((p) => place(p).map(Math.round));
+              if (pos.some((p) => p.alt < 2) || pts.some(([x, y]) => x < 1 || x > W - 2 || y < 1)) continue;
+              this.figures.push({ name, pts, lines: lines.split(" ").map((l) => l.split("-").map(Number)) });
+            }
+          }
           // Each constellation's name goes over it, if it stays under the clock's text, clear of the scene
           // (nothing drawn in that box) and of the other names; otherwise only its lines show.
           const taken = [];

@@ -62617,9 +62617,10 @@
           }
           // The night sky as seen facing the equator (south in the north, north in the south): x from the
           // azimuth and y from the altitude, at the same number of pixels per degree both ways, with the
-          // horizon on the roofline (HZ). The view is 120 degrees wide (a wide-angle
-          // look, so whole constellations fit on a phone), less on a wide short band so it shows 30 degrees up.
-          const perDeg = Math.min(W / 120, (HZ - T) / 30),
+          // horizon on the roofline (HZ). The view is 120 degrees wide (a wide-angle look, so whole
+          // constellations fit on a phone), more on a wide short band so it still reaches 80 degrees up (an
+          // autumn evening's figures are high or far east and west, outside a narrower view).
+          const perDeg = Math.min(W / 120, (HZ - 1) / 80),
             south = +z.lat < 0,
             place = (p) => {
               const a = south ? ((p.az + 360) % 360) - 180 : p.az; // degrees right of the middle, before mirroring

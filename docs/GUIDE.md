@@ -68,7 +68,7 @@ How many people and cars a city has depends on its real population, in four leve
 
 <img src="../img/city-newyork-dusk.png" alt="New York at 18:40 on an October evening, with the Statue of Liberty against the sunset" width="100%">
 
-At night each city shows the real constellations it can see at that hour, looking towards the equator, so Sydney sees Orion upside down while Madrid sees it upright. They look like any other stars, but one after another each constellation's lines fade in with its name underneath, stay for 6 seconds and fade out again. **Constellations** in the SCREEN tab switches the lines and names off. The moon rises and sets where it really does and only shows when it is up, and like the sun it looks up to twice as big near the horizon, rising from behind the rooftops.
+At night each city shows the real constellations it can see at that hour, looking towards the equator, so Sydney sees Orion upside down while Madrid sees it upright. They look like any other stars, but every 38 seconds the next constellation's lines fade in with its name underneath, stay for 6 seconds and fade out again, so the sky stays plain most of the time. **Constellations** in the SCREEN tab switches the lines and names off. The moon rises and sets where it really does and only shows when it is up, and like the sun it looks up to twice as big near the horizon, rising from behind the rooftops.
 
 The light follows the real sun and moon, and the sky follows the live weather, so people open umbrellas when it rains there. Drizzle, rain, freezing rain that glazes the street, storms with or without bouncing hail, snow, snow grains and fog each look different, and so do haze, desert dust and smoke in the air.
 

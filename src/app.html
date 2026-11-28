@@ -110,6 +110,10 @@
         margin-left: 0.25em;
         letter-spacing: 0.04em;
       }
+      /* calm in the car: no CSS animation either (the colon's breathing alone redraws the screen 60 times a second) */
+      body.calm * {
+        animation: none !important;
+      }
       @keyframes breathe {
         0%,
         100% {
@@ -25716,6 +25720,7 @@
       function loop(t) {
         const calm = inCar(),
           minute = Math.floor(Date.now() / 60000);
+        document.body.classList.toggle("calm", calm);
         // calm in the car: only a new minute, or a clock just made or resized (key ""), draws a picture
         if (!document.hidden && (!calm || minute !== calmMinute || COLS.some((c) => !c.key))) {
           calmMinute = minute;

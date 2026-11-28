@@ -1061,7 +1061,7 @@
               <label
                 >Constellations
                 <select name="stars" title="Show the names and lines of the constellations in the night sky">
-                  <option value="1">On, named every 30 seconds</option>
+                  <option value="1">On, named one after another</option>
                   <option value="0">Off, plain stars</option>
                 </select></label
               >
@@ -8576,7 +8576,7 @@
         awake: true, // keep the screen on (wake lock)
         care: true, // burn-in protection: pixel shift and a sweep line
         calm: true, // calm in the car: nothing moves on Android Auto, or on the phone while it drives one
-        stars: true, // constellations: lines and names fade in every 30 s
+        stars: true, // constellations: each one's lines and name fade in, in turn
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
         // volume 0..100, variation 1..9999 (part of each song's seed), places: the sounds of the place,
@@ -24993,8 +24993,8 @@
           // sun
           if (alt > -3 && ov < 0.7) {
             // x follows the hour angle (noon in the middle), y the altitude from the roofline (42 degrees or more is the top)
-            // up to half again as big near the horizon, as the eye sees it (the moon illusion)
-            const r = Math.round((W > 140 ? 5 : 4) * (1 + 0.5 * clamp((15 - alt) / 15, 0, 1)));
+            // up to twice as big near the horizon, as the eye sees it (the moon illusion)
+            const r = Math.round((W > 140 ? 5 : 4) * (1 + clamp((20 - alt) / 20, 0, 1)));
             const sx = Math.round(clamp(W / 2 + (sun.H / 100) * W * 0.42, r + 2, W - r - 2));
             const sy = Math.round(HZ - Math.min(1, (alt + 1) / 43) * (HZ - T + r)); // sinks behind the roofs below -1
             const sc = mixc([255, 248, 215], [255, 130, 60], clamp((12 - alt) / 14, 0, 1));
@@ -25021,7 +25021,7 @@
           if (alt < -4 && ov < 0.6 && mp.alt > -1) {
             const p = moonPhase(now),
               c = Math.cos(p * 2 * Math.PI),
-              r = Math.round(4 * (1 + 0.5 * clamp((15 - mp.alt) / 15, 0, 1))); // bigger near the horizon
+              r = Math.round(4 * (1 + clamp((20 - mp.alt) / 20, 0, 1))); // up to twice as big near the horizon
             const [px, py] = place(mp);
             const mx = Math.round(clamp(px, r + 2, W - r - 2)),
               my = Math.round(clamp(py, T + r + 2, HZ + r)),
@@ -25050,20 +25050,21 @@
               this.figures.push({ name, pts, lines: lines.split(" ").map((l) => l.split("-").map(Number)) });
             }
           }
-          // Each constellation's name goes over it, if it stays under the clock's text, clear of the scene
-          // (nothing drawn in that box) and of the other names; otherwise only its lines show.
-          const taken = [];
+          // Each constellation's name goes under it, or over it when the scene is in the way below; it must
+          // stay under the clock's text and clear of the scene (nothing drawn in that box), or only the lines show.
           for (const f of this.figures) {
             const w = wordWidth(f.name, 1),
               cx = f.pts.reduce((a, p) => a + p[0], 0) / f.pts.length,
-              x = Math.round(clamp(cx - w / 2, 1, W - w - 1)),
-              y = Math.min(...f.pts.map((p) => p[1])) - 8;
-            let free =
-              y >= T && w < W - 2 && !taken.some((r) => x < r[0] + r[2] + 3 && r[0] < x + w + 3 && Math.abs(r[1] - y) < 8);
-            for (let yy = y; free && yy < y + 6; yy++)
-              for (let xx = x - 1; free && xx <= x + w; xx++) free = !px[(yy * W + xx) * 4 + 3];
-            f.label = free ? { x, y } : null;
-            if (free) taken.push([x, y, w]);
+              x = Math.round(clamp(cx - w / 2, 2, W - w - 3)), // the canvas can run a pixel past the screen
+              ys = f.pts.map((p) => p[1]),
+              clear = (y) => {
+                if (y < T || w > W - 5) return false;
+                for (let yy = y; yy < y + 6; yy++)
+                  for (let xx = x - 1; xx <= x + w; xx++) if (px[(yy * W + xx) * 4 + 3]) return false;
+                return true;
+              },
+              y = [Math.max(...ys) + 4, Math.min(...ys) - 8].find(clear);
+            f.label = y === undefined ? null : { x, y };
           }
           for (const w of e.windows) {
             const lit = this.flips.get(w.x + "," + w.y);
@@ -25309,11 +25310,15 @@
               g.fillStyle = `rgba(255,250,225,${a.toFixed(2)})`;
               g.fillRect(s.x, s.y, 1, 1);
             }
-            // Constellation stars look like the others; every 30 s their lines and name fade in for a few
-            // seconds (never in reduced motion, which also covers the calm car mode).
-            const in30 = REDUCED_MOTION.matches ? 99 : (t / 1000) % 30,
-              show = this.starAmt * clamp(Math.min(in30 / 1.5, (8 - in30) / 1.5), 0, 1);
-            for (const f of this.figures) {
+            // Constellation stars look like the others. One constellation at a time, in turn, its lines and
+            // name fade in for a second, stay 6 seconds and fade out for a second (never in reduced motion,
+            // which also covers the calm car mode).
+            const SLOT = 8,
+              into = (t / 1000) % SLOT,
+              turn = Math.floor(t / 1000 / SLOT) % Math.max(1, this.figures.length),
+              fade = REDUCED_MOTION.matches ? 0 : this.starAmt * clamp(Math.min(into, SLOT - into), 0, 1);
+            for (const [n, f] of this.figures.entries()) {
+              const show = n === turn ? fade : 0;
               f.pts.forEach(([x, y], i) => {
                 const a = this.starAmt * (0.7 + 0.3 * Math.sin(t * 0.0021 + i * 1.7));
                 g.fillStyle = `rgba(255,250,225,${a.toFixed(2)})`;

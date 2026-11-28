@@ -11,6 +11,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import androidx.car.app.connection.CarConnection
 import androidx.webkit.ServiceWorkerClientCompat
 import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebViewAssetLoader
@@ -31,6 +32,20 @@ object Web {
     @Volatile
     var safeInsets = "[0,0]"
 
+    /** Whether the phone is connected to Android Auto now, for the page's "Calm in the car" setting. */
+    @Volatile
+    var carLinked = false
+    private var watchingCar = false
+
+    /** Starts following the car connection, once (it needs the main thread, where make() runs). */
+    private fun watchCar(context: Context) {
+        if (watchingCar) return
+        watchingCar = true
+        CarConnection(context.applicationContext).type.observeForever {
+            carLinked = it == CarConnection.CONNECTION_TYPE_PROJECTION
+        }
+    }
+
     private fun loader(context: Context) = WebViewAssetLoader.Builder()
         .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
         .build()
@@ -39,6 +54,7 @@ object Web {
     @SuppressLint("SetJavaScriptEnabled")
     fun make(context: Context, autoplay: Boolean = false, query: String = ""): WebView {
         val loader = loader(context)
+        watchCar(context)
         // the page registers sw.js; its requests must come from the assets too
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE)) {
             ServiceWorkerControllerCompat.getInstance().setServiceWorkerClient(object : ServiceWorkerClientCompat() {
@@ -145,6 +161,10 @@ object Web {
 
         @JavascriptInterface
         fun musicIdle() = NativeMusic.stopIfIdle()
+
+        /** Whether the phone is connected to Android Auto (the page stops all movement then). */
+        @JavascriptInterface
+        fun carLinked(): Boolean = Web.carLinked
 
         /** How much room the page leaves for the phone's navigation bar (see setSafeInsets in the page). */
         @JavascriptInterface

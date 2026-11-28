@@ -1054,6 +1054,13 @@
               <p class="hint atlasHint">An old-screen filter over the clocks, shown after you save.</p>
               <input type="hidden" name="filter" />
               <div class="fxPicks" id="fxPicks"></div>
+              <label
+                >Constellations
+                <select name="stars" title="Show the names and lines of the constellations in the night sky">
+                  <option value="1">On, named every 30 seconds</option>
+                  <option value="0">Off, plain stars</option>
+                </select></label
+              >
             </fieldset>
             <fieldset>
               <legend>Power and screen care</legend>
@@ -1082,6 +1089,17 @@
                   <option value="0">Off</option>
                 </select></label
               >
+              <label
+                >Calm in the car
+                <select name="calm" title="Stop all movement on the car screen and on the phone while it is connected to Android Auto">
+                  <option value="1">On, nothing moves</option>
+                  <option value="0">Off</option>
+                </select></label
+              >
+              <p class="hint atlasHint">
+                On an Android Auto screen, and on the phone while it is connected to one, the picture stands
+                still and changes once a minute, so it never catches the driver's eye.
+              </p>
             </fieldset>
           </div>
           <div data-panel="music" hidden>
@@ -8553,6 +8571,8 @@
         power: "smooth", // smooth (15 frames a second) or saver (5)
         awake: true, // keep the screen on (wake lock)
         care: true, // burn-in protection: pixel shift and a sweep line
+        calm: true, // calm in the car: nothing moves on Android Auto, or on the phone while it drives one
+        stars: true, // constellations: lines and names fade in every 30 s
         alarms: [], // { time: "07:30" (device time), text: up to 36 characters, sound: boolean }
         alarmTest: "", // the message A A A or a down-up-down zigzag plays, to try an alarm
         // volume 0..100, variation 1..9999 (part of each song's seed), places: the sounds of the place,
@@ -8627,11 +8647,24 @@
       // (0 new moon, 0.5 full moon). Both need only rad and deg from Utilities, so they are easy to copy.
       // The sky colours follow alt (see paletteAt); ?alt=-10 in the URL overrides it for testing.
 
+      // Days since J2000 (2000-01-01 12:00 UTC), the time the formulas below count from.
+      const daysJ2000 = (ms) => ms / 86400000 - 10957.5;
+      // Where a body at right ascension ra (degrees) and declination dec (radians) stands, seen from lat, lon
+      // d days after J2000: alt above the horizon in degrees, H its hour angle in degrees (-180..180, below 0
+      // before it culminates) and az its azimuth in degrees, counted from the south towards the west.
+      function skyPos(d, lat, lon, ra, dec) {
+        const gmst = (((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24; // sidereal time at Greenwich, hours
+        let H = gmst * 15 + lon - ra; // local hour angle in degrees...
+        H = ((((H + 180) % 360) + 360) % 360) - 180; // ...wrapped into -180..180
+        const la = rad(lat),
+          h = rad(H);
+        const alt = deg(Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(h)));
+        const az = deg(Math.atan2(Math.sin(h), Math.cos(h) * Math.sin(la) - Math.tan(dec) * Math.cos(la)));
+        return { alt, H, az };
+      }
       // Low-precision sun position (the Astronomical Almanac formulas, good to about 0.01 degree).
       function sunPos(ms, lat, lon) {
-        const UNIX_EPOCH_JD = 2440587.5, // Julian day of 1970-01-01 00:00 UTC
-          J2000_JD = 2451545.0; // Julian day of 2000-01-01 12:00 UTC, the reference the formulas use
-        const d = ms / 86400000 + UNIX_EPOCH_JD - J2000_JD; // days since J2000
+        const d = daysJ2000(ms);
         const meanAnomaly = rad((357.529 + 0.98560028 * d) % 360);
         const meanLongitude = (280.459 + 0.98564736 * d) % 360;
         const eclipticLon = rad(
@@ -8640,15 +8673,20 @@
         const obliquity = rad(23.439 - 0.00000036 * d); // tilt of the Earth's axis
         const ra = deg(Math.atan2(Math.cos(obliquity) * Math.sin(eclipticLon), Math.cos(eclipticLon))); // right ascension
         const dec = Math.asin(Math.sin(obliquity) * Math.sin(eclipticLon)); // declination
-        const gmst = (((18.697374558 + 24.06570982441908 * d) % 24) + 24) % 24; // sidereal time at Greenwich, hours
-        let H = gmst * 15 + lon - ra; // local hour angle in degrees...
-        H = ((((H + 180) % 360) + 360) % 360) - 180; // ...wrapped into -180..180
-        const alt = deg(
-          Math.asin(
-            Math.sin(rad(lat)) * Math.sin(dec) + Math.cos(rad(lat)) * Math.cos(dec) * Math.cos(rad(H)),
-          ),
-        );
-        return { alt, H };
+        return skyPos(d, lat, lon, ra, dec);
+      }
+      // Low-precision moon position (its three largest terms, good to about a degree, which is a pixel here).
+      function moonPos(ms, lat, lon) {
+        const d = daysJ2000(ms),
+          e = rad(23.4397);
+        const L = rad(218.316 + 13.176396 * d), // mean longitude
+          M = rad(134.963 + 13.064993 * d), // mean anomaly
+          F = rad(93.272 + 13.22935 * d); // mean distance from its ascending node
+        const l = L + rad(6.289) * Math.sin(M),
+          b = rad(5.128) * Math.sin(F);
+        const ra = deg(Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l)));
+        const dec = Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+        return skyPos(d, lat, lon, ra, dec);
       }
       // Moon age as a fraction of a lunar month, counted from a known new moon.
       function moonPhase(ms) {
@@ -8656,6 +8694,32 @@
           KNOWN_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
         return ((((ms - KNOWN_NEW_MOON) / 86400000 / SYNODIC_MONTH) % 1) + 1) % 1;
       }
+
+      // Constellations: [name, stars as [right ascension in hours, declination in degrees], lines as pairs of
+      // star numbers]. The bright stars of well-known figures from both hemispheres; build() places the ones
+      // the city can see now, and frame() joins them with lines and writes the name every 30 seconds.
+      const CONSTELLATIONS = [
+        ["ORION", [[5.919, 7.41], [5.419, 6.35], [5.585, 9.93], [5.533, -0.3], [5.604, -1.2], [5.679, -1.94], [5.796, -9.67], [5.242, -8.2]], "2-0 2-1 0-5 1-3 3-4 4-5 5-6 3-7"],
+        ["URSA MAJOR", [[11.062, 61.75], [11.031, 56.38], [11.897, 53.69], [12.257, 57.03], [12.9, 55.96], [13.399, 54.93], [13.792, 49.31]], "0-1 1-2 2-3 3-0 3-4 4-5 5-6"],
+        ["URSA MINOR", [[2.53, 89.26], [17.537, 86.59], [16.766, 82.04], [15.734, 77.79], [16.292, 75.76], [15.345, 71.83], [14.845, 74.16]], "0-1 1-2 2-3 3-4 4-5 5-6 6-3"],
+        ["CASSIOPEIA", [[0.153, 59.15], [0.675, 56.54], [0.945, 60.72], [1.43, 60.24], [1.907, 63.67]], "0-1 1-2 2-3 3-4"],
+        ["CYGNUS", [[20.69, 45.28], [20.37, 40.26], [19.512, 27.96], [19.75, 45.13], [20.77, 33.97]], "0-1 1-2 3-1 1-4"],
+        ["LYRA", [[18.616, 38.78], [18.739, 39.67], [18.746, 37.61], [18.908, 36.9], [18.982, 32.69], [18.835, 33.36]], "0-1 0-2 2-3 3-4 4-5 5-2"],
+        ["AQUILA", [[19.846, 8.87], [19.771, 10.61], [19.922, 6.41], [19.425, 3.11], [19.104, -4.88], [19.09, 13.86], [20.188, -0.82]], "1-0 0-2 0-3 3-4 3-5 2-6"],
+        ["SCORPIUS", [[16.091, -19.81], [16.006, -22.62], [15.981, -26.11], [16.353, -25.59], [16.49, -26.43], [16.598, -28.22], [16.836, -34.29], [16.864, -38.05], [16.91, -42.36], [17.203, -43.24], [17.622, -43.0], [17.793, -40.13], [17.708, -39.03], [17.56, -37.1]], "0-1 1-2 1-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 12-13"],
+        ["SAGITTARIUS", [[18.097, -30.42], [18.35, -29.83], [18.403, -34.38], [18.466, -25.42], [18.761, -26.99], [18.921, -26.3], [19.116, -27.67], [19.044, -29.88], [18.294, -36.76]], "0-1 1-2 2-0 1-3 3-4 4-1 4-5 5-6 6-7 7-4 7-2 2-8"],
+        ["CRUX", [[12.443, -63.1], [12.519, -57.11], [12.795, -59.69], [12.252, -58.75]], "0-1 2-3"],
+        ["LEO", [[10.14, 11.97], [10.122, 16.76], [10.333, 19.84], [10.278, 23.42], [9.879, 26.01], [9.764, 23.77], [11.235, 20.52], [11.818, 14.57], [11.237, 15.43]], "0-1 1-2 2-3 3-4 4-5 2-6 6-7 7-8 8-0"],
+        ["GEMINI", [[7.577, 31.89], [7.755, 28.03], [6.732, 25.13], [6.383, 22.51], [6.248, 22.51], [7.335, 21.98], [7.068, 20.57], [6.629, 16.4]], "0-1 0-2 2-3 3-4 1-5 5-6 6-7"],
+        ["TAURUS", [[4.599, 16.51], [4.478, 15.87], [4.33, 15.63], [4.382, 17.54], [4.477, 19.18], [5.438, 28.61], [5.627, 21.14], [4.011, 12.49]], "0-1 1-2 2-3 3-4 4-5 0-6 2-7"],
+        ["CANIS MAJOR", [[6.752, -16.72], [6.378, -17.96], [7.05, -23.83], [7.14, -26.39], [7.402, -29.3], [6.977, -28.97], [6.338, -30.06]], "1-0 0-2 2-3 3-4 3-5 5-6"],
+        ["CANIS MINOR", [[7.655, 5.22], [7.453, 8.29]], "0-1"],
+        ["BOOTES", [[14.261, 19.18], [14.75, 27.07], [15.258, 33.31], [15.032, 40.39], [14.535, 38.31], [14.531, 30.37], [13.911, 18.4]], "0-1 1-2 2-3 3-4 4-5 5-0 0-6"],
+        ["PEGASUS", [[23.079, 15.21], [23.063, 28.08], [0.14, 29.09], [0.22, 15.18], [22.691, 10.83], [22.17, 6.2], [21.736, 9.88]], "0-1 1-2 2-3 3-0 0-4 4-5 5-6"],
+        ["ANDROMEDA", [[0.14, 29.09], [0.655, 30.86], [1.162, 35.62], [2.065, 42.33]], "0-1 1-2 2-3"],
+        ["AURIGA", [[5.278, 46.0], [5.992, 44.95], [5.995, 37.21], [5.438, 28.61], [4.95, 33.17]], "0-1 1-2 2-3 3-4 4-0"],
+        ["TRIANGULUM AUSTRALE", [[16.811, -69.03], [15.919, -63.43], [15.315, -68.68]], "0-1 1-2 2-0"],
+      ];
 
       // ==== Lighting palette by sun altitude ====
       // PAL is a table of looks, one row per sun altitude a (degrees): deep night, night, blue hour, sunset,
@@ -24553,7 +24617,12 @@
       // this.fg, the clouds, the stars and the scene life; frame(t) draws everything 15 times a second.
       // SCENE_FN (end of Encounters) says which hand-made scene draws a zone; other cities go to
       // drawAtlasCity. To draw something new every frame, add it in frame() in the right layer.
-      const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const MOTION_QUERY = window.matchMedia("(prefers-reduced-motion: reduce)");
+      // Calm in the car (on by default): on the Android Auto screen, or on the phone while it drives one,
+      // nothing moves. It counts as reduced motion, and loop() then draws one still picture a minute.
+      let carLinked = false; // the phone is connected to Android Auto (asked of the app every 5 s)
+      const inCar = () => CONFIG.calm !== false && (PARAMS.has("car") || carLinked);
+      const REDUCED_MOTION = { get matches() { return MOTION_QUERY.matches || inCar(); } };
       class Column {
         constructor(zone, idx) {
           this.zone = zone;
@@ -24867,7 +24936,8 @@
           // sun
           if (alt > -3 && ov < 0.7) {
             // x follows the hour angle (noon in the middle), y the altitude (42 degrees or more is the top)
-            const r = W > 140 ? 5 : 4;
+            // up to half again as big near the horizon, as the eye sees it (the moon illusion)
+            const r = Math.round((W > 140 ? 5 : 4) * (1 + 0.5 * clamp((15 - alt) / 15, 0, 1)));
             const sx = Math.round(clamp(W / 2 + (sun.H / 100) * W * 0.42, r + 2, W - r - 2));
             const sy = Math.round(G - clamp((alt + 3) / 45, 0, 1) * (G - T + r));
             const sc = mixc([255, 248, 215], [255, 130, 60], clamp((12 - alt) / 14, 0, 1));
@@ -24879,13 +24949,24 @@
             bg.fillStyle = css(sc, Math.max(0.15, vis));
             disc(bg, sx, sy, r);
           }
-          // moon
-          if (alt < -4 && ov < 0.6) {
+          // The night sky as seen facing the equator (south in the north, north in the south): x from the
+          // azimuth and y from the altitude, at the same number of pixels per degree both ways, with the
+          // horizon 3 degrees under the ground line like the sun's. A wide band shows 180 degrees at most.
+          const perDeg = Math.max((G - T) / 45, W / 180),
+            south = +z.lat < 0,
+            place = (p) => {
+              const a = south ? ((p.az + 360) % 360) - 180 : p.az; // degrees right of the middle, before mirroring
+              return [W / 2 + (south ? -a : a) * perDeg, G - (p.alt + 3) * perDeg];
+            };
+          // moon: where it really is, when it is up (kept inside the picture, like the sun)
+          const mp = moonPos(now, +z.lat, +z.lon);
+          if (alt < -4 && ov < 0.6 && mp.alt > -1) {
             const p = moonPhase(now),
               c = Math.cos(p * 2 * Math.PI),
-              r = 4;
-            const mx = Math.round(W * 0.15),
-              my = Math.round(T + r + 2),
+              r = Math.round(4 * (1 + 0.5 * clamp((15 - mp.alt) / 15, 0, 1))); // bigger near the horizon
+            const [px, py] = place(mp);
+            const mx = Math.round(clamp(px, r + 2, W - r - 2)),
+              my = Math.round(clamp(py, T + r + 2, G)),
               vis = 1 - ov * 0.85;
             bg.fillStyle = css([230, 230, 200], 0.12 * vis);
             disc(bg, mx, my, r + 3);
@@ -24898,7 +24979,7 @@
                 bg.fillRect(mx + dx, my + dy, 1, 1);
               }
             }
-            this.moon = { x: mx, y: my };
+            this.moon = { x: mx, y: my, r };
           } else this.moon = null;
           // stars
           const rs = rngFrom(this.seed ^ 0xabc);
@@ -24911,6 +24992,17 @@
               b: 0.4 + rs() * 0.6,
             });
           this.starAmt = pal.star * (1 - ov);
+          // the constellations whose every star is up and inside the picture now
+          this.figures = [];
+          if (CONFIG.stars !== false && this.starAmt > 0.05) {
+            const d = daysJ2000(now);
+            for (const [name, stars, lines] of CONSTELLATIONS) {
+              const pos = stars.map(([ra, dec]) => skyPos(d, +z.lat, +z.lon, ra * 15, rad(dec)));
+              const pts = pos.map((p) => place(p).map(Math.round));
+              if (pos.some((p) => p.alt < 2) || pts.some(([x, y]) => x < 1 || x > W - 2 || y < 1)) continue;
+              this.figures.push({ name, pts, lines: lines.split(" ").map((l) => l.split("-").map(Number)) });
+            }
+          }
           // --- foreground scene ---
           this.fg = mkCanvas(W, H);
           const fg = this.fg.getContext("2d");
@@ -24944,6 +25036,21 @@
             return [0, 1, 2].every((k) => Math.abs(px[i + k] - (c[k] | 0)) <= 1);
           };
           e.windows = e.windows.filter((w) => w.x >= 0 && w.y >= 0 && w.x < W && w.y < H && shows(w));
+          // Each constellation's name goes over it, if it stays under the clock's text, clear of the scene
+          // (nothing drawn in that box) and of the other names; otherwise only its lines show.
+          const taken = [];
+          for (const f of this.figures) {
+            const w = wordWidth(f.name, 1),
+              cx = f.pts.reduce((a, p) => a + p[0], 0) / f.pts.length,
+              x = Math.round(clamp(cx - w / 2, 1, W - w - 1)),
+              y = Math.min(...f.pts.map((p) => p[1])) - 8;
+            let free =
+              y >= T && w < W - 2 && !taken.some((r) => x < r[0] + r[2] + 3 && r[0] < x + w + 3 && Math.abs(r[1] - y) < 8);
+            for (let yy = y; free && yy < y + 6; yy++)
+              for (let xx = x - 1; free && xx <= x + w; xx++) free = !px[(yy * W + xx) * 4 + 3];
+            f.label = free ? { x, y } : null;
+            if (free) taken.push([x, y, w]);
+          }
           for (const w of e.windows) {
             const lit = this.flips.get(w.x + "," + w.y);
             if (lit !== undefined && lit !== w.lit) this.paintWindow(w, lit);
@@ -25182,10 +25289,33 @@
           // stars
           if (this.starAmt > 0.05) {
             for (const s of this.stars) {
-              if (this.moon && Math.abs(s.x - this.moon.x) < 7 && Math.abs(s.y - this.moon.y) < 7) continue;
+              const m = this.moon && this.moon.r + 3;
+              if (m && Math.abs(s.x - this.moon.x) < m && Math.abs(s.y - this.moon.y) < m) continue;
               const a = this.starAmt * s.b * (0.55 + 0.45 * Math.sin(t * 0.0021 + s.ph));
               g.fillStyle = `rgba(255,250,225,${a.toFixed(2)})`;
               g.fillRect(s.x, s.y, 1, 1);
+            }
+            // Constellation stars look like the others; every 30 s their lines and name fade in for a few
+            // seconds (never in reduced motion, which also covers the calm car mode).
+            const in30 = REDUCED_MOTION.matches ? 99 : (t / 1000) % 30,
+              show = this.starAmt * clamp(Math.min(in30 / 1.5, (8 - in30) / 1.5), 0, 1);
+            for (const f of this.figures) {
+              f.pts.forEach(([x, y], i) => {
+                const a = this.starAmt * (0.7 + 0.3 * Math.sin(t * 0.0021 + i * 1.7));
+                g.fillStyle = `rgba(255,250,225,${a.toFixed(2)})`;
+                g.fillRect(x, y, 1, 1);
+              });
+              if (show <= 0.02) continue;
+              g.fillStyle = `rgba(150,180,255,${(show * 0.45).toFixed(2)})`;
+              for (const [i, j] of f.lines) {
+                const [x0, y0] = f.pts[i],
+                  [x1, y1] = f.pts[j],
+                  n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+                // one pixel per step, leaving a pixel of dark sky around each star
+                for (let k = 2; k <= n - 2; k++)
+                  g.fillRect(Math.round(x0 + ((x1 - x0) * k) / n), Math.round(y0 + ((y1 - y0) * k) / n), 1, 1);
+              }
+              if (f.label) drawWord(g, f.name, f.label.x, f.label.y, 1, `rgba(190,205,255,${(show * 0.8).toFixed(2)})`);
             }
           }
           const seconds = t / 1000;
@@ -25582,12 +25712,17 @@
       // Draws every clock, then sleeps until the next frame is due. A timer sets the pace and
       // requestAnimationFrame lines the drawing up with the screen (and stops while the page is hidden),
       // so the page wakes 15 times a second (5 in battery saver), not on every screen refresh (60 to 120).
+      let calmMinute = -1;
       function loop(t) {
-        if (!document.hidden) {
+        const calm = inCar(),
+          minute = Math.floor(Date.now() / 60000);
+        // calm in the car: only a new minute, or a clock just made or resized (key ""), draws a picture
+        if (!document.hidden && (!calm || minute !== calmMinute || COLS.some((c) => !c.key))) {
+          calmMinute = minute;
           lastFrame = t;
           for (const c of COLS) c.frame(t);
         }
-        const fps = CONFIG.power === "saver" ? 5 : 15;
+        const fps = calm ? 1 : CONFIG.power === "saver" ? 5 : 15;
         // 8 ms early, because requestAnimationFrame then waits for the next screen refresh
         setTimeout(() => requestAnimationFrame(loop), Math.max(0, 1000 / fps - (performance.now() - t) - 8));
       }
@@ -25661,13 +25796,14 @@
         const [x, y] = CARE_SPOTS[Math.floor(now / 120000) % CARE_SPOTS.length];
         cols.style.transform = x || y ? `translate(${x}px, ${y}px)` : "";
         const slot = Math.floor(now / 600000);
-        if (slot !== lastSweep && now % 600000 < 15000) {
+        if (slot !== lastSweep && now % 600000 < 15000 && !inCar()) {
           lastSweep = slot;
           document.body.classList.add("sweeping");
           setTimeout(() => document.body.classList.remove("sweeping"), 7500);
         }
       }
       setInterval(screenCare, 5000);
+      setInterval(() => (carLinked = Boolean(window.ClockscapesAndroid?.carLinked?.())), 5000);
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           keepAwake();
@@ -25825,6 +25961,8 @@
         form.power.value = CONFIG.power === "saver" ? "saver" : "smooth";
         form.awake.value = CONFIG.awake === false ? "0" : "1";
         form.care.value = CONFIG.care === false ? "0" : "1";
+        form.calm.value = CONFIG.calm === false ? "0" : "1";
+        form.stars.value = CONFIG.stars === false ? "0" : "1";
         renderZones(CONFIG.zones);
         renderAlarms(CONFIG.alarms || []);
         form.alarmTest.value = CONFIG.alarmTest || "";
@@ -26139,6 +26277,8 @@
           power: form.power.value === "saver" ? "saver" : "smooth",
           awake: form.awake.value === "1",
           care: form.care.value === "1",
+          calm: form.calm.value === "1",
+          stars: form.stars.value === "1",
           alarms,
           alarmTest: form.alarmTest.value.trim().slice(0, 36),
           zones: zs.slice(0, 4),

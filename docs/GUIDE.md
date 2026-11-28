@@ -48,6 +48,8 @@ With Android Auto, Clockscapes fills the car's screen with your cities standing 
 
 <img src="../img/android-auto.png" alt="Android Auto: Barcelona and New York at night side by side, with music buttons and the song playing in the card beside them" width="100%">
 
+While you drive, nothing in the picture moves. On the car's screen, and on the phone while it is connected to Android Auto, the scene stands still and only changes once a minute with the clock, so it never catches your eye. This is **Calm in the car** in the SCREEN tab, and it is on unless you switch it off.
+
 Tap the scene and **Play music** and **Next song** show at the lower left for ten seconds. While the music plays, Android Auto's media card shows the song's name, with the scene of your local city (or your first clock's city) as its picture, and its own pause and skip buttons work too.
 
 ## What it does
@@ -65,6 +67,8 @@ How many people and cars a city has depends on its real population, in four leve
 ### Sun, sky and weather
 
 <img src="../img/city-newyork-dusk.png" alt="New York at 18:40 on an October evening, with the Statue of Liberty against the sunset" width="100%">
+
+At night each city shows the real constellations it can see at that hour, looking towards the equator, so Sydney sees Orion upside down while Madrid sees it upright. They look like any other stars, but every 30 seconds their lines and names fade in for a few seconds. **Constellations** in the SCREEN tab switches the lines and names off. The moon rises and sets where it really does and only shows when it is up, and like the sun it looks bigger near the horizon.
 
 The light follows the real sun and moon, and the sky follows the live weather, so people open umbrellas when it rains there. Drizzle, rain, freezing rain that glazes the street, storms with or without bouncing hail, snow, snow grains and fog each look different, and so do haze, desert dust and smoke in the air.
 

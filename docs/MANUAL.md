@@ -34,7 +34,7 @@ Inside `index.html` the script is split into sections, each starting with a `// 
 | Section header | What lives there |
 |---|---|
 | `Config` | Default settings and `CITY_ATLAS`, the list of about 3,000 cities with their populations |
-| `Astronomy` and `Lighting palette` | Sun and moon position, and the sky colours for each sun height |
+| `Astronomy` and `Lighting palette` | Sun and moon position (`skyPos`, `sunPos`, `moonPos`), the `CONSTELLATIONS` table, and the sky colours for each sun height |
 | `Weather` | Talking to Open-Meteo and caching the answer |
 | `Scene building blocks` | Buildings, streets, water, lamps, trees |
 | `Festivities` | Local and national holidays (`FESTIVALS`) and the date rules that find them |
@@ -138,6 +138,8 @@ Handy addresses for trying things without waiting for the right time or weather:
 | Settings panel | `openSettings` in `App`, and `#modal` in the HTML | Saved settings must keep loading, so give new options a default in `DEFAULT_CONFIG` |
 | Screen filters | `FILTER_NAMES`, `setFilter` and `paintFilterPicks`, the CSS under "Screen filters" at the top, and the SVG filters in `#fxDefs` | The clocks' box (`#cols`) and each picker sample get `fx fx-<name>`, and the rules start from there (`.fx-crt > .col ...`), so the picker can show every filter at once. Game Boy, CGA, EGA, amber and night red are SVG colour filters, and the LCD grid uses `--px`, the clock's pixel size. A new filter needs a row in `FILTER_NAMES` and its CSS |
 | Frame rate, keeping the screen on | `loop` and `keepAwake` in `App`, the `power` and `awake` settings | The loop sleeps between frames on a timer; don't go back to running on every screen refresh, which costs battery |
+| Constellations | `CONSTELLATIONS` in `Astronomy`; placed in `build()` (`place`, and the names after the scene is drawn), drawn in `frame()` | A figure shows only when all its stars are up and inside the picture; a name only where nothing of the scene or another name is in its way |
+| Calm in the car | `inCar` and `REDUCED_MOTION` in `Column renderer`, `loop()`; `Web.carLinked` in `android/` | It counts as reduced motion, and `loop()` then draws once a minute. The app reports an Android Auto connection through `CarConnection` |
 | Burn-in protection | `screenCare` and `CARE_SPOTS` in `App`, and the `.sweep` CSS | The shift stays within 2 CSS pixels so nothing gets cut off |
 | Offline copy | `sw.js` | It always asks the network first, so normally nothing needs changing there |
 
